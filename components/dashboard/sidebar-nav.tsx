@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {
-  items: {
+  items?: {
     href: string
     title: string
     icon?: any
