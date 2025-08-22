@@ -1961,10 +1961,34 @@ export function KasBesarManagement() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => expense.status === 'APPROVED' ? handleApprovedTransactionEdit(expense) : handleEdit(expense)}
-                                disabled={expense.status === 'ARCHIVED'}
-                                className={expense.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-blue-50"}
-                                title={expense.status === 'APPROVED' ? "Edit Approved Transaction (Requires Authorization)" : "Edit Transaction"}
+                                onClick={() => {
+                                  // Check if expense can be edited based on status
+                                  if (expense.status === 'SUBMITTED' || expense.status === 'APPROVED' || expense.status === 'ARCHIVED') {
+                                    if (expense.status === 'APPROVED') {
+                                      handleApprovedTransactionEdit(expense)
+                                    } else {
+                                      toast({
+                                        title: "Cannot Edit",
+                                        description: `${expense.status} transactions cannot be edited`,
+                                        variant: "destructive"
+                                      })
+                                    }
+                                    return
+                                  }
+                                  handleEdit(expense)
+                                }}
+                                disabled={expense.status === 'SUBMITTED' || expense.status === 'ARCHIVED'}
+                                className={
+                                  expense.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : 
+                                  expense.status === 'SUBMITTED' || expense.status === 'ARCHIVED' ? "opacity-50 cursor-not-allowed" :
+                                  "hover:bg-blue-50"
+                                }
+                                title={
+                                  expense.status === 'APPROVED' ? "Edit Approved Transaction (Requires Authorization)" :
+                                  expense.status === 'SUBMITTED' ? "Submitted transactions cannot be edited" :
+                                  expense.status === 'ARCHIVED' ? "Archived transactions cannot be edited" :
+                                  "Edit Transaction"
+                                }
                               >
                                 <Edit className="h-4 w-4 mr-1" />
                                 {expense.status === 'APPROVED' ? 'Edit*' : 'Edit'}
@@ -1973,10 +1997,34 @@ export function KasBesarManagement() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuickEdit(expense)}
-                                disabled={expense.status === 'ARCHIVED'}
-                                className={expense.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-green-50"}
-                                title={expense.status === 'APPROVED' ? "Quick Edit Approved (Requires Authorization)" : "Quick Edit - Edit key fields inline"}
+                                onClick={() => {
+                                  // Check if expense can be edited based on status
+                                  if (expense.status === 'SUBMITTED' || expense.status === 'APPROVED' || expense.status === 'ARCHIVED') {
+                                    if (expense.status === 'APPROVED') {
+                                      handleQuickEdit(expense)
+                                    } else {
+                                      toast({
+                                        title: "Cannot Edit",
+                                        description: `${expense.status} transactions cannot be edited`,
+                                        variant: "destructive"
+                                      })
+                                    }
+                                    return
+                                  }
+                                  handleQuickEdit(expense)
+                                }}
+                                disabled={expense.status === 'SUBMITTED' || expense.status === 'ARCHIVED'}
+                                className={
+                                  expense.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : 
+                                  expense.status === 'SUBMITTED' || expense.status === 'ARCHIVED' ? "opacity-50 cursor-not-allowed" :
+                                  "hover:bg-green-50"
+                                }
+                                title={
+                                  expense.status === 'APPROVED' ? "Quick Edit Approved (Requires Authorization)" :
+                                  expense.status === 'SUBMITTED' ? "Submitted transactions cannot be edited" :
+                                  expense.status === 'ARCHIVED' ? "Archived transactions cannot be edited" :
+                                  "Quick Edit - Edit key fields inline"
+                                }
                               >
                                 <Zap className="h-4 w-4" />
                                 {expense.status === 'APPROVED' && <span className="text-xs ml-1">*</span>}
