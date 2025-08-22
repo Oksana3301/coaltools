@@ -690,10 +690,28 @@ export function ExpenseManagement() {
       submitted: { label: 'Disubmit', color: 'bg-blue-100 text-blue-800' },
       reviewed: { label: 'Direview', color: 'bg-yellow-100 text-yellow-800' },
       approved: { label: 'Disetujui', color: 'bg-green-100 text-green-800' },
-      archived: { label: 'Diarsip', color: 'bg-purple-100 text-purple-800' }
+      archived: { label: 'Diarsip', color: 'bg-purple-100 text-purple-800' },
+      rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-800' },
+      // Support uppercase status values from database
+      DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-800' },
+      SUBMITTED: { label: 'Disubmit', color: 'bg-blue-100 text-blue-800' },
+      REVIEWED: { label: 'Direview', color: 'bg-yellow-100 text-yellow-800' },
+      APPROVED: { label: 'Disetujui', color: 'bg-green-100 text-green-800' },
+      ARCHIVED: { label: 'Diarsip', color: 'bg-purple-100 text-purple-800' },
+      REJECTED: { label: 'Ditolak', color: 'bg-red-100 text-red-800' }
     }
     
     const badge = badges[status]
+    
+    // Handle undefined status
+    if (!badge) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          {status || 'Unknown'}
+        </span>
+      )
+    }
+    
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
         {badge.label}
