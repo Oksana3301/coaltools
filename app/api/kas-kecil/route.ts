@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
     })
     
     return NextResponse.json({
-      expenses,
+      success: true,
+      data: expenses,
       pagination: {
         page,
         limit,
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && error.message.includes("Can't reach database server")) {
       return NextResponse.json(
         { 
+          success: false,
           error: 'Database connection failed',
           details: 'Unable to connect to the database. Please check your internet connection and try again.',
           code: 'DB_CONNECTION_ERROR'
@@ -73,6 +75,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(
       { 
+        success: false,
         error: 'Failed to fetch expenses',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -118,11 +121,16 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    return NextResponse.json(expense)
+    return NextResponse.json({
+      success: true,
+      data: expense,
+      message: 'Kas kecil berhasil dibuat'
+    }, { status: 201 })
   } catch (error) {
     console.error('Error creating kas kecil expense:', error)
     return NextResponse.json(
       { 
+        success: false,
         error: 'Failed to create expense',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
