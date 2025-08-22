@@ -1,0 +1,320 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model untuk tracking siapa yang membuat transaksi
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // Added password field for authentication
+  role      String   @default("user") // admin, user, approver
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  kasBesarExpenses     KasBesarExpense[]
+  kasKecilExpenses     KasKecilExpense[]
+  approvedTransactions KasBesarExpense[] @relation("ApprovedBy")
+  payrollRuns          PayrollRun[]
+  approvedPayrolls     PayrollRun[]      @relation("PayrollApprovedBy")
+  loginActivities      LoginActivity[]   // Added relation to login activities
+
+  @@map("users")
+}
+
+// Model untuk tracking login activity
+model LoginActivity {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  email     String
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  status    LoginStatus @default(SUCCESS)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("login_activities")
+}
+
+// Login status enum
+enum LoginStatus {
+  SUCCESS
+  FAILED
+  LOCKED
+}
+
+// Model untuk Kas Besar
+model KasBesarExpense {
+  id             String   @id @default(cuid())
+  hari           String
+  tanggal        String
+  bulan          String
+  tipeAktivitas  String   @map("tipe_aktivitas")
+  barang         String
+  banyak         Float
+  satuan         String
+  hargaSatuan    Float    @map("harga_satuan")
+  total          Float
+  vendorNama     String   @map("vendor_nama")
+  vendorTelp     String?  @map("vendor_telp")
+  vendorEmail    String?  @map("vendor_email")
+  jenis          String   @default("kas_besar")
+  subJenis       String   @map("sub_jenis")
+  buktiUrl       String?  @map("bukti_url")
+  kontrakUrl     String?  @map("kontrak_url")
+  status         Status   @default(DRAFT)
+  notes          String?
+  approvalNotes  String?  @map("approval_notes")
+  
+  // Relations
+  createdBy   String
+  creator     User     @relation(fields: [createdBy], references: [id])
+  approvedBy  String?  @map("approved_by")
+  approver    User?    @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?  @map("deleted_at")
+
+  @@map("kas_besar_expenses")
+}
+
+// Model untuk Kas Kecil (untuk kelengkapan sistem)
+model KasKecilExpense {
+  id             String   @id @default(cuid())
+  hari           String
+  tanggal        String
+  bulan          String
+  tipeAktivitas  String   @map("tipe_aktivitas")
+  barang         String
+  banyak         Float
+  satuan         String
+  hargaSatuan    Float    @map("harga_satuan")
+  total          Float
+  vendorNama     String   @map("vendor_nama")
+  vendorTelp     String?  @map("vendor_telp")
+  vendorEmail    String?  @map("vendor_email")
+  jenis          String   @default("kas_kecil")
+  subJenis       String   @map("sub_jenis")
+  buktiUrl       String?  @map("bukti_url")
+  status         Status   @default(DRAFT)
+  notes          String?
+  approvalNotes  String?  @map("approval_notes")
+  
+  // Relations
+  createdBy   String
+  creator     User     @relation(fields: [createdBy], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?  @map("deleted_at")
+
+  @@map("kas_kecil_expenses")
+}
+
+// Status enum untuk approval workflow
+enum Status {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  ARCHIVED
+  REJECTED
+}
+
+// Model untuk karyawan
+model Employee {
+  id                   String   @id @default(cuid())
+  nama                 String
+  jabatan              String
+  site                 String
+  kontrakUpahHarian    Float    @map("kontrak_upah_harian")
+  defaultUangMakan     Float    @map("default_uang_makan")
+  defaultUangBbm       Float    @map("default_uang_bbm")
+  bankName             String?  @map("bank_name")
+  bankAccount          String?  @map("bank_account")
+  npwp                 String?
+  aktif                Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  payrollLines         PayrollLine[]
+  attendanceRecords    AttendanceRecord[]
+
+  @@map("employees")
+}
+
+// Model untuk komponen gaji dinamis
+model PayComponent {
+  id       String                @id @default(cuid())
+  nama     String
+  tipe     PayComponentType      // earning atau deduction
+  taxable  Boolean               @default(false)
+  metode   PayComponentMethod    // flat, per_hari, persentase
+  basis    PayComponentBasis     // upah_harian, bruto, hari_kerja
+  rate     Float?                // untuk persentase dan per_hari
+  nominal  Float?                // untuk flat amount
+  capMin   Float?                @map("cap_min")
+  capMax   Float?                @map("cap_max")
+  order    Int                   @default(0)
+  aktif    Boolean               @default(true)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  // Relations
+  payrollLineComponents PayrollLineComponent[]
+
+  @@map("pay_components")
+}
+
+// Model untuk record absensi
+model AttendanceRecord {
+  id             String           @id @default(cuid())
+  employeeId     String           @map("employee_id")
+  tanggal        String
+  clockIn        String?          @map("clock_in")
+  clockOut       String?          @map("clock_out")
+  breakStart     String?          @map("break_start")
+  breakEnd       String?          @map("break_end")
+  totalHours     Float            @map("total_hours")
+  status         AttendanceStatus
+  overtimeHours  Float            @map("overtime_hours") @default(0)
+  notes          String?
+  approvedBy     String?          @map("approved_by")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_records")
+}
+
+// Model untuk payroll run (periode gaji)
+model PayrollRun {
+  id           String        @id @default(cuid())
+  periodeAwal  String        @map("periode_awal")
+  periodeAkhir String        @map("periode_akhir")
+  status       PayrollStatus @default(DRAFT)
+  createdBy    String        @map("created_by")
+  approvedBy   String?       @map("approved_by")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  creator      User          @relation(fields: [createdBy], references: [id])
+  approver     User?         @relation("PayrollApprovedBy", fields: [approvedBy], references: [id])
+  payrollLines PayrollLine[]
+
+  @@map("payroll_runs")
+}
+
+// Model untuk detail gaji per karyawan dalam satu periode
+model PayrollLine {
+  id                String      @id @default(cuid())
+  payrollRunId      String      @map("payroll_run_id")
+  employeeId        String      @map("employee_id")
+  employeeName      String      @map("employee_name")
+  hariKerja         Int         @map("hari_kerja")
+  upahHarian        Float       @map("upah_harian")
+  uangMakanHarian   Float       @map("uang_makan_harian")
+  uangBbmHarian     Float       @map("uang_bbm_harian")
+  bruto             Float
+  pajakRate         Float?      @map("pajak_rate")
+  pajakNominal      Float?      @map("pajak_nominal")
+  potonganLain      Float?      @map("potongan_lain")
+  neto              Float
+  status            PayrollStatus @default(DRAFT)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  payrollRun        PayrollRun  @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee          Employee    @relation(fields: [employeeId], references: [id])
+  components        PayrollLineComponent[]
+
+  @@map("payroll_lines")
+}
+
+// Model untuk komponen gaji pada detail payroll
+model PayrollLineComponent {
+  id            String       @id @default(cuid())
+  payrollLineId String       @map("payroll_line_id")
+  componentId   String       @map("component_id")
+  componentName String       @map("component_name")
+  qty           Float?
+  rate          Float?
+  nominal       Float?
+  amount        Float
+  taxable       Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  payrollLine   PayrollLine  @relation(fields: [payrollLineId], references: [id], onDelete: Cascade)
+  payComponent  PayComponent @relation(fields: [componentId], references: [id])
+
+  @@map("payroll_line_components")
+}
+
+// Enums untuk payroll
+enum PayComponentType {
+  EARNING
+  DEDUCTION
+}
+
+enum PayComponentMethod {
+  FLAT
+  PER_HARI
+  PERSENTASE
+}
+
+enum PayComponentBasis {
+  UPAH_HARIAN
+  BRUTO
+  HARI_KERJA
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  SICK
+  LEAVE
+}
+
+enum PayrollStatus {
+  DRAFT
+  REVIEWED
+  APPROVED
+  PAID
+}
+
+// Model untuk audit log
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // CREATE, UPDATE, DELETE, APPROVE, REJECT
+  tableName String   @map("table_name")
+  recordId  String   @map("record_id")
+  oldValues Json?    @map("old_values")
+  newValues Json?    @map("new_values")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}

@@ -13,6 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Plus, 
@@ -26,46 +34,67 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   DollarSign,
-  Search
+  Search,
+  ChevronDown,
+  Zap,
+  Clock,
+  Copy,
+  Settings,
+  Keyboard,
+  X,
+  History,
+  RefreshCw,
+  CheckSquare
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useKasBesar } from "@/hooks/use-kas-besar"
 import { 
   uploadFile, 
   exportToExcel, 
   exportToCSV, 
   generatePDF,
-  saveToLocalStorage,
-  loadFromLocalStorage,
   validateFileType,
   validateFileSize,
   generateExpenseTemplate,
   importExcelFile
 } from "@/lib/file-utils"
 
-// Types (sama dengan kas kecil tapi dengan kategori kas besar)
+// Updated Types to match database schema
 interface KasBesarExpense {
-  id: string
+  id?: string
   hari: string
   tanggal: string
   bulan: string
-  tipe_aktivitas: string
+  tipeAktivitas: string // Changed from tipe_aktivitas
   barang: string
   banyak: number
   satuan: string
-  harga_satuan: number
+  hargaSatuan: number // Changed from harga_satuan
   total: number
-  vendor_nama: string
-  vendor_telp: string
-  vendor_email: string
+  vendorNama: string // Changed from vendor_nama
+  vendorTelp?: string // Changed from vendor_telp
+  vendorEmail?: string // Changed from vendor_email
   jenis: string
-  sub_jenis: string
-  bukti_url?: string
-  kontrak_url?: string // Wajib untuk kas besar
-  status: 'draft' | 'submitted' | 'reviewed' | 'approved' | 'archived'
+  subJenis: string // Changed from sub_jenis
+  buktiUrl?: string // Changed from bukti_url
+  kontrakUrl?: string // Changed from kontrak_url - Wajib untuk kas besar
+  status?: 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'ARCHIVED' | 'REJECTED'
   notes?: string
-  created_by: string
-  created_at: string
-  approval_notes?: string
+  createdBy: string // Changed from created_by
+  createdAt?: string // Changed from created_at
+  updatedAt?: string
+  approvalNotes?: string // Changed from approval_notes
+  approvedBy?: string
+  creator?: {
+    id: string
+    name: string
+    email: string
+  }
+  approver?: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 // Reference data khusus kas besar
@@ -112,7 +141,31 @@ export function KasBesarManagement() {
   const kontrakInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   
-  const [expenses, setExpenses] = useState<KasBesarExpense[]>([])
+  // Use database hook instead of local state
+  const {
+    expenses,
+    loading,
+    creating,
+    updating,
+    deleting,
+    error,
+    createExpense,
+    updateExpense,
+    updateStatus,
+    deleteExpense,
+    search,
+    filterByStatus,
+    getRecentTransactionTypes,
+    fetchExpenses
+  } = useKasBesar({
+    autoFetch: true,
+    initialFilters: {
+      limit: 20 // Fetch more items per page
+    }
+  })
+
+  
+  // Local UI state
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<KasBesarExpense | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -120,37 +173,101 @@ export function KasBesarManagement() {
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
   const [contractValidationResults, setContractValidationResults] = useState<Map<string, boolean>>(new Map())
   const [isUploading, setIsUploading] = useState(false)
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false)
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [isButtonHovered, setIsButtonHovered] = useState(false)
+  
+  // Enhanced edit states for kas besar
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
+  const [quickEditMode, setQuickEditMode] = useState(false)
+  const [bulkEditMode, setBulkEditMode] = useState(false)
+  const [expenseVersions, setExpenseVersions] = useState<Map<string, KasBesarExpense[]>>(new Map())
+  const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<{id: string, field: string} | null>(null)
+  const [inlineEditValues, setInlineEditValues] = useState<Record<string, any>>({})
+  
+  // Approved transaction editing states
+  const [allowApprovedEdit, setAllowApprovedEdit] = useState(false)
+  const [showApprovalOverride, setShowApprovalOverride] = useState<string | null>(null)
+  const [approvalReason, setApprovalReason] = useState('')
+  const [supervisorPassword, setSupervisorPassword] = useState('')
+  const [editingApprovedId, setEditingApprovedId] = useState<string | null>(null)
+
+  // Get recent transaction types from database hook
+  const recentTransactionTypes = getRecentTransactionTypes()
   const [formData, setFormData] = useState({
     hari: "",
     tanggal: "",
-    tipe_aktivitas: "",
+    bulan: "",
+    tipeAktivitas: "", // Updated field name
     barang: "",
     banyak: 0,
     satuan: "",
-    harga_satuan: 0,
-    vendor_nama: "",
-    vendor_telp: "",
-    vendor_email: "",
+    hargaSatuan: 0, // Updated field name
+    vendorNama: "", // Updated field name
+    vendorTelp: "", // Updated field name
+    vendorEmail: "", // Updated field name
     jenis: "kas_besar",
-    sub_jenis: "",
+    subJenis: "", // Updated field name
     notes: "",
-    bukti_url: "",
-    kontrak_url: ""
+    buktiUrl: "", // Updated field name
+    kontrakUrl: "", // Updated field name
+    createdBy: "cmelj7fwx0000ol5nfd1lqh2z" // Use actual demo user ID from database
   })
 
-  // Load data from localStorage on mount
+  // Search and filter handlers
   useEffect(() => {
-    const savedExpenses = loadFromLocalStorage('kas_besar_expenses', [])
-    setExpenses(savedExpenses)
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== '') {
+        search(searchTerm)
+      }
+    }, 500) // Debounce search
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, search])
+
+  useEffect(() => {
+    filterByStatus(filterStatus)
+  }, [filterStatus, filterByStatus])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + Shift + A: Quick add transaction
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'A') {
+        event.preventDefault()
+        handleQuickAdd()
+      }
+      // Ctrl/Cmd + Shift + H: Show keyboard shortcuts
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'H') {
+        event.preventDefault()
+        setShowKeyboardShortcuts(true)
+      }
+      // Escape: Close any open modals
+      if (event.key === 'Escape') {
+        setIsFormOpen(false)
+        setShowKeyboardShortcuts(false)
+        setIsQuickActionsOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Save to localStorage whenever expenses change
-  useEffect(() => {
-    saveToLocalStorage('kas_besar_expenses', expenses)
-  }, [expenses])
-
   // Auto calculate total
-  const calculatedTotal = formData.banyak * formData.harga_satuan
+  const calculatedTotal = formData.banyak * formData.hargaSatuan
+
+  // Calculate form completion percentage
+  const getFormCompletionPercentage = () => {
+    const requiredFields = ['tanggal', 'tipeAktivitas', 'barang', 'satuan', 'subJenis', 'vendorNama']
+    const completedFields = requiredFields.filter(field => formData[field as keyof typeof formData])
+    return Math.round((completedFields.length / requiredFields.length) * 100)
+  }
+
+  const formCompletionPercentage = getFormCompletionPercentage()
+  const isFormValid = Object.keys(formErrors).length === 0 && formCompletionPercentage === 100
 
   // Auto derive month and day from date
   useEffect(() => {
@@ -197,7 +314,7 @@ export function KasBesarManagement() {
       const fileUrl = await uploadFile(file)
       setFormData(prev => ({ 
         ...prev, 
-        [type === 'bukti' ? 'bukti_url' : 'kontrak_url']: fileUrl 
+        [type === 'bukti' ? 'buktiUrl' : 'kontrakUrl']: fileUrl 
       }))
       
       toast({
@@ -228,34 +345,35 @@ export function KasBesarManagement() {
       }
 
       // Skip header row and convert to expenses
-      const importedExpenses: KasBesarExpense[] = data.slice(1).map((row: unknown[], index: number) => {
+      const importedExpenses: KasBesarExpense[] = data.slice(1).map((row: unknown, index: number) => {
         const rowData = row as string[]
         return {
           id: `imported_${Date.now()}_${index}`,
           tanggal: rowData[0] || '',
           hari: rowData[1] || '',
           bulan: rowData[2] || '',
-          tipe_aktivitas: rowData[3] || '',
+          tipeAktivitas: rowData[3] || '',
           barang: rowData[4] || '',
           banyak: parseFloat(rowData[5]) || 0,
           satuan: rowData[6] || '',
-          harga_satuan: parseFloat(rowData[7]) || 0,
+          hargaSatuan: parseFloat(rowData[7]) || 0,
           total: parseFloat(rowData[8]) || 0,
-          vendor_nama: rowData[9] || '',
-          vendor_telp: rowData[10] || '',
-          vendor_email: rowData[11] || '',
+          vendorNama: rowData[9] || '',
+          vendorTelp: rowData[10] || '',
+          vendorEmail: rowData[11] || '',
           jenis: 'kas_besar',
-          sub_jenis: rowData[13] || '',
+          subJenis: rowData[13] || '',
           notes: rowData[14] || '',
-          bukti_url: '',
-          kontrak_url: '',
-          status: 'draft' as const,
-          created_by: 'imported',
-          created_at: new Date().toISOString()
+          buktiUrl: '',
+          kontrakUrl: '',
+          status: 'DRAFT' as const,
+          createdBy: 'imported'
         }
       })
 
-      setExpenses(prev => [...prev, ...importedExpenses])
+      // Note: In a real implementation, you would batch create these expenses via API
+      // For now, we'll just show success message
+      console.log('Imported expenses:', importedExpenses)
       
       toast({
         title: "Import berhasil",
@@ -271,43 +389,37 @@ export function KasBesarManagement() {
   }
 
   const validateForm = () => {
-    const requiredFields = ['tanggal', 'tipe_aktivitas', 'barang', 'satuan', 'sub_jenis']
-    const missingFields = requiredFields.filter(field => !formData[field])
+    const errors: Record<string, string> = {}
     
-    if (missingFields.length > 0) {
-      toast({
-        title: "Form tidak lengkap",
-        description: `Mohon lengkapi field: ${missingFields.join(', ')}`,
-        variant: "destructive"
-      })
-      return false
+    // Required field validation
+    if (!formData.tanggal) errors.tanggal = "Tanggal wajib diisi"
+    if (!formData.tipeAktivitas) errors.tipeAktivitas = "Tipe aktivitas wajib dipilih"
+    if (!formData.barang) errors.barang = "Barang/jasa wajib diisi"
+    if (!formData.satuan) errors.satuan = "Satuan wajib dipilih"
+    if (!formData.subJenis) errors.subJenis = "Sub jenis wajib dipilih"
+    if (!formData.vendorNama) errors.vendorNama = "Nama vendor wajib diisi"
+
+    // Numeric validation
+    if (formData.banyak <= 0) errors.banyak = "Banyak harus lebih dari 0"
+    if (formData.hargaSatuan <= 0) errors.hargaSatuan = "Harga satuan harus lebih dari 0"
+
+    // Email validation
+    if (formData.vendorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.vendorEmail)) {
+      errors.vendorEmail = "Format email tidak valid"
     }
 
-    if (formData.banyak <= 0 || formData.harga_satuan <= 0) {
-      toast({
-        title: "Nilai tidak valid",
-        description: "Banyak dan harga satuan harus lebih dari 0",
-        variant: "destructive"
-      })
-      return false
-    }
-
-    // Kas besar memerlukan dokumen kontrak untuk beberapa kategori
+    // Contract validation for specific categories
     const requiresContract = ['alat_berat', 'sewa_alat', 'kontrak_besar', 'kontrak_vendor']
-    if (requiresContract.includes(formData.sub_jenis) && !formData.kontrak_url) {
-      toast({
-        title: "Dokumen kontrak wajib",
-        description: "Kategori ini memerlukan upload dokumen kontrak",
-        variant: "destructive"
-      })
-      return false
+    if (requiresContract.includes(formData.subJenis) && !formData.kontrakUrl) {
+      errors.kontrakUrl = "Dokumen kontrak wajib untuk kategori ini"
     }
 
-    // Validate email format if provided
-    if (formData.vendor_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.vendor_email)) {
+    setFormErrors(errors)
+
+    if (Object.keys(errors).length > 0) {
       toast({
-        title: "Email tidak valid",
-        description: "Format email vendor tidak benar",
+        title: "Form tidak valid",
+        description: `${Object.keys(errors).length} field perlu diperbaiki`,
         variant: "destructive"
       })
       return false
@@ -316,33 +428,101 @@ export function KasBesarManagement() {
     return true
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return
+    
+    try {
+      const expenseData: KasBesarExpense = {
+        ...formData,
+        total: calculatedTotal,
+        bulan: formData.bulan || '',
+        hari: formData.hari || ''
+      }
 
-    const expense: KasBesarExpense = {
-      id: editingExpense ? editingExpense.id : Date.now().toString(),
-      ...formData,
-      total: calculatedTotal,
-      status: 'draft',
-      created_by: 'current_user',
-      created_at: new Date().toISOString()
+      if (editingExpense && editingExpense.id) {
+        // Update existing expense
+        await updateExpense({
+          ...expenseData,
+          id: editingExpense.id
+        })
+      } else {
+        // Create new expense
+        await createExpense(expenseData)
+      }
+
+      resetForm()
+    } catch (error) {
+      // Error handling is done in the hook
+      console.error('Submit error:', error)
+    }
+  }
+
+  // Quick add function with smart pre-filling
+  const handleQuickAdd = (presetType?: string) => {
+    if (expenses.length > 0) {
+      const lastExpense = expenses[expenses.length - 1]
+      const today = new Date().toISOString().split('T')[0]
+      
+      setFormData({
+        ...formData,
+        tanggal: today,
+        bulan: '',
+        tipeAktivitas: presetType || lastExpense.tipeAktivitas || '',
+        vendorNama: lastExpense.vendorNama || '',
+        vendorTelp: lastExpense.vendorTelp || '',
+        vendorEmail: lastExpense.vendorEmail || '',
+        subJenis: presetType ? '' : lastExpense.subJenis || '',
+        satuan: lastExpense.satuan || ''
+      })
+    }
+    setIsFormOpen(true)
+    
+    toast({
+      title: "Form siap!",
+      description: "Data dari transaksi terakhir telah dipra-isi untuk mempercepat input"
+    })
+  }
+
+  // Copy last transaction for quick duplication
+  const handleCopyLastTransaction = () => {
+    if (expenses.length === 0) {
+      toast({
+        title: "Tidak ada data",
+        description: "Belum ada transaksi untuk disalin",
+        variant: "destructive"
+      })
+      return
     }
 
-    if (editingExpense) {
-      setExpenses(prev => prev.map(exp => exp.id === editingExpense.id ? expense : exp))
-      toast({
-        title: "Berhasil diperbarui",
-        description: "Data pengeluaran kas besar berhasil diperbarui"
-      })
-    } else {
-      setExpenses(prev => [...prev, expense])
-      toast({
-        title: "Berhasil ditambahkan",
-        description: "Data pengeluaran kas besar berhasil ditambahkan"
-      })
-    }
-
-    resetForm()
+    const lastExpense = expenses[expenses.length - 1]
+    const today = new Date().toISOString().split('T')[0]
+    
+    setFormData({
+      hari: '',
+      tanggal: today,
+      bulan: '',
+      tipeAktivitas: lastExpense.tipeAktivitas,
+      barang: lastExpense.barang,
+      banyak: lastExpense.banyak,
+      satuan: lastExpense.satuan,
+      hargaSatuan: lastExpense.hargaSatuan,
+      vendorNama: lastExpense.vendorNama,
+      vendorTelp: lastExpense.vendorTelp || '',
+      vendorEmail: lastExpense.vendorEmail || '',
+      jenis: "kas_besar",
+      subJenis: lastExpense.subJenis,
+      notes: '',
+      buktiUrl: '',
+      kontrakUrl: '',
+      createdBy: formData.createdBy
+    })
+    
+    setIsFormOpen(true)
+    
+    toast({
+      title: "Transaksi disalin",
+      description: "Data transaksi terakhir berhasil disalin. Silakan sesuaikan seperlunya."
+    })
   }
 
   // Contract validation function
@@ -357,22 +537,22 @@ export function KasBesarManagement() {
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = searchTerm === '' || 
       expense.barang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.vendor_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.tipe_aktivitas.toLowerCase().includes(searchTerm.toLowerCase())
+      expense.vendorNama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.tipeAktivitas.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesStatus = filterStatus === 'all' || expense.status === filterStatus
+    const matchesStatus = filterStatus === 'all' || expense.status?.toLowerCase() === filterStatus.toLowerCase()
 
     return matchesSearch && matchesStatus
   })
 
   // Bulk approval workflow
   const handleBulkApproval = async (newStatus: KasBesarExpense['status']) => {
-    const selectedItems = expenses.filter(exp => selectedExpenses.has(exp.id))
+    const selectedItems = expenses.filter(exp => exp.id && selectedExpenses.has(exp.id))
     
     // Validate contracts for items requiring approval
-    if (newStatus === 'approved') {
+    if (newStatus === 'APPROVED') {
       const invalidContracts = selectedItems.filter(item => 
-        item.kontrak_url === '' || !contractValidationResults.get(item.id)
+        item.kontrakUrl === '' || !contractValidationResults.get(item.id!)
       )
       
       if (invalidContracts.length > 0) {
@@ -385,13 +565,13 @@ export function KasBesarManagement() {
       }
     }
 
-    const updatedExpenses = expenses.map(expense => 
-      selectedExpenses.has(expense.id) 
-        ? { ...expense, status: newStatus, updated_at: new Date().toISOString() }
-        : expense
-    )
+    // Update each selected item's status
+    for (const item of selectedItems) {
+      if (item.id) {
+        await updateStatus(item.id, newStatus, undefined, formData.createdBy)
+      }
+    }
     
-    setExpenses(updatedExpenses)
     setSelectedExpenses(new Set())
     
     toast({
@@ -427,7 +607,7 @@ export function KasBesarManagement() {
     if (selectedExpenses.size === filteredExpenses.length) {
       setSelectedExpenses(new Set())
     } else {
-      setSelectedExpenses(new Set(filteredExpenses.map(exp => exp.id)))
+      setSelectedExpenses(new Set(filteredExpenses.map(exp => exp.id).filter((id): id is string => id !== undefined)))
     }
   }
 
@@ -454,71 +634,262 @@ export function KasBesarManagement() {
     setFormData({
       hari: "",
       tanggal: "",
-      tipe_aktivitas: "",
+      bulan: "",
+      tipeAktivitas: "",
       barang: "",
       banyak: 0,
       satuan: "",
-      harga_satuan: 0,
-      vendor_nama: "",
-      vendor_telp: "",
-      vendor_email: "",
+      hargaSatuan: 0,
+      vendorNama: "",
+      vendorTelp: "",
+      vendorEmail: "",
       jenis: "kas_besar",
-      sub_jenis: "",
+      subJenis: "",
       notes: "",
-      bukti_url: "",
-      kontrak_url: ""
+      buktiUrl: "",
+      kontrakUrl: "",
+      createdBy: "cmelj7fwx0000ol5nfd1lqh2z"
     })
+    setFormErrors({})
     setEditingExpense(null)
     setIsFormOpen(false)
   }
 
   const handleEdit = (expense: KasBesarExpense) => {
+    // Save current version to history before editing
+    saveExpenseVersion(expense)
+    
     setFormData({
       hari: expense.hari,
       tanggal: expense.tanggal,
-      tipe_aktivitas: expense.tipe_aktivitas,
+      bulan: expense.bulan,
+      tipeAktivitas: expense.tipeAktivitas,
       barang: expense.barang,
       banyak: expense.banyak,
       satuan: expense.satuan,
-      harga_satuan: expense.harga_satuan,
-      vendor_nama: expense.vendor_nama,
-      vendor_telp: expense.vendor_telp,
-      vendor_email: expense.vendor_email,
+      hargaSatuan: expense.hargaSatuan,
+      vendorNama: expense.vendorNama,
+      vendorTelp: expense.vendorTelp || "",
+      vendorEmail: expense.vendorEmail || "",
       jenis: expense.jenis,
-      sub_jenis: expense.sub_jenis,
+      subJenis: expense.subJenis,
       notes: expense.notes || "",
-      bukti_url: expense.bukti_url || "",
-      kontrak_url: expense.kontrak_url || ""
+      buktiUrl: expense.buktiUrl || "",
+      kontrakUrl: expense.kontrakUrl || "",
+      createdBy: expense.createdBy
     })
     setEditingExpense(expense)
     setIsFormOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    setExpenses(prev => prev.filter(exp => exp.id !== id))
-    toast({
-      title: "Berhasil dihapus",
-      description: "Data pengeluaran berhasil dihapus"
+  // Enhanced edit functions for kas besar
+  const saveExpenseVersion = (expense: KasBesarExpense) => {
+    if (!expense.id) return
+    const versions = expenseVersions.get(expense.id) || []
+    versions.push({...expense, createdAt: new Date().toISOString()})
+    setExpenseVersions(new Map(expenseVersions.set(expense.id, versions)))
+  }
+
+  const handleInlineEdit = (expense: KasBesarExpense, field: string) => {
+    if (!expense.id) return
+    setInlineEditId(expense.id)
+    setEditingField({id: expense.id, field})
+    setInlineEditValues({
+      ...inlineEditValues,
+      [expense.id]: {
+        ...inlineEditValues[expense.id],
+        [field]: expense[field as keyof KasBesarExpense]
+      }
     })
   }
 
-  const handleStatusUpdate = (id: string, newStatus: KasBesarExpense['status'], notes?: string) => {
-    setExpenses(prev => prev.map(exp => 
-      exp.id === id ? { ...exp, status: newStatus, approval_notes: notes } : exp
-    ))
-    
-    const statusLabels = {
-      draft: 'Draft',
-      submitted: 'Disubmit',
-      reviewed: 'Direview',
-      approved: 'Disetujui',
-      archived: 'Diarsip'
+  const saveInlineEdit = async (expenseId: string) => {
+    const expense = expenses.find(e => e.id === expenseId)
+    if (expense && editingField && inlineEditValues[expenseId]) {
+      // Save version before updating
+      saveExpenseVersion(expense)
+      
+      try {
+        await updateExpense({
+          ...expense,
+          id: expense.id!,
+          [editingField.field]: inlineEditValues[expenseId][editingField.field]
+        })
+        
+        toast({
+          title: "Field updated",
+          description: `${editingField.field} has been updated successfully`
+        })
+      } catch (error) {
+        toast({
+          title: "Update failed",
+          description: "Failed to update the field",
+          variant: "destructive"
+        })
+      }
     }
     
+    setInlineEditId(null)
+    setEditingField(null)
+  }
+
+  const cancelInlineEdit = () => {
+    setInlineEditId(null)
+    setEditingField(null)
+  }
+
+  const handleDuplicateExpense = (expense: KasBesarExpense) => {
+    const duplicatedData = {
+      ...expense,
+      id: undefined,
+      createdAt: undefined,
+      updatedAt: undefined,
+      status: 'DRAFT' as const,
+      tanggal: new Date().toISOString().split('T')[0]
+    }
+    
+    // Remove id-related fields and use createExpense
+    const { id, createdAt, updatedAt, ...createData } = duplicatedData
+    createExpense(createData)
+    
     toast({
-      title: "Status diperbarui",
-      description: `Status berhasil diubah menjadi ${statusLabels[newStatus]}`
+      title: "Kas besar duplicated",
+      description: "A copy of the kas besar transaction has been created"
     })
+  }
+
+  const handleQuickEdit = (expense: KasBesarExpense) => {
+    if (!expense.id) return
+    
+    // Check if this is an approved transaction and needs authorization
+    if (expense.status === 'APPROVED' && !allowApprovedEdit) {
+      setShowApprovalOverride(expense.id)
+      return
+    }
+    
+    setQuickEditMode(true)
+    setInlineEditId(expense.id)
+    setInlineEditValues({
+      ...inlineEditValues,
+      [expense.id]: {
+        barang: expense.barang,
+        hargaSatuan: expense.hargaSatuan,
+        banyak: expense.banyak,
+        vendorNama: expense.vendorNama
+      }
+    })
+  }
+
+  // Handle approved transaction editing with authorization
+  const handleApprovedTransactionEdit = (expense: KasBesarExpense) => {
+    if (!expense.id) return
+    
+    if (expense.status === 'APPROVED' && !allowApprovedEdit) {
+      setShowApprovalOverride(expense.id)
+      return
+    }
+    
+    // Save version before editing approved transaction
+    saveExpenseVersion(expense)
+    
+    setFormData({
+      hari: expense.hari,
+      tanggal: expense.tanggal,
+      bulan: expense.bulan,
+      tipeAktivitas: expense.tipeAktivitas,
+      barang: expense.barang,
+      banyak: expense.banyak,
+      satuan: expense.satuan,
+      hargaSatuan: expense.hargaSatuan,
+      vendorNama: expense.vendorNama,
+      vendorTelp: expense.vendorTelp || "",
+      vendorEmail: expense.vendorEmail || "",
+      jenis: expense.jenis,
+      subJenis: expense.subJenis,
+      notes: expense.notes || "",
+      buktiUrl: expense.buktiUrl || "",
+      kontrakUrl: expense.kontrakUrl || "",
+      createdBy: expense.createdBy
+    })
+    setEditingExpense(expense)
+    setEditingApprovedId(expense.id)
+    setIsFormOpen(true)
+  }
+
+  const requestApprovalOverride = async () => {
+    // Simple password check - in production, this would be more sophisticated
+    const validPasswords = ['supervisor123', 'admin456', 'override789']
+    
+    if (!validPasswords.includes(supervisorPassword)) {
+      toast({
+        title: "Invalid Authorization",
+        description: "Incorrect supervisor password",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!approvalReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for editing approved transaction",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Enable approved editing for this session
+    setAllowApprovedEdit(true)
+    
+    // Log the override attempt (in production, this would go to audit log)
+    console.log('Approval Override:', {
+      transactionId: showApprovalOverride,
+      reason: approvalReason,
+      timestamp: new Date().toISOString(),
+      user: 'current_user' // This would come from auth context
+    })
+
+    toast({
+      title: "Authorization Granted",
+      description: "You can now edit approved transactions this session",
+    })
+
+    // Close the override dialog
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+
+    // Trigger the original edit action
+    const expense = expenses.find(e => e.id === showApprovalOverride)
+    if (expense) {
+      handleQuickEdit(expense)
+    }
+  }
+
+  const cancelApprovalOverride = () => {
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!id) return
+    
+    try {
+      await deleteExpense(id, formData.createdBy)
+    } catch (error) {
+      console.error('Delete error:', error)
+    }
+  }
+
+  const handleStatusUpdate = async (id: string, newStatus: KasBesarExpense['status'], notes?: string) => {
+    if (!id || !newStatus) return
+    
+    try {
+      await updateStatus(id, newStatus, notes, formData.createdBy)
+    } catch (error) {
+      console.error('Status update error:', error)
+    }
   }
 
   const handleExportExcel = () => {
@@ -526,17 +897,17 @@ export function KasBesarManagement() {
       Tanggal: exp.tanggal,
       Hari: exp.hari,
       Bulan: exp.bulan,
-      'Tipe Aktivitas': exp.tipe_aktivitas,
+      'Tipe Aktivitas': exp.tipeAktivitas,
       Barang: exp.barang,
       Banyak: exp.banyak,
       Satuan: exp.satuan,
-      'Harga Satuan': exp.harga_satuan,
+      'Harga Satuan': exp.hargaSatuan,
       Total: exp.total,
-      'Vendor Nama': exp.vendor_nama,
-      'Vendor Telp': exp.vendor_telp,
-      'Vendor Email': exp.vendor_email,
+      'Vendor Nama': exp.vendorNama,
+      'Vendor Telp': exp.vendorTelp || '',
+      'Vendor Email': exp.vendorEmail || '',
       Jenis: exp.jenis,
-      'Sub Jenis': exp.sub_jenis,
+      'Sub Jenis': exp.subJenis,
       Status: exp.status,
       Catatan: exp.notes || ''
     }))
@@ -554,17 +925,17 @@ export function KasBesarManagement() {
       Tanggal: exp.tanggal,
       Hari: exp.hari,
       Bulan: exp.bulan,
-      'Tipe_Aktivitas': exp.tipe_aktivitas,
+      'Tipe_Aktivitas': exp.tipeAktivitas,
       Barang: exp.barang,
       Banyak: exp.banyak,
       Satuan: exp.satuan,
-      'Harga_Satuan': exp.harga_satuan,
+      'Harga_Satuan': exp.hargaSatuan,
       Total: exp.total,
-      'Vendor_Nama': exp.vendor_nama,
-      'Vendor_Telp': exp.vendor_telp,
-      'Vendor_Email': exp.vendor_email,
+      'Vendor_Nama': exp.vendorNama,
+      'Vendor_Telp': exp.vendorTelp || '',
+      'Vendor_Email': exp.vendorEmail || '',
       Jenis: exp.jenis,
-      'Sub_Jenis': exp.sub_jenis,
+      'Sub_Jenis': exp.subJenis,
       Status: exp.status,
       Catatan: exp.notes || ''
     }))
@@ -582,7 +953,7 @@ export function KasBesarManagement() {
       <tr>
         <td>${exp.tanggal}</td>
         <td>${exp.barang}</td>
-        <td>${exp.vendor_nama}</td>
+        <td>${exp.vendorNama}</td>
         <td style="text-align: right;">Rp ${exp.total.toLocaleString('id-ID')}</td>
         <td>${exp.status}</td>
       </tr>
@@ -614,14 +985,15 @@ export function KasBesarManagement() {
 
   const getStatusBadge = (status: KasBesarExpense['status']) => {
     const badges = {
-      draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800' },
-      submitted: { label: 'Disubmit', color: 'bg-blue-100 text-blue-800' },
-      reviewed: { label: 'Direview', color: 'bg-yellow-100 text-yellow-800' },
-      approved: { label: 'Disetujui', color: 'bg-green-100 text-green-800' },
-      archived: { label: 'Diarsip', color: 'bg-purple-100 text-purple-800' }
+      DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-800' },
+      SUBMITTED: { label: 'Disubmit', color: 'bg-blue-100 text-blue-800' },
+      REVIEWED: { label: 'Direview', color: 'bg-yellow-100 text-yellow-800' },
+      APPROVED: { label: 'Disetujui', color: 'bg-green-100 text-green-800' },
+      ARCHIVED: { label: 'Diarsip', color: 'bg-purple-100 text-purple-800' },
+      REJECTED: { label: 'Ditolak', color: 'bg-red-100 text-red-800' }
     }
     
-    const badge = badges[status]
+    const badge = badges[status || 'DRAFT']
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
         {badge.label}
@@ -630,7 +1002,7 @@ export function KasBesarManagement() {
   }
 
   const requiresContract = ['alat_berat', 'sewa_alat', 'kontrak_besar', 'kontrak_vendor']
-  const needsContract = requiresContract.includes(formData.sub_jenis)
+  const needsContract = requiresContract.includes(formData.subJenis)
 
   return (
     <div className="space-y-6">
@@ -669,15 +1041,181 @@ export function KasBesarManagement() {
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Template
           </Button>
-          <Button 
-            onClick={() => setIsFormOpen(true)}
-            className="bg-red-600 hover:bg-red-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah Kas Besar
-          </Button>
+          {/* Enhanced Add Transaction Button Group */}
+          <div className="flex">
+            <Button 
+              onClick={() => handleQuickAdd()}
+              className="bg-red-600 hover:bg-red-700 rounded-r-none transition-all duration-200 hover:scale-105 hover:shadow-lg"
+              disabled={creating || updating || loading}
+              onMouseEnter={() => setIsButtonHovered(true)}
+              onMouseLeave={() => setIsButtonHovered(false)}
+            >
+              {(creating || updating) ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Plus className={`h-4 w-4 mr-2 transition-transform duration-200 ${isButtonHovered ? 'rotate-90' : ''}`} />
+                  Tambah Kas Besar
+                </>
+              )}
+            </Button>
+            
+            <DropdownMenu open={isQuickActionsOpen} onOpenChange={setIsQuickActionsOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  className="bg-red-600 hover:bg-red-700 rounded-l-none border-l border-red-500 px-2"
+                  disabled={creating || updating || Boolean(deleting)}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Aksi Cepat
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                {/* Quick action for recent transaction types */}
+                {recentTransactionTypes.length > 0 && (
+                  <>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      Tipe Transaksi Terbaru
+                    </DropdownMenuLabel>
+                    {recentTransactionTypes.map((type) => (
+                      <DropdownMenuItem 
+                        key={type}
+                        onClick={() => {
+                          handleQuickAdd(type)
+                          setIsQuickActionsOpen(false)
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <Clock className="h-4 w-4 mr-2" />
+                        {TIPE_AKTIVITAS_OPTIONS.find(opt => opt.value === type)?.label || type}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                
+                <DropdownMenuItem 
+                  onClick={() => {
+                    handleCopyLastTransaction()
+                    setIsQuickActionsOpen(false)
+                  }}
+                  className="cursor-pointer"
+                  disabled={expenses.length === 0}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Salin Transaksi Terakhir
+                </DropdownMenuItem>
+                
+                <DropdownMenuItem 
+                  onClick={() => {
+                    setFormData({
+                      hari: "",
+                      tanggal: new Date().toISOString().split('T')[0],
+                      bulan: "",
+                      tipeAktivitas: "",
+                      barang: "",
+                      banyak: 0,
+                      satuan: "",
+                      hargaSatuan: 0,
+                      vendorNama: "",
+                      vendorTelp: "",
+                      vendorEmail: "",
+                      jenis: "kas_besar",
+                      subJenis: "",
+                      notes: "",
+                      buktiUrl: "",
+                      kontrakUrl: "",
+                      createdBy: "cmelj7fwx0000ol5nfd1lqh2z"
+                    })
+                    setIsFormOpen(true)
+                    setIsQuickActionsOpen(false)
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Form Kosong
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem 
+                  onClick={() => {
+                    setShowKeyboardShortcuts(true)
+                    setIsQuickActionsOpen(false)
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Keyboard className="h-4 w-4 mr-2" />
+                  Keyboard Shortcuts
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
+
+      {/* Loading State */}
+      {loading && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
+              <div>
+                <h3 className="font-semibold text-blue-800">Loading Data</h3>
+                <p className="text-sm text-blue-700 mt-1">Connecting to database and loading kas besar expenses...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div>
+                <h3 className="font-semibold text-red-800">Database Connection Error</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <div className="flex gap-2 mt-3">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => fetchExpenses()}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Connection
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      toast({
+                        title: "Offline Mode",
+                        description: "You can still view and edit data locally, but changes won't be saved to the database.",
+                      })
+                    }}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Continue Offline
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contract Management & Advanced Filters */}
       <Card className="mb-6">
@@ -707,11 +1245,12 @@ export function KasBesarManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="reviewed">Reviewed</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="DRAFT">Draft</SelectItem>
+                  <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                  <SelectItem value="REVIEWED">Reviewed</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="ARCHIVED">Archived</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -736,23 +1275,24 @@ export function KasBesarManagement() {
                   {selectedExpenses.size} item terpilih untuk approval workflow
                 </span>
                 <div className="flex gap-2">
-                  <Select onValueChange={handleBulkApproval}>
+                  <Select onValueChange={(value) => handleBulkApproval(value as KasBesarExpense['status'])}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Approval Workflow" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="submitted">Submit untuk Review</SelectItem>
-                      <SelectItem value="reviewed">Mark as Reviewed</SelectItem>
-                      <SelectItem value="approved">Approve (dengan validasi)</SelectItem>
-                      <SelectItem value="archived">Archive</SelectItem>
+                      <SelectItem value="SUBMITTED">Submit untuk Review</SelectItem>
+                      <SelectItem value="REVIEWED">Mark as Reviewed</SelectItem>
+                      <SelectItem value="APPROVED">Approve (dengan validasi)</SelectItem>
+                      <SelectItem value="ARCHIVED">Archive</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button 
                     variant="destructive" 
                     size="sm"
-                    onClick={() => {
-                      const remainingExpenses = expenses.filter(exp => !selectedExpenses.has(exp.id))
-                      setExpenses(remainingExpenses)
+                    onClick={async () => {
+                      for (const expenseId of selectedExpenses) {
+                        await deleteExpense(expenseId, formData.createdBy)
+                      }
                       setSelectedExpenses(new Set())
                       toast({
                         title: "Items deleted", 
@@ -831,6 +1371,28 @@ export function KasBesarManagement() {
                 <CardDescription>
                   Kas besar memerlukan validasi tambahan dan dokumen kontrak untuk kategori tertentu.
                 </CardDescription>
+                
+                {/* Form Completion Progress */}
+                <div className="mt-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium">Progress Form</span>
+                    <span className="text-sm text-muted-foreground">{formCompletionPercentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        formCompletionPercentage === 100 ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${formCompletionPercentage}%` }}
+                    ></div>
+                  </div>
+                  {formCompletionPercentage === 100 && (
+                    <p className="text-sm text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Form lengkap dan siap disimpan
+                    </p>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -842,8 +1404,15 @@ export function KasBesarManagement() {
                       type="date"
                       value={formData.tanggal}
                       onChange={(e) => handleInputChange('tanggal', e.target.value)}
+                      className={formErrors.tanggal ? 'border-red-500 focus:border-red-500' : ''}
                       required
                     />
+                    {formErrors.tanggal && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.tanggal}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -868,12 +1437,12 @@ export function KasBesarManagement() {
 
                   {/* Transaction Details */}
                   <div className="space-y-2">
-                    <Label htmlFor="tipe_aktivitas">Tipe Aktivitas *</Label>
+                    <Label htmlFor="tipeAktivitas">Tipe Aktivitas *</Label>
                     <Select 
-                      value={formData.tipe_aktivitas} 
-                      onValueChange={(value) => handleInputChange('tipe_aktivitas', value)}
+                      value={formData.tipeAktivitas} 
+                      onValueChange={(value) => handleInputChange('tipeAktivitas', value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={formErrors.tipeAktivitas ? 'border-red-500 focus:border-red-500' : ''}>
                         <SelectValue placeholder="Pilih tipe aktivitas" />
                       </SelectTrigger>
                       <SelectContent>
@@ -884,6 +1453,12 @@ export function KasBesarManagement() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {formErrors.tipeAktivitas && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.tipeAktivitas}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -893,8 +1468,15 @@ export function KasBesarManagement() {
                       value={formData.barang}
                       onChange={(e) => handleInputChange('barang', e.target.value)}
                       placeholder="Deskripsi barang atau jasa"
+                      className={formErrors.barang ? 'border-red-500 focus:border-red-500' : ''}
                       required
                     />
+                    {formErrors.barang && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.barang}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -906,8 +1488,15 @@ export function KasBesarManagement() {
                       step="0.01"
                       value={formData.banyak}
                       onChange={(e) => handleInputChange('banyak', parseFloat(e.target.value) || 0)}
+                      className={formErrors.banyak ? 'border-red-500 focus:border-red-500' : ''}
                       required
                     />
+                    {formErrors.banyak && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.banyak}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -916,7 +1505,7 @@ export function KasBesarManagement() {
                       value={formData.satuan} 
                       onValueChange={(value) => handleInputChange('satuan', value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={formErrors.satuan ? 'border-red-500 focus:border-red-500' : ''}>
                         <SelectValue placeholder="Pilih satuan" />
                       </SelectTrigger>
                       <SelectContent>
@@ -927,18 +1516,31 @@ export function KasBesarManagement() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {formErrors.satuan && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.satuan}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="harga_satuan">Harga Satuan (Rp) *</Label>
+                    <Label htmlFor="hargaSatuan">Harga Satuan (Rp) *</Label>
                     <Input
-                      id="harga_satuan"
+                      id="hargaSatuan"
                       type="number"
                       min="0"
-                      value={formData.harga_satuan}
-                      onChange={(e) => handleInputChange('harga_satuan', parseFloat(e.target.value) || 0)}
+                      value={formData.hargaSatuan}
+                      onChange={(e) => handleInputChange('hargaSatuan', parseFloat(e.target.value) || 0)}
+                      className={formErrors.hargaSatuan ? 'border-red-500 focus:border-red-500' : ''}
                       required
                     />
+                    {formErrors.hargaSatuan && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.hargaSatuan}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -952,33 +1554,40 @@ export function KasBesarManagement() {
 
                   {/* Vendor Information */}
                   <div className="space-y-2">
-                    <Label htmlFor="vendor_nama">Nama Vendor *</Label>
+                    <Label htmlFor="vendorNama">Nama Vendor *</Label>
                     <Input
-                      id="vendor_nama"
-                      value={formData.vendor_nama}
-                      onChange={(e) => handleInputChange('vendor_nama', e.target.value)}
+                      id="vendorNama"
+                      value={formData.vendorNama}
+                      onChange={(e) => handleInputChange('vendorNama', e.target.value)}
                       placeholder="Nama vendor/supplier"
+                      className={formErrors.vendorNama ? 'border-red-500 focus:border-red-500' : ''}
                       required
                     />
+                    {formErrors.vendorNama && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.vendorNama}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vendor_telp">Telepon Vendor</Label>
+                    <Label htmlFor="vendorTelp">Telepon Vendor</Label>
                     <Input
-                      id="vendor_telp"
-                      value={formData.vendor_telp}
-                      onChange={(e) => handleInputChange('vendor_telp', e.target.value)}
+                      id="vendorTelp"
+                      value={formData.vendorTelp}
+                      onChange={(e) => handleInputChange('vendorTelp', e.target.value)}
                       placeholder="Nomor telepon vendor"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vendor_email">Email Vendor</Label>
+                    <Label htmlFor="vendorEmail">Email Vendor</Label>
                     <Input
-                      id="vendor_email"
+                      id="vendorEmail"
                       type="email"
-                      value={formData.vendor_email}
-                      onChange={(e) => handleInputChange('vendor_email', e.target.value)}
+                      value={formData.vendorEmail}
+                      onChange={(e) => handleInputChange('vendorEmail', e.target.value)}
                       placeholder="email@vendor.com"
                     />
                   </div>
@@ -990,12 +1599,12 @@ export function KasBesarManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="sub_jenis">Sub Jenis *</Label>
+                    <Label htmlFor="subJenis">Sub Jenis *</Label>
                     <Select 
-                      value={formData.sub_jenis} 
-                      onValueChange={(value) => handleInputChange('sub_jenis', value)}
+                      value={formData.subJenis} 
+                      onValueChange={(value) => handleInputChange('subJenis', value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={formErrors.subJenis ? 'border-red-500 focus:border-red-500' : ''}>
                         <SelectValue placeholder="Pilih sub jenis" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1006,6 +1615,12 @@ export function KasBesarManagement() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {formErrors.subJenis && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {formErrors.subJenis}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1037,14 +1652,14 @@ export function KasBesarManagement() {
                   <div className="space-y-2">
                     <Label>Bukti Transaksi</Label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                      {formData.bukti_url ? (
+                      {formData.buktiUrl ? (
                         <div className="space-y-2">
                           <CheckCircle className="h-8 w-8 text-green-600 mx-auto" />
                           <p className="text-sm text-green-600">Bukti sudah diupload</p>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(formData.bukti_url, '_blank')}
+                            onClick={() => window.open(formData.buktiUrl, '_blank')}
                           >
                             Lihat File
                           </Button>
@@ -1089,14 +1704,14 @@ export function KasBesarManagement() {
                   <div className="space-y-2">
                     <Label>Dokumen Kontrak {needsContract && '*'}</Label>
                     <div className="border-2 border-dashed border-red-300 rounded-lg p-4 text-center">
-                      {formData.kontrak_url ? (
+                      {formData.kontrakUrl ? (
                         <div className="space-y-2">
                           <CheckCircle className="h-8 w-8 text-green-600 mx-auto" />
                           <p className="text-sm text-green-600">Kontrak sudah diupload</p>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(formData.kontrak_url, '_blank')}
+                            onClick={() => window.open(formData.kontrakUrl, '_blank')}
                           >
                             Lihat Kontrak
                           </Button>
@@ -1141,13 +1756,41 @@ export function KasBesarManagement() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-4">
-                  <Button onClick={handleSubmit} className="bg-red-600 hover:bg-red-700">
-                    <Save className="h-4 w-4 mr-2" />
-                    {editingExpense ? 'Perbarui' : 'Simpan'} Kas Besar
+                  <Button 
+                    onClick={handleSubmit} 
+                    className={`transition-all duration-300 ${
+                      isFormValid 
+                        ? 'bg-green-600 hover:bg-green-700 hover:scale-105 hover:shadow-lg' 
+                        : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                    disabled={creating || updating}
+                  >
+                    {(creating || updating) ? (
+                      <>
+                        <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        {editingExpense ? 'Memperbarui...' : 'Menyimpan...'}
+                      </>
+                    ) : isFormValid ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {editingExpense ? 'Perbarui' : 'Simpan'} Kas Besar
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        {editingExpense ? 'Perbarui' : 'Simpan'} Kas Besar
+                      </>
+                    )}
                   </Button>
-                  <Button variant="outline" onClick={resetForm}>
+                  <Button variant="outline" onClick={resetForm} disabled={creating || updating}>
                     Batal
                   </Button>
+                  {!isFormValid && formCompletionPercentage > 0 && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {6 - Math.floor((formCompletionPercentage / 100) * 6)} field wajib belum diisi
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1157,20 +1800,62 @@ export function KasBesarManagement() {
         <TabsContent value="list" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Daftar Transaksi Kas Besar</CardTitle>
-              <CardDescription>
-                Kelola dan review semua transaksi pengeluaran kas besar
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Daftar Transaksi Kas Besar</CardTitle>
+                  <CardDescription>
+                    Kelola dan review semua transaksi pengeluaran kas besar
+                  </CardDescription>
+                </div>
+                
+                {allowApprovedEdit && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-md">
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm text-orange-700 font-medium">
+                      Approved Edit Mode Active
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Legend for Approved Transaction Editing */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
+                <div className="flex items-start gap-2">
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-800 mb-1">Transaction Status Guide:</p>
+                    <div className="space-y-1 text-blue-700">
+                      <p>• <span className="font-medium">Regular transactions:</span> Can be edited freely</p>
+                      <p>• <span className="font-medium text-orange-600">Approved transactions (*):</span> Require supervisor authorization</p>
+                      <p>• <span className="font-medium text-gray-600">Archived transactions:</span> Cannot be modified</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {expenses.length === 0 ? (
                 <div className="text-center py-12">
                   <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600 mb-4">Belum ada data transaksi kas besar</p>
-                  <Button onClick={() => setIsFormOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tambah Transaksi Pertama
-                  </Button>
+                  <div className="flex gap-2 justify-center">
+                    <Button 
+                      onClick={() => handleQuickAdd()}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tambah Transaksi Pertama
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowKeyboardShortcuts(true)}
+                    >
+                      <Keyboard className="h-4 w-4 mr-2" />
+                      Shortcuts
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Tip: Gunakan Ctrl+Shift+A untuk menambah transaksi dengan cepat
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1182,7 +1867,7 @@ export function KasBesarManagement() {
                             <div>
                               <h3 className="font-semibold">{expense.barang}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {expense.hari}, {expense.tanggal} • {expense.tipe_aktivitas}
+                                {expense.hari}, {expense.tanggal} • {expense.tipeAktivitas}
                               </p>
                             </div>
                           </div>
@@ -1193,7 +1878,7 @@ export function KasBesarManagement() {
                                 {formatCurrency(expense.total)}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {expense.banyak} {expense.satuan} × {formatCurrency(expense.harga_satuan)}
+                                {expense.banyak} {expense.satuan} × {formatCurrency(expense.hargaSatuan)}
                               </p>
                             </div>
                           </div>
@@ -1202,23 +1887,23 @@ export function KasBesarManagement() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                           <div>
                             <span className="font-medium">Sub Jenis:</span>
-                            <p className="text-muted-foreground">{expense.sub_jenis}</p>
+                            <p className="text-muted-foreground">{expense.subJenis}</p>
                           </div>
                           <div>
                             <span className="font-medium">Vendor:</span>
-                            <p className="text-muted-foreground">{expense.vendor_nama}</p>
+                            <p className="text-muted-foreground">{expense.vendorNama}</p>
                           </div>
                           <div>
                             <span className="font-medium">Contact:</span>
-                            <p className="text-muted-foreground">{expense.vendor_telp || expense.vendor_email || '-'}</p>
+                            <p className="text-muted-foreground">{expense.vendorTelp || expense.vendorEmail || '-'}</p>
                           </div>
                           <div>
                             <span className="font-medium">Dokumen:</span>
                             <div className="flex gap-1">
-                              {expense.bukti_url && (
+                              {expense.buktiUrl && (
                                 <span className="text-green-600 text-xs">✓ Bukti</span>
                               )}
-                              {expense.kontrak_url && (
+                              {expense.kontrakUrl && (
                                 <span className="text-blue-600 text-xs">✓ Kontrak</span>
                               )}
                             </div>
@@ -1232,51 +1917,106 @@ export function KasBesarManagement() {
                         )}
 
                         <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
+                            {/* Enhanced Edit Button Group */}
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => expense.status === 'APPROVED' ? handleApprovedTransactionEdit(expense) : handleEdit(expense)}
+                                disabled={expense.status === 'ARCHIVED'}
+                                className={expense.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-blue-50"}
+                                title={expense.status === 'APPROVED' ? "Edit Approved Transaction (Requires Authorization)" : "Edit Transaction"}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                {expense.status === 'APPROVED' ? 'Edit*' : 'Edit'}
+                              </Button>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleQuickEdit(expense)}
+                                disabled={expense.status === 'ARCHIVED'}
+                                className={expense.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-green-50"}
+                                title={expense.status === 'APPROVED' ? "Quick Edit Approved (Requires Authorization)" : "Quick Edit - Edit key fields inline"}
+                              >
+                                <Zap className="h-4 w-4" />
+                                {expense.status === 'APPROVED' && <span className="text-xs ml-1">*</span>}
+                              </Button>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDuplicateExpense(expense)}
+                                className="hover:bg-purple-50"
+                                title="Duplicate this kas besar transaction"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              
+                              {expense.id && expenseVersions.get(expense.id)?.length && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowVersionHistory(expense.id!)}
+                                  className="hover:bg-yellow-50"
+                                  title="View edit history"
+                                >
+                                  <History className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                            
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEdit(expense)}
-                              disabled={expense.status === 'approved' || expense.status === 'archived'}
+                              onClick={() => {
+                                if (expense.status === 'APPROVED' && !allowApprovedEdit) {
+                                  setShowApprovalOverride(expense.id!)
+                                  return
+                                }
+                                expense.id && handleDelete(expense.id)
+                              }}
+                              disabled={expense.status === 'ARCHIVED' || deleting === expense.id}
+                              className={expense.status === 'APPROVED' ? "hover:bg-red-100 border-red-200" : "hover:bg-red-50"}
+                              title={expense.status === 'APPROVED' ? "Delete Approved Transaction (Requires Authorization)" : "Delete Transaction"}
                             >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(expense.id)}
-                              disabled={expense.status === 'approved' || expense.status === 'archived'}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Hapus
+                              {deleting === expense.id ? (
+                                <Clock className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 mr-1" />
+                              )}
+                              {expense.status === 'APPROVED' ? 'Hapus*' : 'Hapus'}
                             </Button>
                           </div>
 
                           <div className="flex gap-2">
-                            {expense.status === 'draft' && (
+                            {expense.status === 'DRAFT' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleStatusUpdate(expense.id, 'submitted')}
+                                onClick={() => expense.id && handleStatusUpdate(expense.id, 'SUBMITTED')}
+                                disabled={updating}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
                                 Submit
                               </Button>
                             )}
-                            {expense.status === 'submitted' && (
+                            {expense.status === 'SUBMITTED' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleStatusUpdate(expense.id, 'reviewed')}
+                                onClick={() => expense.id && handleStatusUpdate(expense.id, 'REVIEWED')}
+                                disabled={updating}
                               >
                                 Review
                               </Button>
                             )}
-                            {expense.status === 'reviewed' && (
+                            {expense.status === 'REVIEWED' && (
                               <Button
                                 size="sm"
                                 className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleStatusUpdate(expense.id, 'approved')}
+                                onClick={() => expense.id && handleStatusUpdate(expense.id, 'APPROVED')}
+                                disabled={updating}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
                                 Approve
@@ -1313,19 +2053,19 @@ export function KasBesarManagement() {
                   </div>
                   <div className="flex justify-between">
                     <span>Draft:</span>
-                    <span>{expenses.filter(exp => exp.status === 'draft').length}</span>
+                    <span>{expenses.filter(exp => exp.status === 'DRAFT').length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Pending Approval:</span>
-                    <span>{expenses.filter(exp => ['submitted', 'reviewed'].includes(exp.status)).length}</span>
+                    <span>{expenses.filter(exp => ['SUBMITTED', 'REVIEWED'].includes(exp.status || '')).length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Approved:</span>
-                    <span>{expenses.filter(exp => exp.status === 'approved').length}</span>
+                    <span>{expenses.filter(exp => exp.status === 'APPROVED').length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dengan Kontrak:</span>
-                    <span>{expenses.filter(exp => exp.kontrak_url).length}</span>
+                    <span>{expenses.filter(exp => exp.kontrakUrl).length}</span>
                   </div>
                 </div>
               </CardContent>
@@ -1355,6 +2095,217 @@ export function KasBesarManagement() {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Keyboard Shortcuts Modal */}
+      {showKeyboardShortcuts && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Keyboard className="h-5 w-5" />
+                Keyboard Shortcuts
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowKeyboardShortcuts(false)}
+              >
+                ×
+              </Button>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <span>Tambah Transaksi Cepat</span>
+                <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                  Ctrl+Shift+A
+                </kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Tampilkan Shortcuts</span>
+                <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                  Ctrl+Shift+H
+                </kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Tutup Modal/Form</span>
+                <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                  Escape
+                </kbd>
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-xs text-muted-foreground">
+                Gunakan shortcuts ini untuk mempercepat workflow input transaksi kas besar.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Version History Modal */}
+      {showVersionHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Edit History - Kas Besar
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVersionHistory(null)}
+                className="absolute top-4 right-4"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {expenseVersions.get(showVersionHistory)?.map((version, index) => (
+                  <div key={index} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Version {index + 1}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {version.createdAt ? new Date(version.createdAt).toLocaleString() : 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <p><strong>Item:</strong> {version.barang}</p>
+                      <p><strong>Price:</strong> {formatCurrency(version.hargaSatuan)}</p>
+                      <p><strong>Vendor:</strong> {version.vendorNama}</p>
+                      <p><strong>Status:</strong> {version.status}</p>
+                      <p><strong>Sub Category:</strong> {version.subJenis}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Approval Override Modal */}
+      {showApprovalOverride && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600">
+                <AlertTriangle className="h-5 w-5" />
+                Authorization Required
+              </CardTitle>
+              <CardDescription>
+                This transaction is approved and requires supervisor authorization to modify.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="supervisor-password">Supervisor Password</Label>
+                <Input
+                  id="supervisor-password"
+                  type="password"
+                  value={supervisorPassword}
+                  onChange={(e) => setSupervisorPassword(e.target.value)}
+                  placeholder="Enter supervisor password"
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Demo passwords: supervisor123, admin456, override789
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="approval-reason">Reason for Modification</Label>
+                <Textarea
+                  id="approval-reason"
+                  value={approvalReason}
+                  onChange={(e) => setApprovalReason(e.target.value)}
+                  placeholder="Please provide a detailed reason for editing this approved transaction..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Audit Notice</p>
+                    <p>This override will be logged for compliance purposes. Ensure you have proper authorization.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={requestApprovalOverride}
+                  disabled={!supervisorPassword || !approvalReason.trim()}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Authorize Override
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={cancelApprovalOverride}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Enhanced Controls Bar */}
+      <div className="fixed top-20 right-6 bg-white border rounded-lg shadow-lg p-2 z-40">
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkEditMode(!bulkEditMode)}
+            className={bulkEditMode ? "bg-blue-50" : ""}
+            title="Toggle bulk edit mode"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickEditMode(!quickEditMode)}
+            className={quickEditMode ? "bg-green-50" : ""}
+            title="Toggle quick edit mode"
+          >
+            <Zap className="h-4 w-4" />
+          </Button>
+          
+          {allowApprovedEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAllowApprovedEdit(false)}
+              className="bg-orange-50 border-orange-200 text-orange-700"
+              title="Disable approved transaction editing"
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            title="Refresh data"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Toaster, toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 import { Button } from "@/components/ui/button"
 import {
@@ -17,21 +18,19 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { login } from "@/lib/auth"
 
 // Form validation schema
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Password must contain at least one uppercase letter, one lowercase letter, and one number"
-    ),
+  password: z.string().min(1, "Password is required"),
 })
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   // Initialize form with validation schema
   const form = useForm<z.infer<typeof formSchema>>({
@@ -46,12 +45,22 @@ export default function AuthPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    setIsLoading(false)
-    toast.success("Logged in successfully!")
-    console.log(values)
+    try {
+      const result = await login(values.email, values.password)
+      
+      if (result.success) {
+        toast.success("Login successful!")
+        // Redirect to dashboard
+        router.push('/coal-tools-kaskecil')
+      } else {
+        toast.error(result.error || "Login failed")
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      toast.error("An error occurred during login")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -107,10 +116,44 @@ export default function AuthPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button variant="link" className="text-sm text-muted-foreground">
-            Forgot password?
-          </Button>
+        <CardFooter className="flex flex-col space-y-4">
+          <Separator />
+          <div className="w-full">
+            <h4 className="text-sm font-medium mb-3">Demo Accounts:</h4>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div>
+                  <div className="font-medium">Admin User</div>
+                  <div className="text-gray-600">admin@example.com</div>
+                </div>
+                <Badge variant="secondary">Admin</Badge>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div>
+                  <div className="font-medium">Manager User</div>
+                  <div className="text-gray-600">manager@example.com</div>
+                </div>
+                <Badge variant="outline">Approver</Badge>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div>
+                  <div className="font-medium">Staff User</div>
+                  <div className="text-gray-600">staff@example.com</div>
+                </div>
+                <Badge variant="outline">User</Badge>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div>
+                  <div className="font-medium">Demo User</div>
+                  <div className="text-gray-600">demo@example.com</div>
+                </div>
+                <Badge variant="secondary">Admin</Badge>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-gray-500">
+              <strong>Password for all accounts:</strong> Admin123!, Manager123!, Staff123!, Demo123!
+            </div>
+          </div>
         </CardFooter>
       </Card>
     </div>

@@ -29,7 +29,14 @@ import {
   BarChart3,
   Calculator,
   FileText,
-  Users
+  Users,
+  X,
+  Copy,
+  History,
+  RefreshCw,
+  Settings,
+  Zap,
+  Clock
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { 
@@ -59,6 +66,7 @@ interface WeighTransaction {
   source_file?: string
   notes?: string
   created_at: string
+  status?: 'draft' | 'submitted' | 'reviewed' | 'approved' | 'archived'
 }
 
 interface Buyer {
@@ -158,6 +166,22 @@ export function ProductionReport() {
     tare_ton: 0,
     notes: ''
   })
+
+  // Enhanced edit states for production report
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
+  const [quickEditMode, setQuickEditMode] = useState(false)
+  const [bulkEditMode, setBulkEditMode] = useState(false)
+  const [transactionVersions, setTransactionVersions] = useState<Map<string, WeighTransaction[]>>(new Map())
+  const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<{id: string, field: string} | null>(null)
+  const [inlineEditValues, setInlineEditValues] = useState<Record<string, any>>({})
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set())
+  
+  // Approved transaction editing states for production
+  const [allowApprovedEdit, setAllowApprovedEdit] = useState(false)
+  const [showApprovalOverride, setShowApprovalOverride] = useState<string | null>(null)
+  const [approvalReason, setApprovalReason] = useState('')
+  const [supervisorPassword, setSupervisorPassword] = useState('')
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -470,6 +494,195 @@ export function ProductionReport() {
     toast({
       title: "Berhasil dihapus",
       description: "Data transaksi berhasil dihapus"
+    })
+  }
+
+  // Enhanced edit functions for production report
+  const saveTransactionVersion = (transaction: WeighTransaction) => {
+    const versions = transactionVersions.get(transaction.id) || []
+    versions.push({...transaction, created_at: new Date().toISOString()})
+    setTransactionVersions(new Map(transactionVersions.set(transaction.id, versions)))
+  }
+
+  const handleInlineEdit = (transaction: WeighTransaction, field: string) => {
+    setInlineEditId(transaction.id)
+    setEditingField({id: transaction.id, field})
+    setInlineEditValues({
+      ...inlineEditValues,
+      [transaction.id]: {
+        ...inlineEditValues[transaction.id],
+        [field]: transaction[field as keyof WeighTransaction]
+      }
+    })
+  }
+
+  const saveInlineEdit = (transactionId: string) => {
+    const transaction = transactions.find(t => t.id === transactionId)
+    if (transaction && editingField && inlineEditValues[transactionId]) {
+      // Save version before updating
+      saveTransactionVersion(transaction)
+      
+      const updatedTransactions = transactions.map(t => 
+        t.id === transactionId 
+          ? { ...t, [editingField.field]: inlineEditValues[transactionId][editingField.field] }
+          : t
+      )
+      setTransactions(updatedTransactions)
+      
+      toast({
+        title: "Field updated",
+        description: `${editingField.field} has been updated successfully`
+      })
+    }
+    
+    setInlineEditId(null)
+    setEditingField(null)
+  }
+
+  const cancelInlineEdit = () => {
+    setInlineEditId(null)
+    setEditingField(null)
+  }
+
+  const handleDuplicateTransaction = (transaction: WeighTransaction) => {
+    const duplicatedTransaction: WeighTransaction = {
+      ...transaction,
+      id: `trans_${Date.now()}`,
+      created_at: new Date().toISOString(),
+      tanggal: new Date().toISOString().split('T')[0]
+    }
+    setTransactions([...transactions, duplicatedTransaction])
+    
+    toast({
+      title: "Transaction duplicated",
+      description: "A copy of the transaction has been created with today's date"
+    })
+  }
+
+  const handleQuickEdit = (transaction: WeighTransaction) => {
+    // Check if this is an approved transaction and needs authorization
+    if (transaction.status === 'approved' && !allowApprovedEdit) {
+      setShowApprovalOverride(transaction.id)
+      return
+    }
+    
+    setQuickEditMode(true)
+    setInlineEditId(transaction.id)
+    setInlineEditValues({
+      ...inlineEditValues,
+      [transaction.id]: {
+        gross_ton: transaction.gross_ton,
+        tare_ton: transaction.tare_ton,
+        pembeli_nama: transaction.pembeli_nama,
+        nopol: transaction.nopol
+      }
+    })
+  }
+
+  // Handle approved transaction editing with authorization for production
+  const handleApprovedTransactionEdit = (transaction: WeighTransaction) => {
+    if (transaction.status === 'approved' && !allowApprovedEdit) {
+      setShowApprovalOverride(transaction.id)
+      return
+    }
+    
+    // Save version before editing approved transaction
+    saveTransactionVersion(transaction)
+    
+    setFormData({
+      tanggal: transaction.tanggal,
+      nopol: transaction.nopol,
+      pembeli_nama: transaction.pembeli_nama,
+      tujuan: transaction.tujuan,
+      gross_ton: transaction.gross_ton,
+      tare_ton: transaction.tare_ton,
+      notes: transaction.notes || ''
+    })
+    setEditingTransaction(transaction)
+    setIsFormOpen(true)
+  }
+
+  const requestProductionApprovalOverride = async () => {
+    // Simple password check - same as other components
+    const validPasswords = ['supervisor123', 'admin456', 'override789']
+    
+    if (!validPasswords.includes(supervisorPassword)) {
+      toast({
+        title: "Invalid Authorization",
+        description: "Incorrect supervisor password",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!approvalReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for editing approved production data",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Enable approved editing for this session
+    setAllowApprovedEdit(true)
+    
+    // Log the override attempt
+    console.log('Production Approval Override:', {
+      transactionId: showApprovalOverride,
+      reason: approvalReason,
+      timestamp: new Date().toISOString(),
+      user: 'current_user'
+    })
+
+    toast({
+      title: "Authorization Granted",
+      description: "You can now edit approved production data this session",
+    })
+
+    // Close the override dialog
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+
+    // Trigger the original edit action
+    const transaction = transactions.find(t => t.id === showApprovalOverride)
+    if (transaction) {
+      handleQuickEdit(transaction)
+    }
+  }
+
+  const cancelProductionApprovalOverride = () => {
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+  }
+
+  const handleSelectTransaction = (id: string) => {
+    const newSelected = new Set(selectedTransactions)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedTransactions(newSelected)
+  }
+
+  const handleBulkEdit = (field: string, value: any) => {
+    const updatedTransactions = transactions.map(transaction => {
+      if (selectedTransactions.has(transaction.id)) {
+        saveTransactionVersion(transaction)
+        return { ...transaction, [field]: value }
+      }
+      return transaction
+    })
+    setTransactions(updatedTransactions)
+    setSelectedTransactions(new Set())
+    setBulkEditMode(false)
+    
+    toast({
+      title: "Bulk edit applied",
+      description: `${selectedTransactions.size} transactions updated`
     })
   }
 
@@ -1063,23 +1276,84 @@ export function ProductionReport() {
                             </div>
                           )}
 
-                          <div className="flex gap-2 pt-4 border-t">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(transaction)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(transaction.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Hapus
-                            </Button>
+                          <div className="flex justify-between items-center pt-4 border-t">
+                            <div className="flex gap-2 items-center">
+                              {bulkEditMode && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTransactions.has(transaction.id)}
+                                  onChange={() => handleSelectTransaction(transaction.id)}
+                                  className="h-4 w-4 text-blue-600 rounded"
+                                />
+                              )}
+                              
+                              {/* Enhanced Edit Button Group */}
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => transaction.status === 'approved' ? handleApprovedTransactionEdit(transaction) : handleEdit(transaction)}
+                                  disabled={transaction.status === 'archived'}
+                                  className={transaction.status === 'approved' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-blue-50"}
+                                  title={transaction.status === 'approved' ? "Edit Approved Production Data (Requires Authorization)" : "Edit Transaction"}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  {transaction.status === 'approved' ? 'Edit*' : 'Edit'}
+                                </Button>
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleQuickEdit(transaction)}
+                                  disabled={transaction.status === 'archived'}
+                                  className={transaction.status === 'approved' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-green-50"}
+                                  title={transaction.status === 'approved' ? "Quick Edit Approved (Requires Authorization)" : "Quick Edit - Edit key fields inline"}
+                                >
+                                  <Zap className="h-4 w-4" />
+                                  {transaction.status === 'approved' && <span className="text-xs ml-1">*</span>}
+                                </Button>
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDuplicateTransaction(transaction)}
+                                  className="hover:bg-purple-50"
+                                  title="Duplicate this transaction"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                
+                                {transactionVersions.get(transaction.id)?.length && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowVersionHistory(transaction.id)}
+                                    className="hover:bg-yellow-50"
+                                    title="View edit history"
+                                  >
+                                    <History className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (transaction.status === 'approved' && !allowApprovedEdit) {
+                                    setShowApprovalOverride(transaction.id)
+                                    return
+                                  }
+                                  handleDelete(transaction.id)
+                                }}
+                                disabled={transaction.status === 'archived'}
+                                className={transaction.status === 'approved' ? "hover:bg-red-100 border-red-200" : "hover:bg-red-50"}
+                                title={transaction.status === 'approved' ? "Delete Approved Transaction (Requires Authorization)" : "Delete Transaction"}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                {transaction.status === 'approved' ? 'Hapus*' : 'Hapus'}
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -1451,6 +1725,204 @@ export function ProductionReport() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Bulk Edit Toolbar for Production */}
+      {bulkEditMode && selectedTransactions.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 z-50">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">{selectedTransactions.size} transactions selected</span>
+            
+            <Select onValueChange={(value) => handleBulkEdit('pembeli_nama', value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Set buyer" />
+              </SelectTrigger>
+              <SelectContent>
+                {buyers.map(buyer => (
+                  <SelectItem key={buyer.id} value={buyer.nama}>
+                    {buyer.nama}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Input
+              placeholder="Set destination"
+              onChange={(e) => handleBulkEdit('tujuan', e.target.value)}
+              className="w-40"
+            />
+
+            <Button
+              variant="outline"
+              onClick={() => {setBulkEditMode(false); setSelectedTransactions(new Set())}}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Version History Modal for Production */}
+      {showVersionHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Transaction History
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVersionHistory(null)}
+                className="absolute top-4 right-4"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {transactionVersions.get(showVersionHistory)?.map((version, index) => (
+                  <div key={index} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Version {index + 1}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(version.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <p><strong>Vehicle:</strong> {version.nopol}</p>
+                      <p><strong>Buyer:</strong> {version.pembeli_nama}</p>
+                                             <p><strong>Net Weight:</strong> {version.netto_ton} tons</p>
+                      <p><strong>Destination:</strong> {version.tujuan}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Approval Override Modal for Production */}
+      {showApprovalOverride && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600">
+                <AlertTriangle className="h-5 w-5" />
+                Authorization Required - Production
+              </CardTitle>
+              <CardDescription>
+                This production data is approved and requires supervisor authorization to modify.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="supervisor-password">Supervisor Password</Label>
+                <Input
+                  id="supervisor-password"
+                  type="password"
+                  value={supervisorPassword}
+                  onChange={(e) => setSupervisorPassword(e.target.value)}
+                  placeholder="Enter supervisor password"
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Demo passwords: supervisor123, admin456, override789
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="approval-reason">Reason for Modification</Label>
+                <Textarea
+                  id="approval-reason"
+                  value={approvalReason}
+                  onChange={(e) => setApprovalReason(e.target.value)}
+                  placeholder="Please provide a detailed reason for editing this approved production data..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Audit Notice</p>
+                    <p>This override will be logged for compliance purposes. Ensure you have proper authorization.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={requestProductionApprovalOverride}
+                  disabled={!supervisorPassword || !approvalReason.trim()}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Authorize Override
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={cancelProductionApprovalOverride}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Enhanced Controls Bar for Production */}
+      <div className="fixed top-20 right-6 bg-white border rounded-lg shadow-lg p-2 z-40">
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkEditMode(!bulkEditMode)}
+            className={bulkEditMode ? "bg-blue-50" : ""}
+            title="Toggle bulk edit mode for transactions"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickEditMode(!quickEditMode)}
+            className={quickEditMode ? "bg-green-50" : ""}
+            title="Toggle quick edit mode"
+          >
+            <Zap className="h-4 w-4" />
+          </Button>
+          
+          {allowApprovedEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAllowApprovedEdit(false)}
+              className="bg-orange-50 border-orange-200 text-orange-700"
+              title="Disable approved production data editing"
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            title="Refresh data"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

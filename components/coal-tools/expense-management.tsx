@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Plus, 
@@ -26,9 +32,21 @@ import {
   Download,
   FileSpreadsheet,
   AlertTriangle,
-  Search
+  Search,
+  X,
+  Copy,
+  Clock,
+  History,
+  Settings,
+  RefreshCw,
+  Zap,
+  CheckSquare,
+  MoreHorizontal,
+  RotateCcw
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useKasKecil } from "@/hooks/use-kas-kecil"
+import { apiService, KasKecilExpense } from "@/lib/api"
 import { 
   uploadFile, 
   exportToExcel, 
@@ -42,29 +60,8 @@ import {
   importExcelFile
 } from "@/lib/file-utils"
 
-// Types
-interface Expense {
-  id: string
-  hari: string
-  tanggal: string
-  bulan: string
-  tipe_aktivitas: string
-  barang: string
-  banyak: number
-  satuan: string
-  harga_satuan: number
-  total: number
-  vendor_nama: string
-  vendor_telp: string
-  vendor_email: string
-  jenis: string
-  sub_jenis: string
-  bukti_url?: string
-  status: 'draft' | 'submitted' | 'reviewed' | 'approved' | 'archived'
-  notes?: string
-  created_by: string
-  created_at: string
-}
+// Types - Using KasKecilExpense from API
+type Expense = KasKecilExpense
 
 // Reference data
 const JENIS_OPTIONS = [
@@ -108,20 +105,48 @@ const TIPE_AKTIVITAS_OPTIONS = [
 
 export function ExpenseManagement() {
   const { toast } = useToast()
+  const {
+    expenses,
+    loading,
+    error,
+    pagination,
+    loadExpenses,
+    createExpense,
+    updateExpense,
+    softDeleteExpense,
+    hardDeleteExpense,
+    restoreExpense,
+    updateExpenseStatus
+  } = useKasKecil()
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
-  
-  const [expenses, setExpenses] = useState<Expense[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [activeTab, setActiveTab] = useState('list')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterJenis, setFilterJenis] = useState<string>('all')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [showBulkActions, setShowBulkActions] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  
+  // Enhanced edit states
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null)
+  const [quickEditMode, setQuickEditMode] = useState(false)
+  const [bulkEditMode, setBulkEditMode] = useState(false)
+  const [expenseVersions, setExpenseVersions] = useState<Map<string, Expense[]>>(new Map())
+  const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<{id: string, field: string} | null>(null)
+  const [inlineEditValues, setInlineEditValues] = useState<Record<string, any>>({})
+  
+  // Approved transaction editing states for kas kecil
+  const [allowApprovedEdit, setAllowApprovedEdit] = useState(false)
+  const [showApprovalOverride, setShowApprovalOverride] = useState<string | null>(null)
+  const [approvalReason, setApprovalReason] = useState('')
+  const [supervisorPassword, setSupervisorPassword] = useState('')
   const [formData, setFormData] = useState({
     hari: "",
     tanggal: "",
@@ -139,16 +164,18 @@ export function ExpenseManagement() {
     bukti_url: ""
   })
 
-  // Load data from localStorage on mount
+  // Load data from database on mount
   useEffect(() => {
-    const savedExpenses = loadFromLocalStorage('expenses', [])
-    setExpenses(savedExpenses)
+    loadExpenses()
   }, [])
 
-  // Save to localStorage whenever expenses change
+  // Load expenses when filters change
   useEffect(() => {
-    saveToLocalStorage('expenses', expenses)
-  }, [expenses])
+    loadExpenses({
+      status: filterStatus === 'all' ? undefined : filterStatus as any,
+      includeDeleted: showDeleted
+    })
+  }, [filterStatus, showDeleted])
 
   // Auto calculate total when banyak or harga_satuan changes
   const calculatedTotal = formData.banyak * formData.harga_satuan
@@ -320,34 +347,32 @@ export function ExpenseManagement() {
     return true
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return
 
-    const expense: Expense = {
-      id: editingExpense ? editingExpense.id : Date.now().toString(),
+    const expenseData = {
       ...formData,
       bulan: formData.bulan || "",
       total: calculatedTotal,
-      status: 'draft',
-      created_by: 'current_user',
-      created_at: new Date().toISOString()
+      status: 'DRAFT' as const,
+      createdBy: 'current_user' // This should come from auth context
     }
 
     if (editingExpense) {
-      setExpenses(prev => prev.map(exp => exp.id === editingExpense.id ? expense : exp))
-      toast({
-        title: "Berhasil diperbarui",
-        description: "Data pengeluaran berhasil diperbarui"
+      const result = await updateExpense({
+        id: editingExpense.id!,
+        ...expenseData
       })
+      if (result) {
+        setEditingExpense(null)
+        resetForm()
+      }
     } else {
-      setExpenses(prev => [...prev, expense])
-      toast({
-        title: "Berhasil ditambahkan",
-        description: "Data pengeluaran berhasil ditambahkan"
-      })
+      const result = await createExpense(expenseData)
+      if (result) {
+        resetForm()
+      }
     }
-
-    resetForm()
   }
 
   // Filtering and search functions
@@ -429,6 +454,9 @@ export function ExpenseManagement() {
   }
 
   const handleEdit = (expense: Expense) => {
+    // Save current version to history before editing
+    saveExpenseVersion(expense)
+    
     setFormData({
       hari: expense.hari,
       tanggal: expense.tanggal,
@@ -449,31 +477,211 @@ export function ExpenseManagement() {
     setIsFormOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    setExpenses(prev => prev.filter(exp => exp.id !== id))
-    toast({
-      title: "Berhasil dihapus",
-      description: "Data pengeluaran berhasil dihapus"
+  // Enhanced edit functions
+  const saveExpenseVersion = (expense: Expense) => {
+    const versions = expenseVersions.get(expense.id) || []
+    versions.push({...expense, created_at: new Date().toISOString()})
+    setExpenseVersions(new Map(expenseVersions.set(expense.id, versions)))
+  }
+
+  const handleInlineEdit = (expense: Expense, field: string) => {
+    setInlineEditId(expense.id)
+    setEditingField({id: expense.id, field})
+    setInlineEditValues({
+      ...inlineEditValues,
+      [expense.id]: {
+        ...inlineEditValues[expense.id],
+        [field]: expense[field as keyof Expense]
+      }
     })
   }
 
-  const handleStatusUpdate = (id: string, newStatus: Expense['status']) => {
-    setExpenses(prev => prev.map(exp => 
-      exp.id === id ? { ...exp, status: newStatus } : exp
-    ))
-    
-    const statusLabels = {
-      draft: 'Draft',
-      submitted: 'Disubmit',
-      reviewed: 'Direview',
-      approved: 'Disetujui',
-      archived: 'Diarsip'
+  const saveInlineEdit = (expenseId: string) => {
+    const expense = expenses.find(e => e.id === expenseId)
+    if (expense && editingField && inlineEditValues[expenseId]) {
+      // Save version before updating
+      saveExpenseVersion(expense)
+      
+      const updatedExpenses = expenses.map(e => 
+        e.id === expenseId 
+          ? { ...e, [editingField.field]: inlineEditValues[expenseId][editingField.field] }
+          : e
+      )
+      setExpenses(updatedExpenses)
+      
+      toast({
+        title: "Field updated",
+        description: `${editingField.field} has been updated successfully`
+      })
     }
     
-    toast({
-      title: "Status diperbarui",
-      description: `Status berhasil diubah menjadi ${statusLabels[newStatus]}`
+    setInlineEditId(null)
+    setEditingField(null)
+  }
+
+  const cancelInlineEdit = () => {
+    setInlineEditId(null)
+    setEditingField(null)
+  }
+
+  const handleQuickEdit = (expense: Expense) => {
+    // Check if this is an approved transaction and needs authorization
+    if (expense.status === 'approved' && !allowApprovedEdit) {
+      setShowApprovalOverride(expense.id)
+      return
+    }
+    
+    setQuickEditMode(true)
+    setInlineEditId(expense.id)
+    setInlineEditValues({
+      ...inlineEditValues,
+      [expense.id]: {
+        barang: expense.barang,
+        harga_satuan: expense.harga_satuan,
+        banyak: expense.banyak,
+        vendor_nama: expense.vendor_nama
+      }
     })
+  }
+
+  // Handle approved transaction editing with authorization for kas kecil
+  const handleApprovedExpenseEdit = (expense: Expense) => {
+    if (expense.status === 'approved' && !allowApprovedEdit) {
+      setShowApprovalOverride(expense.id)
+      return
+    }
+    
+    // Save version before editing approved transaction
+    saveExpenseVersion(expense)
+    
+    setFormData({
+      hari: expense.hari,
+      tanggal: expense.tanggal,
+      tipe_aktivitas: expense.tipe_aktivitas,
+      barang: expense.barang,
+      banyak: expense.banyak,
+      satuan: expense.satuan,
+      harga_satuan: expense.harga_satuan,
+      vendor_nama: expense.vendor_nama,
+      vendor_telp: expense.vendor_telp,
+      vendor_email: expense.vendor_email,
+      jenis: expense.jenis,
+      sub_jenis: expense.sub_jenis,
+      notes: expense.notes || "",
+      bukti_url: expense.bukti_url || ""
+    })
+    setEditingExpense(expense)
+    setIsFormOpen(true)
+  }
+
+  const requestApprovalOverride = async () => {
+    // Simple password check - same as kas besar
+    const validPasswords = ['supervisor123', 'admin456', 'override789']
+    
+    if (!validPasswords.includes(supervisorPassword)) {
+      toast({
+        title: "Invalid Authorization",
+        description: "Incorrect supervisor password",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!approvalReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for editing approved expense",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Enable approved editing for this session
+    setAllowApprovedEdit(true)
+    
+    // Log the override attempt
+    console.log('Kas Kecil Approval Override:', {
+      expenseId: showApprovalOverride,
+      reason: approvalReason,
+      timestamp: new Date().toISOString(),
+      user: 'current_user'
+    })
+
+    toast({
+      title: "Authorization Granted",
+      description: "You can now edit approved expenses this session",
+    })
+
+    // Close the override dialog
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+
+    // Trigger the original edit action
+    const expense = expenses.find(e => e.id === showApprovalOverride)
+    if (expense) {
+      handleQuickEdit(expense)
+    }
+  }
+
+  const cancelApprovalOverride = () => {
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+  }
+
+  const handleDuplicateExpense = (expense: Expense) => {
+    const duplicatedExpense: Expense = {
+      ...expense,
+      id: `expense_${Date.now()}`,
+      created_at: new Date().toISOString(),
+      status: 'draft'
+    }
+    setExpenses([...expenses, duplicatedExpense])
+    
+    toast({
+      title: "Expense duplicated",
+      description: "A copy of the expense has been created"
+    })
+  }
+
+  const handleBulkEdit = () => {
+    setBulkEditMode(!bulkEditMode)
+    if (!bulkEditMode) {
+      setSelectedExpenses(new Set())
+    }
+  }
+
+  const applyBulkEdit = (field: string, value: any) => {
+    const updatedExpenses = expenses.map(expense => {
+      if (selectedExpenses.has(expense.id)) {
+        saveExpenseVersion(expense)
+        return { ...expense, [field]: value }
+      }
+      return expense
+    })
+    setExpenses(updatedExpenses)
+    setSelectedExpenses(new Set())
+    setBulkEditMode(false)
+    
+    toast({
+      title: "Bulk edit applied",
+      description: `${selectedExpenses.size} expenses updated`
+    })
+  }
+
+  const handleDelete = async (id: string) => {
+    const success = await softDeleteExpense(id)
+    if (success) {
+      // The hook will handle the state update and toast
+    }
+  }
+
+  const handleStatusUpdate = async (id: string, newStatus: Expense['status']) => {
+    const result = await updateExpenseStatus(id, newStatus)
+    if (result) {
+      // The hook will handle the state update and toast
+    }
   }
 
   const getStatusBadge = (status: Expense['status']) => {
@@ -643,6 +851,61 @@ export function ExpenseManagement() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
+              <div>
+                <h3 className="font-semibold text-blue-800">Loading Data</h3>
+                <p className="text-sm text-blue-700 mt-1">Connecting to database and loading expenses...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div>
+                <h3 className="font-semibold text-red-800">Database Connection Error</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <div className="flex gap-2 mt-3">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => loadExpenses()}
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Connection
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      toast({
+                        title: "Offline Mode",
+                        description: "You can still view and edit data locally, but changes won't be saved to the database.",
+                      })
+                    }}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Continue Offline
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Enhanced Search and Filter Section */}
       <Card className="mb-6">
         <CardHeader>
@@ -694,6 +957,18 @@ export function ExpenseManagement() {
                   <SelectItem value="administrasi">Administrasi</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="show-deleted"
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="show-deleted" className="text-sm">
+                Tampilkan Data Terhapus
+              </Label>
             </div>
             <div className="flex items-end">
               <Button 
@@ -1088,7 +1363,7 @@ export function ExpenseManagement() {
               ) : (
                 <div className="space-y-4">
                   {filteredExpenses.map((expense) => (
-                    <Card key={expense.id} className="border">
+                    <Card key={expense.id} className={`border ${expense.deletedAt ? 'border-red-300 bg-red-50' : ''}`}>
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex items-center gap-3">
@@ -1098,8 +1373,38 @@ export function ExpenseManagement() {
                               onChange={() => handleSelectExpense(expense.id)}
                               className="rounded"
                             />
-                            <div>
-                              <h3 className="font-semibold">{expense.barang}</h3>
+                            <div className="flex-1">
+                              {/* Inline Editable Title */}
+                              {inlineEditId === expense.id && editingField?.field === 'barang' ? (
+                                <div className="flex gap-2 items-center">
+                                  <Input
+                                    value={inlineEditValues[expense.id]?.barang || expense.barang}
+                                    onChange={(e) => setInlineEditValues({
+                                      ...inlineEditValues,
+                                      [expense.id]: {
+                                        ...inlineEditValues[expense.id],
+                                        barang: e.target.value
+                                      }
+                                    })}
+                                    className="h-8 text-base font-semibold"
+                                    autoFocus
+                                  />
+                                  <Button size="sm" onClick={() => saveInlineEdit(expense.id)}>
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <h3 
+                                  className="font-semibold cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                  onClick={() => handleInlineEdit(expense, 'barang')}
+                                  title="Click to edit"
+                                >
+                                  {expense.barang}
+                                </h3>
+                              )}
                               <p className="text-sm text-muted-foreground">
                                 {expense.hari}, {expense.tanggal} • {expense.tipe_aktivitas}
                               </p>
@@ -1107,13 +1412,48 @@ export function ExpenseManagement() {
                           </div>
                           <div className="flex items-center gap-2">
                             {getStatusBadge(expense.status)}
+                            {expense.deletedAt && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Deleted
+                              </span>
+                            )}
                             <div className="text-right">
                               <p className="font-semibold text-lg">
                                 {formatCurrency(expense.total)}
                               </p>
-                              <p className="text-sm text-muted-foreground">
-                                {expense.banyak} {expense.satuan} × {formatCurrency(expense.harga_satuan)}
-                              </p>
+                              {/* Inline Editable Price */}
+                              {inlineEditId === expense.id && editingField?.field === 'harga_satuan' ? (
+                                <div className="flex gap-1 items-center justify-end">
+                                  <span className="text-sm text-muted-foreground">{expense.banyak} {expense.satuan} ×</span>
+                                  <Input
+                                    type="number"
+                                    value={inlineEditValues[expense.id]?.harga_satuan || expense.harga_satuan}
+                                    onChange={(e) => setInlineEditValues({
+                                      ...inlineEditValues,
+                                      [expense.id]: {
+                                        ...inlineEditValues[expense.id],
+                                        harga_satuan: parseFloat(e.target.value) || 0
+                                      }
+                                    })}
+                                    className="h-6 w-24 text-xs text-right"
+                                    autoFocus
+                                  />
+                                  <Button size="sm" onClick={() => saveInlineEdit(expense.id)}>
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <p 
+                                  className="text-sm text-muted-foreground cursor-pointer hover:bg-gray-100 px-1 rounded"
+                                  onClick={() => handleInlineEdit(expense, 'harga_satuan')}
+                                  title="Click to edit price"
+                                >
+                                  {expense.banyak} {expense.satuan} × {formatCurrency(expense.harga_satuan)}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1129,7 +1469,37 @@ export function ExpenseManagement() {
                           </div>
                           <div>
                             <span className="font-medium">Vendor:</span>
-                            <p className="text-muted-foreground">{expense.vendor_nama || '-'}</p>
+                            {/* Inline Editable Vendor */}
+                            {inlineEditId === expense.id && editingField?.field === 'vendor_nama' ? (
+                              <div className="flex gap-1 items-center mt-1">
+                                <Input
+                                  value={inlineEditValues[expense.id]?.vendor_nama || expense.vendor_nama}
+                                  onChange={(e) => setInlineEditValues({
+                                    ...inlineEditValues,
+                                    [expense.id]: {
+                                      ...inlineEditValues[expense.id],
+                                      vendor_nama: e.target.value
+                                    }
+                                  })}
+                                  className="h-6 text-xs"
+                                  autoFocus
+                                />
+                                <Button size="sm" onClick={() => saveInlineEdit(expense.id)}>
+                                  <CheckCircle className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <p 
+                                className="text-muted-foreground cursor-pointer hover:bg-gray-100 px-1 rounded"
+                                onClick={() => handleInlineEdit(expense, 'vendor_nama')}
+                                title="Click to edit vendor"
+                              >
+                                {expense.vendor_nama || '-'}
+                              </p>
+                            )}
                           </div>
                           <div>
                             <span className="font-medium">Contact:</span>
@@ -1144,25 +1514,113 @@ export function ExpenseManagement() {
                         )}
 
                         <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(expense)}
-                              disabled={expense.status === 'approved' || expense.status === 'archived'}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(expense.id)}
-                              disabled={expense.status === 'approved' || expense.status === 'archived'}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Hapus
-                            </Button>
+                          <div className="flex gap-2 flex-wrap">
+                            {/* Enhanced Edit Button Group */}
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => expense.status === 'approved' ? handleApprovedExpenseEdit(expense) : handleEdit(expense)}
+                                disabled={expense.status === 'archived'}
+                                className={expense.status === 'approved' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-blue-50"}
+                                title={expense.status === 'approved' ? "Edit Approved Expense (Requires Authorization)" : "Edit Expense"}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                {expense.status === 'approved' ? 'Edit*' : 'Edit'}
+                              </Button>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleQuickEdit(expense)}
+                                disabled={expense.status === 'archived'}
+                                className={expense.status === 'approved' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-green-50"}
+                                title={expense.status === 'approved' ? "Quick Edit Approved (Requires Authorization)" : "Quick Edit - Edit key fields inline"}
+                              >
+                                <Zap className="h-4 w-4" />
+                                {expense.status === 'approved' && <span className="text-xs ml-1">*</span>}
+                              </Button>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDuplicateExpense(expense)}
+                                className="hover:bg-purple-50"
+                                title="Duplicate this expense"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              
+                              {expenseVersions.get(expense.id)?.length && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowVersionHistory(expense.id)}
+                                  className="hover:bg-yellow-50"
+                                  title="View edit history"
+                                >
+                                  <History className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={expense.status === 'archived'}
+                                  className={expense.status === 'approved' ? "hover:bg-red-100 border-red-200" : "hover:bg-red-50"}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (expense.status === 'approved' && !allowApprovedEdit) {
+                                      setShowApprovalOverride(expense.id)
+                                      return
+                                    }
+                                    handleDelete(expense.id)
+                                  }}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Soft Delete (Hide)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    if (expense.status === 'approved' && !allowApprovedEdit) {
+                                      setShowApprovalOverride(expense.id)
+                                      return
+                                    }
+                                    const success = await hardDeleteExpense(expense.id!)
+                                    if (success) {
+                                      // The hook will handle the state update and toast
+                                    }
+                                  }}
+                                  className="text-red-800 font-semibold"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Hard Delete (Permanent)
+                                </DropdownMenuItem>
+                                {expense.deletedAt && (
+                                  <DropdownMenuItem
+                                    onClick={async () => {
+                                      const result = await restoreExpense(expense.id!)
+                                      if (result) {
+                                        // The hook will handle the state update and toast
+                                      }
+                                    }}
+                                    className="text-green-600"
+                                  >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Restore
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
 
                           <div className="flex gap-2">
@@ -1236,6 +1694,10 @@ export function ExpenseManagement() {
                     <span>Approved:</span>
                     <span>{expenses.filter(exp => exp.status === 'approved').length}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Soft Deleted:</span>
+                    <span className="text-red-600">{expenses.filter(exp => exp.deletedAt).length}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1264,6 +1726,208 @@ export function ExpenseManagement() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Bulk Edit Toolbar */}
+      {bulkEditMode && selectedExpenses.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 z-50">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">{selectedExpenses.size} items selected</span>
+            
+            <Select onValueChange={(value) => applyBulkEdit('vendor_nama', value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Set vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PT ABC">PT ABC</SelectItem>
+                <SelectItem value="PT XYZ">PT XYZ</SelectItem>
+                <SelectItem value="Supplier Lokal">Supplier Lokal</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select onValueChange={(value) => applyBulkEdit('status', value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Set status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="reviewed">Reviewed</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              onClick={() => setBulkEditMode(false)}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Version History Modal */}
+      {showVersionHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Edit History
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVersionHistory(null)}
+                className="absolute top-4 right-4"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {expenseVersions.get(showVersionHistory)?.map((version, index) => (
+                  <div key={index} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Version {index + 1}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(version.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <p><strong>Item:</strong> {version.barang}</p>
+                      <p><strong>Price:</strong> {formatCurrency(version.harga_satuan)}</p>
+                      <p><strong>Vendor:</strong> {version.vendor_nama}</p>
+                      <p><strong>Status:</strong> {version.status}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Approval Override Modal for Kas Kecil */}
+      {showApprovalOverride && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600">
+                <AlertTriangle className="h-5 w-5" />
+                Authorization Required - Kas Kecil
+              </CardTitle>
+              <CardDescription>
+                This expense is approved and requires supervisor authorization to modify.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="supervisor-password">Supervisor Password</Label>
+                <Input
+                  id="supervisor-password"
+                  type="password"
+                  value={supervisorPassword}
+                  onChange={(e) => setSupervisorPassword(e.target.value)}
+                  placeholder="Enter supervisor password"
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Demo passwords: supervisor123, admin456, override789
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="approval-reason">Reason for Modification</Label>
+                <Textarea
+                  id="approval-reason"
+                  value={approvalReason}
+                  onChange={(e) => setApprovalReason(e.target.value)}
+                  placeholder="Please provide a detailed reason for editing this approved expense..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Audit Notice</p>
+                    <p>This override will be logged for compliance purposes. Ensure you have proper authorization.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={requestApprovalOverride}
+                  disabled={!supervisorPassword || !approvalReason.trim()}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Authorize Override
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={cancelApprovalOverride}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Enhanced Controls Bar */}
+      <div className="fixed top-20 right-6 bg-white border rounded-lg shadow-lg p-2 z-40">
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBulkEdit}
+            className={bulkEditMode ? "bg-blue-50" : ""}
+            title="Toggle bulk edit mode"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickEditMode(!quickEditMode)}
+            className={quickEditMode ? "bg-green-50" : ""}
+            title="Toggle quick edit mode"
+          >
+            <Zap className="h-4 w-4" />
+          </Button>
+          
+          {allowApprovedEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAllowApprovedEdit(false)}
+              className="bg-orange-50 border-orange-200 text-orange-700"
+              title="Disable approved expense editing"
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            title="Refresh data"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

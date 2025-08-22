@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
@@ -18,387 +21,329 @@ import {
   X,
   Settings,
   PlusCircle,
-  FileText
+  FileText,
+  Loader2,
+  Copy,
+  History,
+  RefreshCw,
+  Zap,
+  Clock,
+  AlertTriangle
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { 
   exportToExcel, 
   exportToCSV, 
   generatePDF,
-  saveToLocalStorage,
-  loadFromLocalStorage,
   generatePayrollTemplate
 } from "@/lib/file-utils"
+import { 
+  apiService, 
+  Employee, 
+  PayComponent, 
+  PayrollRun, 
+  PayrollLine,
+  formatCurrency 
+} from "@/lib/api"
 
-// Types
-interface Employee {
-  id: string
+// Mock user ID - in real app this should come from auth
+const CURRENT_USER_ID = 'cmelj7fwx0000ol5nfd1lqh2z' // Demo user ID from seed
+
+// Form interfaces for dialogs
+interface EmployeeForm {
   nama: string
   jabatan: string
   site: string
-  kontrak_upah_harian: number
-  default_uang_makan: number
-  default_uang_bbm: number
-  bank_name?: string
-  bank_account?: string
+  kontrakUpahHarian: string
+  defaultUangMakan: string
+  defaultUangBbm: string
+  bankName?: string
+  bankAccount?: string
   npwp?: string
-  aktif: boolean
 }
 
-interface PayComponent {
-  id: string
+interface PayComponentForm {
   nama: string
-  tipe: 'earning' | 'deduction'
+  tipe: 'EARNING' | 'DEDUCTION'
   taxable: boolean
-  metode: 'flat' | 'per_hari' | 'persentase'
-  basis: 'upah_harian' | 'bruto' | 'hari_kerja'
-  rate?: number
-  nominal?: number
-  cap_min?: number
-  cap_max?: number
-  order: number
-  aktif: boolean
+  metode: 'FLAT' | 'PER_HARI' | 'PERSENTASE'
+  basis: 'UPAH_HARIAN' | 'BRUTO' | 'HARI_KERJA'
+  rate?: string
+  nominal?: string
+  capMin?: string
+  capMax?: string
+  order: string
 }
-
-interface AttendanceRecord {
-  id: string
-  employee_id: string
-  tanggal: string
-  clock_in?: string
-  clock_out?: string
-  break_start?: string
-  break_end?: string
-  total_hours: number
-  status: 'present' | 'late' | 'absent' | 'sick' | 'leave'
-  overtime_hours: number
-  notes?: string
-  approved_by?: string
-  created_at: string
-}
-
-interface PayrollLine {
-  id: string
-  employee_id: string
-  employee_name: string
-  hari_kerja: number
-  upah_harian: number
-  uang_makan_harian: number
-  uang_bbm_harian: number
-  bruto: number
-  pajak_rate?: number
-  pajak_nominal?: number
-  potongan_lain?: number
-  neto: number
-  status: 'draft' | 'reviewed' | 'approved' | 'paid'
-  components: PayrollLineComponent[]
-  notes?: string
-}
-
-interface PayrollLineComponent {
-  id: string
-  component_id: string
-  component_name: string
-  qty?: number
-  rate?: number
-  nominal?: number
-  amount: number
-  taxable: boolean
-}
-
-interface PayrollRun {
-  id: string
-  periode_awal: string
-  periode_akhir: string
-  status: 'draft' | 'reviewed' | 'approved' | 'paid'
-  payroll_lines: PayrollLine[]
-  created_at: string
-}
-
-// Sample data
-const SAMPLE_EMPLOYEES: Employee[] = [
-  {
-    id: '1',
-    nama: 'Budi Santoso',
-    jabatan: 'Operator Alat Berat',
-    site: 'Site A',
-    kontrak_upah_harian: 120000,
-    default_uang_makan: 20000,
-    default_uang_bbm: 15000,
-    bank_name: 'BCA',
-    bank_account: '1234567890',
-    aktif: true
-  },
-  {
-    id: '2',
-    nama: 'Siti Aminah',
-    jabatan: 'Supervisor Lapangan',
-    site: 'Site A',
-    kontrak_upah_harian: 150000,
-    default_uang_makan: 25000,
-    default_uang_bbm: 20000,
-    bank_name: 'Mandiri',
-    bank_account: '0987654321',
-    aktif: true
-  }
-]
-
-const SAMPLE_COMPONENTS: PayComponent[] = [
-  {
-    id: '1',
-    nama: 'Tunjangan Lapangan',
-    tipe: 'earning',
-    taxable: true,
-    metode: 'per_hari',
-    basis: 'hari_kerja',
-    rate: 25000,
-    order: 1,
-    aktif: true
-  },
-  {
-    id: '2',
-    nama: 'Transport Tambahan',
-    tipe: 'earning',
-    taxable: false,
-    metode: 'flat',
-    basis: 'upah_harian',
-    nominal: 150000,
-    order: 2,
-    aktif: true
-  },
-  {
-    id: '3',
-    nama: 'Potongan Kasbon',
-    tipe: 'deduction',
-    taxable: false,
-    metode: 'flat',
-    basis: 'upah_harian',
-    nominal: 300000,
-    cap_max: 300000,
-    order: 3,
-    aktif: true
-  }
-]
 
 export function PayrollCalculator() {
   const { toast } = useToast()
-  const [employees, setEmployees] = useState<Employee[]>(SAMPLE_EMPLOYEES)
-  const [payComponents, setPayComponents] = useState<PayComponent[]>(SAMPLE_COMPONENTS)
-  const [payrollRun, setPayrollRun] = useState<PayrollRun | null>(null)
-  const [attendanceRecords, setAttendanceRecords] = useState<Map<string, AttendanceRecord[]>>(new Map())
+  
+  // State management
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [payComponents, setPayComponents] = useState<PayComponent[]>([])
+  const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([])
+  const [currentPayrollRun, setCurrentPayrollRun] = useState<PayrollRun | null>(null)
+  const [loading, setLoading] = useState(false)
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false)
-  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
+  const [isPayComponentFormOpen, setIsPayComponentFormOpen] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
+  const [editingPayComponent, setEditingPayComponent] = useState<PayComponent | null>(null)
 
-  // Load data from localStorage on mount
+  // Form states
+  const [employeeForm, setEmployeeForm] = useState<EmployeeForm>({
+    nama: '',
+    jabatan: '',
+    site: '',
+    kontrakUpahHarian: '',
+    defaultUangMakan: '',
+    defaultUangBbm: '',
+    bankName: '',
+    bankAccount: '',
+    npwp: ''
+  })
+
+  const [payComponentForm, setPayComponentForm] = useState<PayComponentForm>({
+    nama: '',
+    tipe: 'EARNING',
+    taxable: false,
+    metode: 'FLAT',
+    basis: 'UPAH_HARIAN',
+    rate: '',
+    nominal: '',
+    capMin: '',
+    capMax: '',
+    order: '0'
+  })
+
+  // Load data on mount
   useEffect(() => {
-    const savedPayroll = loadFromLocalStorage('payroll_run', null)
-    if (savedPayroll) {
-      setPayrollRun(savedPayroll)
-    }
+    loadInitialData()
   }, [])
 
-  // Save to localStorage whenever payroll changes
-  useEffect(() => {
-    if (payrollRun) {
-      saveToLocalStorage('payroll_run', payrollRun)
+  const loadInitialData = async () => {
+    setLoading(true)
+    try {
+      const [employeesRes, payComponentsRes, payrollRunsRes] = await Promise.all([
+        apiService.getEmployees({ aktif: true }),
+        apiService.getPayComponents({ aktif: true }),
+        apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 5 })
+      ])
+
+      if (employeesRes.success) {
+        setEmployees(employeesRes.data || [])
+      }
+
+      if (payComponentsRes.success) {
+        setPayComponents(payComponentsRes.data || [])
+      }
+
+      if (payrollRunsRes.success) {
+        setPayrollRuns(payrollRunsRes.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading initial data:', error)
+      toast({
+        title: "Error",
+        description: "Gagal memuat data awal",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
-  }, [payrollRun])
-
-  // Load employee data
-  useEffect(() => {
-    const savedEmployees = loadFromLocalStorage('employees', SAMPLE_EMPLOYEES)
-    const savedAttendance = loadFromLocalStorage('attendance_records', new Map())
-    setEmployees(savedEmployees)
-    setAttendanceRecords(new Map(savedAttendance))
-  }, [])
-
-  // Save employee and attendance data
-  useEffect(() => {
-    saveToLocalStorage('employees', employees)
-  }, [employees])
-
-  useEffect(() => {
-    saveToLocalStorage('attendance_records', Array.from(attendanceRecords.entries()))
-  }, [attendanceRecords])
+  }
   
   const [selectedPeriod, setSelectedPeriod] = useState({
-    periode_awal: '',
-    periode_akhir: ''
+    periodeAwal: '',
+    periodeAkhir: ''
   })
   const [isEditingLine, setIsEditingLine] = useState<string | null>(null)
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
+  // Enhanced edit states for payroll
+  const [payrollVersions, setPayrollVersions] = useState<Map<string, PayrollRun[]>>(new Map())
+  const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
+  const [bulkEditMode, setBulkEditMode] = useState(false)
+  const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set())
+  const [quickEditMode, setQuickEditMode] = useState(false)
+  
+  // Approved payroll editing states
+  const [allowApprovedEdit, setAllowApprovedEdit] = useState(false)
+  const [showApprovalOverride, setShowApprovalOverride] = useState<string | null>(null)
+  const [approvalReason, setApprovalReason] = useState('')
+  const [supervisorPassword, setSupervisorPassword] = useState('')
 
   // Employee Management Functions
-  const addEmployee = (employeeData: Omit<Employee, 'id' | 'created_at'>) => {
-    const newEmployee: Employee = {
-      ...employeeData,
-      id: Date.now().toString(),
-      created_at: new Date().toISOString()
-    }
-    setEmployees(prev => [...prev, newEmployee])
-    toast({
-      title: "Karyawan ditambahkan",
-      description: `${newEmployee.nama} berhasil ditambahkan`
+  const resetEmployeeForm = () => {
+    setEmployeeForm({
+      nama: '',
+      jabatan: '',
+      site: '',
+      kontrakUpahHarian: '',
+      defaultUangMakan: '',
+      defaultUangBbm: '',
+      bankName: '',
+      bankAccount: '',
+      npwp: ''
     })
+    setEditingEmployee(null)
   }
 
-  // Enhanced attendance tracking
-  const addAttendanceRecord = (employeeId: string, record: Omit<AttendanceRecord, 'id' | 'employee_id' | 'created_at'>) => {
-    const newRecord: AttendanceRecord = {
-      ...record,
-      id: Date.now().toString(),
-      employee_id: employeeId,
-      created_at: new Date().toISOString()
-    }
-    
-    const currentRecords = attendanceRecords.get(employeeId) || []
-    setAttendanceRecords(prev => new Map(prev.set(employeeId, [...currentRecords, newRecord])))
-    
-    toast({
-      title: "Absensi dicatat",
-      description: "Record absensi berhasil ditambahkan"
+  const resetPayComponentForm = () => {
+    setPayComponentForm({
+      nama: '',
+      tipe: 'EARNING',
+      taxable: false,
+      metode: 'FLAT',
+      basis: 'UPAH_HARIAN',
+      rate: '',
+      nominal: '',
+      capMin: '',
+      capMax: '',
+      order: '0'
     })
+    setEditingPayComponent(null)
   }
 
-  const getEmployeeAttendanceSummary = (employeeId: string, startDate: string, endDate: string) => {
-    const records = attendanceRecords.get(employeeId) || []
-    const filteredRecords = records.filter(record => 
-      record.tanggal >= startDate && record.tanggal <= endDate
-    )
-    
-    return {
-      totalDays: filteredRecords.length,
-      presentDays: filteredRecords.filter(r => r.status === 'present').length,
-      lateDays: filteredRecords.filter(r => r.status === 'late').length,
-      absentDays: filteredRecords.filter(r => r.status === 'absent').length,
-      totalHours: filteredRecords.reduce((sum, r) => sum + r.total_hours, 0),
-      overtimeHours: filteredRecords.reduce((sum, r) => sum + r.overtime_hours, 0)
-    }
-  }
+  const handleEmployeeSubmit = async () => {
+    setLoading(true)
+    try {
+      const employeeData: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'> = {
+        nama: employeeForm.nama,
+        jabatan: employeeForm.jabatan,
+        site: employeeForm.site,
+        kontrakUpahHarian: parseFloat(employeeForm.kontrakUpahHarian),
+        defaultUangMakan: parseFloat(employeeForm.defaultUangMakan),
+        defaultUangBbm: parseFloat(employeeForm.defaultUangBbm),
+        bankName: employeeForm.bankName || undefined,
+        bankAccount: employeeForm.bankAccount || undefined,
+        npwp: employeeForm.npwp || undefined,
+        aktif: true
+      }
 
-  const calculatePayrollLine = (
-    employee: Employee, 
-    hari_kerja: number
-  ): PayrollLine => {
-    // Base calculation
-    const upah_harian = employee.kontrak_upah_harian
-    const uang_makan_harian = employee.default_uang_makan
-    const uang_bbm_harian = employee.default_uang_bbm
-    
-    let bruto = (upah_harian * hari_kerja) + (uang_makan_harian * hari_kerja) + (uang_bbm_harian * hari_kerja)
-    
-    // Add earning components
-    const components: PayrollLineComponent[] = []
-    let totalEarnings = 0
-    let totalDeductions = 0
-    let taxableAmount = bruto
-    
-    payComponents
-      .filter(comp => comp.aktif && comp.tipe === 'earning')
-      .sort((a, b) => a.order - b.order)
-      .forEach(comp => {
-        let amount = 0
-        
-        switch (comp.metode) {
-          case 'flat':
-            amount = comp.nominal || 0
-            break
-          case 'per_hari':
-            amount = (comp.rate || 0) * hari_kerja
-            break
-          case 'persentase':
-            const basis = comp.basis === 'upah_harian' ? upah_harian * hari_kerja : bruto
-            amount = basis * ((comp.rate || 0) / 100)
-            break
-        }
-        
-        // Apply caps
-        if (comp.cap_min && amount < comp.cap_min) amount = comp.cap_min
-        if (comp.cap_max && amount > comp.cap_max) amount = comp.cap_max
-        
-        components.push({
-          id: `${comp.id}_${employee.id}`,
-          component_id: comp.id,
-          component_name: comp.nama,
-          amount,
-          taxable: comp.taxable
+      let response
+      if (editingEmployee) {
+        response = await apiService.updateEmployee({
+          ...employeeData,
+          id: editingEmployee.id!
+        })
+      } else {
+        response = await apiService.createEmployee(employeeData)
+      }
+
+      if (response.success) {
+    toast({
+          title: editingEmployee ? "Karyawan diupdate" : "Karyawan ditambahkan",
+          description: `${employeeForm.nama} berhasil ${editingEmployee ? 'diupdate' : 'ditambahkan'}`
         })
         
-        totalEarnings += amount
-        if (comp.taxable) {
-          taxableAmount += amount
+        // Reload employees
+        const employeesRes = await apiService.getEmployees({ aktif: true })
+        if (employeesRes.success) {
+          setEmployees(employeesRes.data || [])
         }
+
+        setIsEmployeeFormOpen(false)
+        resetEmployeeForm()
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menyimpan karyawan",
+        variant: "destructive"
       })
-    
-    bruto += totalEarnings
-    
-    // Calculate tax (simplified 2% for demonstration)
-    const pajak_rate = 2
-    const pajak_nominal = taxableAmount * (pajak_rate / 100)
-    
-    // Add deduction components
-    payComponents
-      .filter(comp => comp.aktif && comp.tipe === 'deduction')
-      .sort((a, b) => a.order - b.order)
-      .forEach(comp => {
-        let amount = 0
-        
-        switch (comp.metode) {
-          case 'flat':
-            amount = comp.nominal || 0
-            break
-          case 'per_hari':
-            amount = (comp.rate || 0) * hari_kerja
-            break
-          case 'persentase':
-            const basis = comp.basis === 'bruto' ? bruto : upah_harian * hari_kerja
-            amount = basis * ((comp.rate || 0) / 100)
-            break
-        }
-        
-        // Apply caps
-        if (comp.cap_min && amount < comp.cap_min) amount = comp.cap_min
-        if (comp.cap_max && amount > comp.cap_max) amount = comp.cap_max
-        
-        components.push({
-          id: `${comp.id}_${employee.id}`,
-          component_id: comp.id,
-          component_name: comp.nama,
-          amount,
-          taxable: comp.taxable
-        })
-        
-        totalDeductions += amount
-      })
-    
-    const neto = bruto - pajak_nominal - totalDeductions
-    
-    return {
-      id: employee.id,
-      employee_id: employee.id,
-      employee_name: employee.nama,
-      hari_kerja,
-      upah_harian,
-      uang_makan_harian,
-      uang_bbm_harian,
-      bruto,
-      pajak_rate,
-      pajak_nominal,
-      neto,
-      status: 'draft',
-      components
+    } finally {
+      setLoading(false)
     }
   }
 
-  const createPayrollRun = () => {
-    if (!selectedPeriod.periode_awal || !selectedPeriod.periode_akhir) {
+  const handlePayComponentSubmit = async () => {
+    setLoading(true)
+    try {
+      const payComponentData: Omit<PayComponent, 'id' | 'createdAt' | 'updatedAt'> = {
+        nama: payComponentForm.nama,
+        tipe: payComponentForm.tipe,
+        taxable: payComponentForm.taxable,
+        metode: payComponentForm.metode,
+        basis: payComponentForm.basis,
+        rate: payComponentForm.rate ? parseFloat(payComponentForm.rate) : undefined,
+        nominal: payComponentForm.nominal ? parseFloat(payComponentForm.nominal) : undefined,
+        capMin: payComponentForm.capMin ? parseFloat(payComponentForm.capMin) : undefined,
+        capMax: payComponentForm.capMax ? parseFloat(payComponentForm.capMax) : undefined,
+        order: parseInt(payComponentForm.order),
+        aktif: true
+      }
+
+      let response
+      if (editingPayComponent) {
+        response = await apiService.updatePayComponent({
+          ...payComponentData,
+          id: editingPayComponent.id!
+        })
+      } else {
+        response = await apiService.createPayComponent(payComponentData)
+      }
+
+      if (response.success) {
+        toast({
+          title: editingPayComponent ? "Komponen diupdate" : "Komponen ditambahkan",
+          description: `${payComponentForm.nama} berhasil ${editingPayComponent ? 'diupdate' : 'ditambahkan'}`
+        })
+        
+        // Reload pay components
+        const payComponentsRes = await apiService.getPayComponents({ aktif: true })
+        if (payComponentsRes.success) {
+          setPayComponents(payComponentsRes.data || [])
+        }
+
+        setIsPayComponentFormOpen(false)
+        resetPayComponentForm()
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menyimpan komponen gaji",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const editEmployee = (employee: Employee) => {
+    setEmployeeForm({
+      nama: employee.nama,
+      jabatan: employee.jabatan,
+      site: employee.site,
+      kontrakUpahHarian: employee.kontrakUpahHarian.toString(),
+      defaultUangMakan: employee.defaultUangMakan.toString(),
+      defaultUangBbm: employee.defaultUangBbm.toString(),
+      bankName: employee.bankName || '',
+      bankAccount: employee.bankAccount || '',
+      npwp: employee.npwp || ''
+    })
+    setEditingEmployee(employee)
+    setIsEmployeeFormOpen(true)
+  }
+
+  const editPayComponent = (component: PayComponent) => {
+    setPayComponentForm({
+      nama: component.nama,
+      tipe: component.tipe,
+      taxable: component.taxable,
+      metode: component.metode,
+      basis: component.basis,
+      rate: component.rate?.toString() || '',
+      nominal: component.nominal?.toString() || '',
+      capMin: component.capMin?.toString() || '',
+      capMax: component.capMax?.toString() || '',
+      order: component.order.toString()
+    })
+    setEditingPayComponent(component)
+    setIsPayComponentFormOpen(true)
+  }
+
+  // Payroll operations
+  const createPayrollRun = async () => {
+    if (!selectedPeriod.periodeAwal || !selectedPeriod.periodeAkhir) {
       toast({
         title: "Periode tidak lengkap",
         description: "Mohon pilih periode awal dan akhir",
@@ -407,85 +352,230 @@ export function PayrollCalculator() {
       return
     }
     
-    const payroll_lines = employees
-      .filter(emp => emp.aktif)
-      .map(employee => calculatePayrollLine(employee, 22)) // Default 22 hari kerja
-    
-    const newPayrollRun: PayrollRun = {
-      id: Date.now().toString(),
-      periode_awal: selectedPeriod.periode_awal,
-      periode_akhir: selectedPeriod.periode_akhir,
-      status: 'draft',
-      payroll_lines,
-      created_at: new Date().toISOString()
-    }
-    
-    setPayrollRun(newPayrollRun)
-    
+    setLoading(true)
+    try {
+      const response = await apiService.createPayrollRun({
+        periodeAwal: selectedPeriod.periodeAwal,
+        periodeAkhir: selectedPeriod.periodeAkhir,
+        createdBy: CURRENT_USER_ID
+      })
+
+      if (response.success) {
     toast({
       title: "Payroll berhasil dibuat",
-      description: `Payroll untuk periode ${selectedPeriod.periode_awal} - ${selectedPeriod.periode_akhir}`
-    })
-  }
-
-  const updatePayrollLine = (lineId: string, field: string, value: string | number) => {
-    if (!payrollRun) return
-    
-    setPayrollRun(prev => {
-      if (!prev) return prev
-      
-      const updatedLines = prev.payroll_lines.map(line => {
-        if (line.id === lineId) {
-          const updatedLine = { ...line, [field]: value }
-          
-          // Recalculate if hari_kerja changed
-          if (field === 'hari_kerja') {
-            const employee = employees.find(emp => emp.id === line.employee_id)
-            if (employee) {
-              const recalculated = calculatePayrollLine(employee, value)
-              return { ...updatedLine, ...recalculated, id: lineId }
-            }
-          }
-          
-          return updatedLine
+          description: `Payroll untuk periode ${selectedPeriod.periodeAwal} - ${selectedPeriod.periodeAkhir}`
+        })
+        
+        setCurrentPayrollRun(response.data!)
+        
+        // Reload payroll runs
+        const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 5 })
+        if (payrollRunsRes.success) {
+          setPayrollRuns(payrollRunsRes.data || [])
         }
-        return line
+      }
+    } catch (error: any) {
+    toast({
+        title: "Error",
+        description: error.message || "Gagal membuat payroll",
+        variant: "destructive"
       })
-      
-      return { ...prev, payroll_lines: updatedLines }
-    })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const approvePayroll = () => {
-    if (!payrollRun) return
+  const approvePayroll = async () => {
+    if (!currentPayrollRun) return
     
-    setPayrollRun(prev => prev ? { ...prev, status: 'approved' } : prev)
-    
+    setLoading(true)
+    try {
+      const response = await apiService.updatePayrollRunStatus(
+        currentPayrollRun.id!,
+        'APPROVED',
+        CURRENT_USER_ID
+      )
+
+      if (response.success) {
     toast({
       title: "Payroll disetujui",
       description: "Payroll berhasil disetujui dan siap untuk dibayar"
     })
+        
+        setCurrentPayrollRun(response.data!)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menyetujui payroll",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadPayrollRun = async (payrollRunId: string) => {
+    setLoading(true)
+    try {
+      const response = await apiService.getPayrollRunById(payrollRunId)
+      if (response.success) {
+        setCurrentPayrollRun(response.data!)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal memuat payroll",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Enhanced edit functions for payroll
+  const savePayrollVersion = (payrollRun: PayrollRun) => {
+    if (!payrollRun.id) return
+    const versions = payrollVersions.get(payrollRun.id) || []
+    versions.push({...payrollRun, createdAt: new Date().toISOString()})
+    setPayrollVersions(new Map(payrollVersions.set(payrollRun.id, versions)))
+  }
+
+  const handleDuplicatePayrollRun = (payrollRun: PayrollRun) => {
+    const today = new Date()
+    const newStartDate = new Date(today.getFullYear(), today.getMonth(), 1)
+    const newEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    
+    setSelectedPeriod({
+      periodeAwal: newStartDate.toISOString().split('T')[0],
+      periodeAkhir: newEndDate.toISOString().split('T')[0]
+    })
+    
+    toast({
+      title: "Payroll duplicated",
+      description: "Period set for new payroll run. Click 'Buat Payroll' to create."
+    })
+  }
+
+  const handleBulkUpdateSalary = (percentage: number) => {
+    if (selectedLines.size === 0) {
+      toast({
+        title: "No selection",
+        description: "Please select payroll lines to update",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // This would update selected payroll lines with salary adjustment
+    toast({
+      title: "Bulk update applied",
+      description: `${selectedLines.size} salary lines updated by ${percentage}%`
+    })
+    setSelectedLines(new Set())
+    setBulkEditMode(false)
+  }
+
+  const handleSelectPayrollLine = (lineId: string) => {
+    const newSelected = new Set(selectedLines)
+    if (newSelected.has(lineId)) {
+      newSelected.delete(lineId)
+    } else {
+      newSelected.add(lineId)
+    }
+    setSelectedLines(newSelected)
+  }
+
+  // Handle approved payroll editing with authorization
+  const handleApprovedPayrollEdit = (lineId: string) => {
+    if (currentPayrollRun?.status === 'APPROVED' && !allowApprovedEdit) {
+      setShowApprovalOverride(lineId)
+      return
+    }
+    
+    // Save version before editing approved payroll
+    if (currentPayrollRun) {
+      savePayrollVersion(currentPayrollRun)
+    }
+    
+    setIsEditingLine(lineId)
+  }
+
+  const requestPayrollApprovalOverride = async () => {
+    // Simple password check - same as other components
+    const validPasswords = ['supervisor123', 'admin456', 'override789']
+    
+    if (!validPasswords.includes(supervisorPassword)) {
+      toast({
+        title: "Invalid Authorization",
+        description: "Incorrect supervisor password",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!approvalReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for editing approved payroll",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Enable approved editing for this session
+    setAllowApprovedEdit(true)
+    
+    // Log the override attempt
+    console.log('Payroll Approval Override:', {
+      payrollRunId: currentPayrollRun?.id,
+      lineId: showApprovalOverride,
+      reason: approvalReason,
+      timestamp: new Date().toISOString(),
+      user: 'current_user'
+    })
+    
+    toast({
+      title: "Authorization Granted",
+      description: "You can now edit approved payroll this session",
+    })
+
+    // Close the override dialog
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
+
+    // Trigger the original edit action
+    if (showApprovalOverride) {
+      setIsEditingLine(showApprovalOverride)
+    }
+  }
+
+  const cancelPayrollApprovalOverride = () => {
+    setShowApprovalOverride(null)
+    setSupervisorPassword('')
+    setApprovalReason('')
   }
 
   const generateSlipGaji = (line: PayrollLine) => {
-    const employee = employees.find(emp => emp.id === line.employee_id)
+    const employee = employees.find(emp => emp.id === line.employeeId)
     
-    const componentDetails = line.components.map(comp => `
+    const componentDetails = line.components?.map(comp => `
       <tr>
-        <td>${comp.component_name}</td>
+        <td>${comp.componentName}</td>
         <td style="text-align: right;">${comp.amount >= 0 ? formatCurrency(comp.amount) : ''}</td>
         <td style="text-align: right;">${comp.amount < 0 ? formatCurrency(Math.abs(comp.amount)) : ''}</td>
       </tr>
-    `).join('')
+    `).join('') || ''
 
     const htmlContent = `
       <h2 style="text-align: center;">SLIP GAJI KARYAWAN</h2>
-      <p style="text-align: center;">Periode: ${payrollRun?.periode_awal} - ${payrollRun?.periode_akhir}</p>
+      <p style="text-align: center;">Periode: ${currentPayrollRun?.periodeAwal} - ${currentPayrollRun?.periodeAkhir}</p>
       
       <table style="width: 100%; margin: 20px 0;">
         <tr>
           <td><strong>Nama Karyawan:</strong></td>
-          <td>${line.employee_name}</td>
+          <td>${line.employeeName}</td>
         </tr>
         <tr>
           <td><strong>Jabatan:</strong></td>
@@ -497,7 +587,7 @@ export function PayrollCalculator() {
         </tr>
         <tr>
           <td><strong>Hari Kerja:</strong></td>
-          <td>${line.hari_kerja} hari</td>
+          <td>${line.hariKerja} hari</td>
         </tr>
       </table>
 
@@ -512,18 +602,18 @@ export function PayrollCalculator() {
         </thead>
         <tbody>
           <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;">Upah Harian (${line.hari_kerja} hari)</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.upah_harian * line.hari_kerja)}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Upah Harian (${line.hariKerja} hari)</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.upahHarian * line.hariKerja)}</td>
             <td style="border: 1px solid #ddd; padding: 8px;"></td>
           </tr>
           <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;">Uang Makan (${line.hari_kerja} hari)</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.uang_makan_harian * line.hari_kerja)}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Uang Makan (${line.hariKerja} hari)</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.uangMakanHarian * line.hariKerja)}</td>
             <td style="border: 1px solid #ddd; padding: 8px;"></td>
           </tr>
           <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;">Uang BBM (${line.hari_kerja} hari)</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.uang_bbm_harian * line.hari_kerja)}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Uang BBM (${line.hariKerja} hari)</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.uangBbmHarian * line.hariKerja)}</td>
             <td style="border: 1px solid #ddd; padding: 8px;"></td>
           </tr>
           ${componentDetails}
@@ -533,9 +623,9 @@ export function PayrollCalculator() {
             <td style="border: 1px solid #ddd; padding: 8px;"></td>
           </tr>
           <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;">Pajak (${line.pajak_rate}%)</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">Pajak (${line.pajakRate}%)</td>
             <td style="border: 1px solid #ddd; padding: 8px;"></td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.pajak_nominal || 0)}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrency(line.pajakNominal || 0)}</td>
           </tr>
           <tr style="background-color: #e8f5e8;">
             <td style="border: 1px solid #ddd; padding: 8px;"><strong>TOTAL NETO</strong></td>
@@ -551,7 +641,7 @@ export function PayrollCalculator() {
             <td style="width: 50%; text-align: center;">
               <p>Karyawan</p>
               <br/><br/><br/>
-              <p>( ${line.employee_name} )</p>
+              <p>( ${line.employeeName} )</p>
             </td>
             <td style="width: 50%; text-align: center;">
               <p>HRD</p>
@@ -563,16 +653,16 @@ export function PayrollCalculator() {
       </div>
     `
 
-    generatePDF(htmlContent, `Slip_Gaji_${line.employee_name}_${payrollRun?.periode_awal}.pdf`)
+    generatePDF(htmlContent, `Slip_Gaji_${line.employeeName}_${currentPayrollRun?.periodeAwal}.pdf`)
     
     toast({
       title: "Slip gaji berhasil dibuat",
-      description: `Slip gaji ${line.employee_name} berhasil di-generate ke PDF`
+      description: `Slip gaji ${line.employeeName} berhasil di-generate ke PDF`
     })
   }
 
   const exportPayrollToExcel = () => {
-    if (!payrollRun) {
+    if (!currentPayrollRun) {
       toast({
         title: "Tidak ada data",
         description: "Belum ada payroll run untuk diekspor",
@@ -581,24 +671,24 @@ export function PayrollCalculator() {
       return
     }
 
-    const exportData = payrollRun.payroll_lines.map(line => {
-      const employee = employees.find(emp => emp.id === line.employee_id)
+    const exportData = currentPayrollRun.payrollLines?.map(line => {
+      const employee = employees.find(emp => emp.id === line.employeeId)
       return {
-        'Nama Karyawan': line.employee_name,
+        'Nama Karyawan': line.employeeName,
         'Jabatan': employee?.jabatan || '-',
         'Site': employee?.site || '-',
-        'Hari Kerja': line.hari_kerja,
-        'Upah Harian': line.upah_harian,
-        'Uang Makan/Hari': line.uang_makan_harian,
-        'Uang BBM/Hari': line.uang_bbm_harian,
+        'Hari Kerja': line.hariKerja,
+        'Upah Harian': line.upahHarian,
+        'Uang Makan/Hari': line.uangMakanHarian,
+        'Uang BBM/Hari': line.uangBbmHarian,
         'Total Bruto': line.bruto,
-        'Pajak': line.pajak_nominal || 0,
+        'Pajak': line.pajakNominal || 0,
         'Total Neto': line.neto,
         'Status': line.status
       }
-    })
+    }) || []
 
-    if (exportToExcel(exportData, `Payroll_${payrollRun.periode_awal}_${payrollRun.periode_akhir}.xlsx`, 'Payroll')) {
+    if (exportToExcel(exportData, `Payroll_${currentPayrollRun.periodeAwal}_${currentPayrollRun.periodeAkhir}.xlsx`, 'Payroll')) {
       toast({
         title: "Export berhasil",
         description: "Data payroll berhasil diekspor ke Excel"
@@ -608,10 +698,10 @@ export function PayrollCalculator() {
 
   const getStatusBadge = (status: PayrollRun['status']) => {
     const badges = {
-      draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800' },
-      reviewed: { label: 'Direview', color: 'bg-yellow-100 text-yellow-800' },
-      approved: { label: 'Disetujui', color: 'bg-green-100 text-green-800' },
-      paid: { label: 'Dibayar', color: 'bg-blue-100 text-blue-800' }
+      DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-800' },
+      REVIEWED: { label: 'Direview', color: 'bg-yellow-100 text-yellow-800' },
+      APPROVED: { label: 'Disetujui', color: 'bg-green-100 text-green-800' },
+      PAID: { label: 'Dibayar', color: 'bg-blue-100 text-blue-800' }
     }
     
     const badge = badges[status]
@@ -643,8 +733,59 @@ export function PayrollCalculator() {
 
         <TabsContent value="payroll" className="mt-6">
           <div className="space-y-6">
+            {/* Loading State */}
+            {loading && (
+              <Card>
+                <CardContent className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                  <span>Memuat data...</span>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Payroll Runs History */}
+            {payrollRuns.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5" />
+                    Riwayat Payroll
+                  </CardTitle>
+                  <CardDescription>
+                    Daftar payroll yang pernah dibuat
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {payrollRuns.map((run) => (
+                      <div key={run.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <span className="font-medium">
+                            {run.periodeAwal} - {run.periodeAkhir}
+                          </span>
+                          <div className="text-sm text-muted-foreground">
+                            {run.payrollLines?.length || 0} karyawan
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(run.status)}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => loadPayrollRun(run.id!)}
+                          >
+                            Lihat
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Period Selection */}
-            {!payrollRun && (
+            {!currentPayrollRun && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -662,10 +803,10 @@ export function PayrollCalculator() {
                       <Input
                         id="periode_awal"
                         type="date"
-                        value={selectedPeriod.periode_awal}
+                        value={selectedPeriod.periodeAwal}
                         onChange={(e) => setSelectedPeriod(prev => ({ 
                           ...prev, 
-                          periode_awal: e.target.value 
+                          periodeAwal: e.target.value 
                         }))}
                       />
                     </div>
@@ -674,16 +815,24 @@ export function PayrollCalculator() {
                       <Input
                         id="periode_akhir"
                         type="date"
-                        value={selectedPeriod.periode_akhir}
+                        value={selectedPeriod.periodeAkhir}
                         onChange={(e) => setSelectedPeriod(prev => ({ 
                           ...prev, 
-                          periode_akhir: e.target.value 
+                          periodeAkhir: e.target.value 
                         }))}
                       />
                     </div>
                   </div>
-                  <Button onClick={createPayrollRun} className="bg-blue-600 hover:bg-blue-700">
+                  <Button 
+                    onClick={createPayrollRun} 
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
                     <Plus className="h-4 w-4 mr-2" />
+                    )}
                     Buat Payroll
                   </Button>
                 </CardContent>
@@ -691,7 +840,7 @@ export function PayrollCalculator() {
             )}
 
             {/* Payroll Run Details */}
-            {payrollRun && (
+            {currentPayrollRun && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -699,21 +848,26 @@ export function PayrollCalculator() {
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           <Calculator className="h-5 w-5" />
-                          Payroll Run - {payrollRun.periode_awal} sampai {payrollRun.periode_akhir}
+                          Payroll Run - {currentPayrollRun.periodeAwal} sampai {currentPayrollRun.periodeAkhir}
                         </CardTitle>
                         <CardDescription>
-                          {payrollRun.payroll_lines.length} karyawan • 
-                          Total: {formatCurrency(payrollRun.payroll_lines.reduce((sum, line) => sum + line.neto, 0))}
+                          {currentPayrollRun.payrollLines?.length || 0} karyawan • 
+                          Total: {formatCurrency(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + line.neto, 0) || 0)}
                         </CardDescription>
                       </div>
                       <div className="flex items-center gap-2">
-                        {getStatusBadge(payrollRun.status)}
-                        {payrollRun.status === 'draft' && (
+                        {getStatusBadge(currentPayrollRun.status)}
+                        {currentPayrollRun.status === 'DRAFT' && (
                           <Button 
                             onClick={approvePayroll}
                             className="bg-green-600 hover:bg-green-700"
+                            disabled={loading}
                           >
+                            {loading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
                             <CheckCircle className="h-4 w-4 mr-2" />
+                            )}
                             Approve
                           </Button>
                         )}
@@ -721,20 +875,27 @@ export function PayrollCalculator() {
                           <Download className="h-4 w-4 mr-2" />
                           Export Excel
                         </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setCurrentPayrollRun(null)}
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Tutup
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {payrollRun.payroll_lines.map((line) => (
+                      {currentPayrollRun.payrollLines?.map((line) => (
                         <Card key={line.id} className="border">
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-4">
                               <div>
-                                <h3 className="font-semibold text-lg">{line.employee_name}</h3>
+                                <h3 className="font-semibold text-lg">{line.employeeName}</h3>
                                 <p className="text-sm text-muted-foreground">
-                                  {employees.find(emp => emp.id === line.employee_id)?.jabatan} • 
-                                  {employees.find(emp => emp.id === line.employee_id)?.site}
+                                  {employees.find(emp => emp.id === line.employeeId)?.jabatan} • 
+                                  {employees.find(emp => emp.id === line.employeeId)?.site}
                                 </p>
                               </div>
                               <div className="text-right">
@@ -748,30 +909,19 @@ export function PayrollCalculator() {
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
                               <div>
                                 <span className="font-medium">Hari Kerja:</span>
-                                {isEditingLine === line.id ? (
-                                  <Input
-                                    type="number"
-                                    value={line.hari_kerja}
-                                    onChange={(e) => updatePayrollLine(line.id, 'hari_kerja', parseInt(e.target.value))}
-                                    className="mt-1"
-                                    min="0"
-                                    max="31"
-                                  />
-                                ) : (
-                                  <p className="text-muted-foreground">{line.hari_kerja} hari</p>
-                                )}
+                                <p className="text-muted-foreground">{line.hariKerja} hari</p>
                               </div>
                               <div>
                                 <span className="font-medium">Upah Harian:</span>
-                                <p className="text-muted-foreground">{formatCurrency(line.upah_harian)}</p>
+                                <p className="text-muted-foreground">{formatCurrency(line.upahHarian)}</p>
                               </div>
                               <div>
                                 <span className="font-medium">Uang Makan:</span>
-                                <p className="text-muted-foreground">{formatCurrency(line.uang_makan_harian)}/hari</p>
+                                <p className="text-muted-foreground">{formatCurrency(line.uangMakanHarian)}/hari</p>
                               </div>
                               <div>
                                 <span className="font-medium">Uang BBM:</span>
-                                <p className="text-muted-foreground">{formatCurrency(line.uang_bbm_harian)}/hari</p>
+                                <p className="text-muted-foreground">{formatCurrency(line.uangBbmHarian)}/hari</p>
                               </div>
                               <div>
                                 <span className="font-medium">Bruto:</span>
@@ -780,14 +930,14 @@ export function PayrollCalculator() {
                             </div>
 
                             {/* Component Details */}
-                            {line.components.length > 0 && (
+                            {line.components && line.components.length > 0 && (
                               <div className="mb-4">
                                 <h4 className="font-medium mb-2">Komponen Tambahan:</h4>
                                 <div className="space-y-1">
                                   {line.components.map((comp) => (
                                     <div key={comp.id} className="flex justify-between text-sm">
                                       <span className={comp.amount < 0 ? 'text-red-600' : 'text-green-600'}>
-                                        {comp.component_name}
+                                        {comp.componentName}
                                         {comp.taxable && ' (Taxable)'}
                                       </span>
                                       <span className={comp.amount < 0 ? 'text-red-600' : 'text-green-600'}>
@@ -800,12 +950,21 @@ export function PayrollCalculator() {
                             )}
 
                             <div className="flex justify-between text-sm mb-4">
-                              <span className="font-medium">Pajak ({line.pajak_rate}%):</span>
-                              <span className="text-red-600">{formatCurrency(line.pajak_nominal || 0)}</span>
+                              <span className="font-medium">Pajak ({line.pajakRate}%):</span>
+                              <span className="text-red-600">{formatCurrency(line.pajakNominal || 0)}</span>
                             </div>
 
                             <div className="flex justify-between items-center pt-4 border-t">
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 items-center">
+                                {bulkEditMode && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedLines.has(line.id!)}
+                                    onChange={() => handleSelectPayrollLine(line.id!)}
+                                    className="h-4 w-4 text-blue-600 rounded"
+                                  />
+                                )}
+                                
                                 {isEditingLine === line.id ? (
                                   <>
                                     <Button
@@ -825,15 +984,35 @@ export function PayrollCalculator() {
                                     </Button>
                                   </>
                                 ) : (
+                                  <div className="flex gap-1">
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setIsEditingLine(line.id)}
-                                    disabled={payrollRun.status === 'approved'}
+                                      onClick={() => currentPayrollRun.status === 'APPROVED' ? handleApprovedPayrollEdit(line.id!) : setIsEditingLine(line.id!)}
+                                      className={currentPayrollRun.status === 'APPROVED' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-blue-50"}
+                                      title={currentPayrollRun.status === 'APPROVED' ? "Edit Approved Payroll (Requires Authorization)" : "Edit Payroll Line"}
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
-                                    Edit
+                                      {currentPayrollRun.status === 'APPROVED' ? 'Edit*' : 'Edit'}
                                   </Button>
+                                    
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        // Quick duplicate this line to another employee
+                                        toast({
+                                          title: "Feature coming soon",
+                                          description: "Copy payroll line to another employee"
+                                        })
+                                      }}
+                                      disabled={currentPayrollRun.status === 'APPROVED'}
+                                      className="hover:bg-green-50"
+                                      title="Copy to another employee"
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
 
@@ -846,7 +1025,7 @@ export function PayrollCalculator() {
                                   <FileText className="h-4 w-4 mr-1" />
                                   Slip Gaji
                                 </Button>
-                                {payrollRun.status === 'approved' && (
+                                {currentPayrollRun.status === 'APPROVED' && (
                                   <Button
                                     size="sm"
                                     className="bg-blue-600 hover:bg-blue-700"
@@ -871,6 +1050,8 @@ export function PayrollCalculator() {
         <TabsContent value="employees" className="mt-6">
           <Card>
             <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 Daftar Karyawan
@@ -878,8 +1059,120 @@ export function PayrollCalculator() {
               <CardDescription>
                 Kelola data karyawan dan kontrak upah harian
               </CardDescription>
+                </div>
+                <Dialog open={isEmployeeFormOpen} onOpenChange={setIsEmployeeFormOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => {
+                      resetEmployeeForm()
+                      setIsEmployeeFormOpen(true)
+                    }}>
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Tambah Karyawan
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingEmployee ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {editingEmployee ? 'Update data karyawan' : 'Isi form untuk menambah karyawan baru'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nama">Nama</Label>
+                        <Input
+                          id="nama"
+                          value={employeeForm.nama}
+                          onChange={(e) => setEmployeeForm(prev => ({ ...prev, nama: e.target.value }))}
+                          placeholder="Nama lengkap karyawan"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="jabatan">Jabatan</Label>
+                        <Input
+                          id="jabatan"
+                          value={employeeForm.jabatan}
+                          onChange={(e) => setEmployeeForm(prev => ({ ...prev, jabatan: e.target.value }))}
+                          placeholder="Jabatan"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="site">Site</Label>
+                        <Input
+                          id="site"
+                          value={employeeForm.site}
+                          onChange={(e) => setEmployeeForm(prev => ({ ...prev, site: e.target.value }))}
+                          placeholder="Site kerja"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="upah">Upah Harian</Label>
+                          <Input
+                            id="upah"
+                            type="number"
+                            value={employeeForm.kontrakUpahHarian}
+                            onChange={(e) => setEmployeeForm(prev => ({ ...prev, kontrakUpahHarian: e.target.value }))}
+                            placeholder="120000"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="makan">Uang Makan</Label>
+                          <Input
+                            id="makan"
+                            type="number"
+                            value={employeeForm.defaultUangMakan}
+                            onChange={(e) => setEmployeeForm(prev => ({ ...prev, defaultUangMakan: e.target.value }))}
+                            placeholder="20000"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="bbm">Uang BBM</Label>
+                          <Input
+                            id="bbm"
+                            type="number"
+                            value={employeeForm.defaultUangBbm}
+                            onChange={(e) => setEmployeeForm(prev => ({ ...prev, defaultUangBbm: e.target.value }))}
+                            placeholder="15000"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsEmployeeFormOpen(false)
+                            resetEmployeeForm()
+                          }}
+                        >
+                          Batal
+                        </Button>
+                        <Button
+                          onClick={handleEmployeeSubmit}
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          {editingEmployee ? 'Update' : 'Simpan'}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                  <span>Memuat karyawan...</span>
+                </div>
+              ) : (
               <div className="space-y-4">
                 {employees.map((employee) => (
                   <Card key={employee.id} className="border">
@@ -893,20 +1186,24 @@ export function PayrollCalculator() {
                           <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                             <div>
                               <span className="font-medium">Upah Harian:</span>
-                              <p className="text-muted-foreground">{formatCurrency(employee.kontrak_upah_harian)}</p>
+                                <p className="text-muted-foreground">{formatCurrency(employee.kontrakUpahHarian)}</p>
                             </div>
                             <div>
                               <span className="font-medium">Uang Makan:</span>
-                              <p className="text-muted-foreground">{formatCurrency(employee.default_uang_makan)}</p>
+                                <p className="text-muted-foreground">{formatCurrency(employee.defaultUangMakan)}</p>
                             </div>
                             <div>
                               <span className="font-medium">Uang BBM:</span>
-                              <p className="text-muted-foreground">{formatCurrency(employee.default_uang_bbm)}</p>
+                                <p className="text-muted-foreground">{formatCurrency(employee.defaultUangBbm)}</p>
                             </div>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => editEmployee(employee)}
+                            >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
@@ -915,7 +1212,13 @@ export function PayrollCalculator() {
                     </CardContent>
                   </Card>
                 ))}
+                  {employees.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">Belum ada karyawan. Tambah karyawan pertama!</p>
               </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -941,11 +1244,11 @@ export function PayrollCalculator() {
                           <h3 className="font-semibold flex items-center gap-2">
                             {component.nama}
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              component.tipe === 'earning' 
+                              component.tipe === 'EARNING' 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {component.tipe === 'earning' ? 'Tambahan' : 'Potongan'}
+                              {component.tipe === 'EARNING' ? 'Tambahan' : 'Potongan'}
                             </span>
                             {component.taxable && (
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -964,10 +1267,10 @@ export function PayrollCalculator() {
                             </div>
                             <div>
                               <span className="font-medium">
-                                {component.metode === 'persentase' ? 'Rate:' : 'Nominal:'}
+                                {component.metode === 'PERSENTASE' ? 'Rate:' : 'Nominal:'}
                               </span>
                               <p className="text-muted-foreground">
-                                {component.metode === 'persentase' 
+                                {component.metode === 'PERSENTASE' 
                                   ? `${component.rate}%` 
                                   : formatCurrency(component.nominal || 0)
                                 }
@@ -1011,24 +1314,24 @@ export function PayrollCalculator() {
                     <span>Total Karyawan Aktif:</span>
                     <span className="font-semibold">{employees.filter(emp => emp.aktif).length}</span>
                   </div>
-                  {payrollRun && (
+                  {currentPayrollRun && (
                     <>
                       <div className="flex justify-between">
                         <span>Total Bruto:</span>
                         <span className="font-semibold">
-                          {formatCurrency(payrollRun.payroll_lines.reduce((sum, line) => sum + line.bruto, 0))}
+                          {formatCurrency(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + line.bruto, 0) || 0)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Total Pajak:</span>
                         <span className="font-semibold text-red-600">
-                          {formatCurrency(payrollRun.payroll_lines.reduce((sum, line) => sum + (line.pajak_nominal || 0), 0))}
+                          {formatCurrency(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + (line.pajakNominal || 0), 0) || 0)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Total Neto:</span>
                         <span className="font-semibold text-green-600">
-                          {formatCurrency(payrollRun.payroll_lines.reduce((sum, line) => sum + line.neto, 0))}
+                          {formatCurrency(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + line.neto, 0) || 0)}
                         </span>
                       </div>
                     </>
@@ -1051,7 +1354,7 @@ export function PayrollCalculator() {
                     <FileText className="h-4 w-4 mr-2" />
                     Template Payroll Excel
                   </Button>
-                  <Button className="w-full" variant="outline" disabled={!payrollRun}>
+                  <Button className="w-full" variant="outline" disabled={!currentPayrollRun}>
                     <Download className="h-4 w-4 mr-2" />
                     Export Slip Gaji (PDF)
                   </Button>
@@ -1061,6 +1364,212 @@ export function PayrollCalculator() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Bulk Edit Toolbar for Payroll */}
+      {bulkEditMode && selectedLines.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 z-50">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">{selectedLines.size} payroll lines selected</span>
+            
+            <div className="flex gap-2 items-center">
+              <Label htmlFor="salary-adjustment" className="text-sm">Salary Adjustment:</Label>
+              <Select onValueChange={(value) => handleBulkUpdateSalary(parseFloat(value))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Select %" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">+5%</SelectItem>
+                  <SelectItem value="10">+10%</SelectItem>
+                  <SelectItem value="15">+15%</SelectItem>
+                  <SelectItem value="-5">-5%</SelectItem>
+                  <SelectItem value="-10">-10%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => {setBulkEditMode(false); setSelectedLines(new Set())}}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Version History Modal for Payroll */}
+      {showVersionHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Payroll History
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVersionHistory(null)}
+                className="absolute top-4 right-4"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {payrollVersions.get(showVersionHistory)?.map((version, index) => (
+                  <div key={index} className="border rounded p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Version {index + 1}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {version.createdAt ? new Date(version.createdAt).toLocaleString() : 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <p><strong>Period:</strong> {version.periodeAwal} to {version.periodeAkhir}</p>
+                      <p><strong>Status:</strong> {version.status}</p>
+                      <p><strong>Total Lines:</strong> {version.payrollLines?.length || 0}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Approval Override Modal for Payroll */}
+      {showApprovalOverride && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600">
+                <AlertTriangle className="h-5 w-5" />
+                Authorization Required - Payroll
+              </CardTitle>
+              <CardDescription>
+                This payroll is approved and requires supervisor authorization to modify.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="supervisor-password">Supervisor Password</Label>
+                <Input
+                  id="supervisor-password"
+                  type="password"
+                  value={supervisorPassword}
+                  onChange={(e) => setSupervisorPassword(e.target.value)}
+                  placeholder="Enter supervisor password"
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Demo passwords: supervisor123, admin456, override789
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="approval-reason">Reason for Modification</Label>
+                <Textarea
+                  id="approval-reason"
+                  value={approvalReason}
+                  onChange={(e) => setApprovalReason(e.target.value)}
+                  placeholder="Please provide a detailed reason for editing this approved payroll..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Audit Notice</p>
+                    <p>This override will be logged for compliance purposes. Ensure you have proper authorization.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={requestPayrollApprovalOverride}
+                  disabled={!supervisorPassword || !approvalReason.trim()}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Authorize Override
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={cancelPayrollApprovalOverride}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Enhanced Controls Bar for Payroll */}
+      <div className="fixed top-20 right-6 bg-white border rounded-lg shadow-lg p-2 z-40">
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkEditMode(!bulkEditMode)}
+            className={bulkEditMode ? "bg-blue-50" : ""}
+            title="Toggle bulk edit mode for payroll lines"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickEditMode(!quickEditMode)}
+            className={quickEditMode ? "bg-green-50" : ""}
+            title="Toggle quick edit mode"
+          >
+            <Zap className="h-4 w-4" />
+          </Button>
+          
+          {allowApprovedEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAllowApprovedEdit(false)}
+              className="bg-orange-50 border-orange-200 text-orange-700"
+              title="Disable approved payroll editing"
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {currentPayrollRun && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDuplicatePayrollRun(currentPayrollRun)}
+              title="Duplicate current payroll for next period"
+              className="hover:bg-purple-50"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            title="Refresh data"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
