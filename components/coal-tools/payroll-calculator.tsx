@@ -31,6 +31,7 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { getCurrentUser } from "@/lib/auth"
 import { 
   exportToExcel, 
   exportToCSV, 
@@ -46,8 +47,18 @@ import {
   formatCurrency 
 } from "@/lib/api"
 
-// Mock user ID - in real app this should come from auth
-const CURRENT_USER_ID = 'cmelj7fwx0000ol5nfd1lqh2z' // Demo user ID from seed
+// Get current user ID for payroll operations
+const getCurrentUserId = () => {
+  const currentUser = getCurrentUser()
+  if (currentUser?.id) {
+    return currentUser.id
+  }
+  // Fallback to demo user ID if not authenticated
+  return "cmemokbd20000ols63e1xr3f6" // Admin user ID from our demo users
+}
+
+// Get current user ID for payroll operations
+const CURRENT_USER_ID = getCurrentUserId()
 
 // Form interfaces for dialogs
 interface EmployeeForm {

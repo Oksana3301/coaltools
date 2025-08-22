@@ -48,6 +48,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useKasBesar } from "@/hooks/use-kas-besar"
+import { getCurrentUser } from "@/lib/auth"
 import { 
   uploadFile, 
   exportToExcel, 
@@ -98,22 +99,33 @@ interface KasBesarExpense {
 }
 
 // Reference data khusus kas besar
-const JENIS_OPTIONS = [
-  { value: "kas_besar", label: "Kas Besar" }
+const KAS_BESAR_TIPE_AKTIVITAS = [
+  "pembelian_aset",
+  "kontrak_jasa",
+  "pembelian_material",
+  "maintenance_equipment",
+  "pembayaran_vendor",
+  "investasi_proyek",
+  "pembelian_kendaraan",
+  "renovasi_fasilitas",
+  "pembelian_software",
+  "pelatihan_karyawan"
 ]
 
-const SUB_JENIS_OPTIONS = [
-  { value: "alat_berat", label: "Alat Berat" },
-  { value: "sewa_alat", label: "Sewa Alat" },
-  { value: "kontrak_besar", label: "Kontrak Besar" },
-  { value: "investasi_infrastruktur", label: "Investasi Infrastruktur" },
-  { value: "pembelian_aset", label: "Pembelian Aset" },
-  { value: "kontrak_vendor", label: "Kontrak Vendor" },
-  { value: "pembayaran_kredit", label: "Pembayaran Kredit" },
-  { value: "pajak_besar", label: "Pajak & Retribusi Besar" },
-  { value: "lain_lain", label: "Lain-lain" }
+const KAS_BESAR_SUB_JENIS = [
+  "alat_berat",
+  "kontrak_vendor",
+  "material_bangunan",
+  "peralatan_office",
+  "kendaraan_operasional",
+  "software_license",
+  "pelatihan_teknis",
+  "maintenance_rutin",
+  "investasi_tambang",
+  "fasilitas_produksi"
 ]
 
+// Add missing constants
 const SATUAN_OPTIONS = [
   { value: "unit", label: "Unit" },
   { value: "bulan", label: "Bulan" },
@@ -137,11 +149,17 @@ const TIPE_AKTIVITAS_OPTIONS = [
 
 export function KasBesarManagement() {
   const { toast } = useToast()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const kontrakInputRef = useRef<HTMLInputElement>(null)
-  const importInputRef = useRef<HTMLInputElement>(null)
+  const currentUser = getCurrentUser()
   
-  // Use database hook instead of local state
+  // Get current user ID for createdBy field
+  const getCurrentUserId = () => {
+    if (currentUser?.id) {
+      return currentUser.id
+    }
+    // Fallback to demo user ID if not authenticated
+    return "cmemokbd20000ols63e1xr3f6" // Admin user ID from our demo users
+  }
+
   const {
     expenses,
     loading,
@@ -149,23 +167,19 @@ export function KasBesarManagement() {
     updating,
     deleting,
     error,
+    pagination,
+    filters,
+    fetchExpenses,
     createExpense,
     updateExpense,
-    updateStatus,
     deleteExpense,
+    updateStatus,
     search,
     filterByStatus,
-    getRecentTransactionTypes,
-    fetchExpenses
-  } = useKasBesar({
-    autoFetch: true,
-    initialFilters: {
-      limit: 20 // Fetch more items per page
-    }
-  })
+    getRecentTransactionTypes
+  } = useKasBesar({ autoFetch: true })
 
-  
-  // Local UI state
+  // Form state
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<KasBesarExpense | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -173,6 +187,32 @@ export function KasBesarManagement() {
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
   const [contractValidationResults, setContractValidationResults] = useState<Map<string, boolean>>(new Map())
   const [isUploading, setIsUploading] = useState(false)
+  const [formData, setFormData] = useState<KasBesarExpense>({
+    hari: "",
+    tanggal: "",
+    bulan: "",
+    tipeAktivitas: "", // Updated field name
+    barang: "",
+    banyak: 0,
+    satuan: "",
+    hargaSatuan: 0, // Updated field name
+    total: 0, // Add missing total field
+    vendorNama: "", // Updated field name
+    vendorTelp: "", // Updated field name
+    vendorEmail: "", // Updated field name
+    jenis: "kas_besar",
+    subJenis: "", // Updated field name
+    notes: "",
+    buktiUrl: "", // Updated field name
+    kontrakUrl: "", // Updated field name
+    createdBy: getCurrentUserId() // Use current user ID
+  })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const kontrakInputRef = useRef<HTMLInputElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  
+  // Local UI state
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false)
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
@@ -196,25 +236,6 @@ export function KasBesarManagement() {
 
   // Get recent transaction types from database hook
   const recentTransactionTypes = getRecentTransactionTypes()
-  const [formData, setFormData] = useState({
-    hari: "",
-    tanggal: "",
-    bulan: "",
-    tipeAktivitas: "", // Updated field name
-    barang: "",
-    banyak: 0,
-    satuan: "",
-    hargaSatuan: 0, // Updated field name
-    vendorNama: "", // Updated field name
-    vendorTelp: "", // Updated field name
-    vendorEmail: "", // Updated field name
-    jenis: "kas_besar",
-    subJenis: "", // Updated field name
-    notes: "",
-    buktiUrl: "", // Updated field name
-    kontrakUrl: "", // Updated field name
-    createdBy: "cmelj7fwx0000ol5nfd1lqh2z" // Use actual demo user ID from database
-  })
 
   // Search and filter handlers
   useEffect(() => {
@@ -648,7 +669,7 @@ export function KasBesarManagement() {
       notes: "",
       buktiUrl: "",
       kontrakUrl: "",
-      createdBy: "cmelj7fwx0000ol5nfd1lqh2z"
+      createdBy: getCurrentUserId()
     })
     setFormErrors({})
     setEditingExpense(null)
@@ -1133,7 +1154,7 @@ export function KasBesarManagement() {
                       notes: "",
                       buktiUrl: "",
                       kontrakUrl: "",
-                      createdBy: "cmelj7fwx0000ol5nfd1lqh2z"
+                      createdBy: getCurrentUserId()
                     })
                     setIsFormOpen(true)
                     setIsQuickActionsOpen(false)
