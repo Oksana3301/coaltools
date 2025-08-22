@@ -147,6 +147,18 @@ const TIPE_AKTIVITAS_OPTIONS = [
   { value: "kontrak_jasa", label: "Kontrak Jasa" }
 ]
 
+const SUB_JENIS_OPTIONS = [
+  { value: "alat_berat", label: "Alat Berat" },
+  { value: "sewa_alat", label: "Sewa Alat" },
+  { value: "kontrak_besar", label: "Kontrak Besar" },
+  { value: "investasi_infrastruktur", label: "Investasi Infrastruktur" },
+  { value: "pembelian_aset", label: "Pembelian Aset" },
+  { value: "kontrak_vendor", label: "Kontrak Vendor" },
+  { value: "pembayaran_kredit", label: "Pembayaran Kredit" },
+  { value: "pajak_besar", label: "Pajak & Retribusi Besar" },
+  { value: "lain_lain", label: "Lain-lain" }
+]
+
 export function KasBesarManagement() {
   const { toast } = useToast()
   const currentUser = getCurrentUser()
@@ -527,6 +539,7 @@ export function KasBesarManagement() {
       banyak: lastExpense.banyak,
       satuan: lastExpense.satuan,
       hargaSatuan: lastExpense.hargaSatuan,
+      total: lastExpense.total, // Add missing total field
       vendorNama: lastExpense.vendorNama,
       vendorTelp: lastExpense.vendorTelp || '',
       vendorEmail: lastExpense.vendorEmail || '',
@@ -661,6 +674,7 @@ export function KasBesarManagement() {
       banyak: 0,
       satuan: "",
       hargaSatuan: 0,
+      total: 0, // Add missing total field
       vendorNama: "",
       vendorTelp: "",
       vendorEmail: "",
@@ -689,6 +703,7 @@ export function KasBesarManagement() {
       banyak: expense.banyak,
       satuan: expense.satuan,
       hargaSatuan: expense.hargaSatuan,
+      total: expense.total, // Add missing total field
       vendorNama: expense.vendorNama,
       vendorTelp: expense.vendorTelp || "",
       vendorEmail: expense.vendorEmail || "",
@@ -822,6 +837,7 @@ export function KasBesarManagement() {
       banyak: expense.banyak,
       satuan: expense.satuan,
       hargaSatuan: expense.hargaSatuan,
+      total: expense.total, // Add missing total field
       vendorNama: expense.vendorNama,
       vendorTelp: expense.vendorTelp || "",
       vendorEmail: expense.vendorEmail || "",
@@ -1146,6 +1162,7 @@ export function KasBesarManagement() {
                       banyak: 0,
                       satuan: "",
                       hargaSatuan: 0,
+                      total: 0, // Add missing total field
                       vendorNama: "",
                       vendorTelp: "",
                       vendorEmail: "",
