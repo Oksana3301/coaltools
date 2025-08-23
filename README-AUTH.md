@@ -60,33 +60,19 @@ model LoginActivity {
 
 ### Authentication
 - `POST /api/auth/login` - User login
-- `GET /api/auth/login-activity` - Get login activity history
-
-### Login Activity Features
-- Pagination support
-- Email search filtering
-- Status filtering (SUCCESS, FAILED, LOCKED)
-- CSV export functionality
+- `POST /api/auth/logout` - User logout
 
 ## 🎯 User Interface
 
-### Login Page (`/auth`)
-- Clean, modern login form
-- Demo account information displayed
-- Real-time validation
-- Success/error notifications
+### Authentication Pages
+- **Login Page** (`/auth`) - User login form
+- **Protected Routes** - All pages require authentication
 
-### Login Activity Page (`/login-activity`)
-- Comprehensive activity dashboard
-- Search and filter capabilities
-- Export to CSV functionality
-- Real-time data updates
-
-### Header Integration
-- User information display
-- Role badges
-- Logout functionality
-- Responsive design
+### Features
+- Responsive design for all devices
+- Form validation with error messages
+- Session management
+- Role-based access control
 
 ## 🛠️ Setup Instructions
 
@@ -137,26 +123,15 @@ curl -X POST http://localhost:3000/api/auth/login \
   -d '{"email": "admin@example.com", "password": "Admin123!"}'
 ```
 
-### View Login Activity
+### Get Users
 ```bash
-curl http://localhost:3000/api/auth/login-activity
-```
-
-### Filter by Status
-```bash
-curl "http://localhost:3000/api/auth/login-activity?status=SUCCESS"
-```
-
-### Search by Email
-```bash
-curl "http://localhost:3000/api/auth/login-activity?email=admin"
+curl http://localhost:3000/api/users
 ```
 
 ## 🎨 UI Components
 
 ### Authentication Components
 - `AuthPage` - Main login interface
-- `LoginActivityPage` - Activity monitoring dashboard
 - `UserDropdown` - Header user menu
 
 ### Utility Functions
@@ -173,21 +148,13 @@ curl "http://localhost:3000/api/auth/login-activity?email=admin"
 2. Form validation (email format, password requirements)
 3. API call to `/api/auth/login`
 4. Password verification with bcrypt
-5. Login activity logging
-6. Session storage in localStorage
-7. Redirect to dashboard
+5. Session storage in localStorage
+6. Redirect to dashboard
 
 ### Logout Process
 1. User clicks logout in header dropdown
 2. Session data removed from localStorage
 3. Redirect to login page
-4. Login activity logged (if applicable)
-
-### Activity Monitoring
-1. All login attempts logged automatically
-2. Activity data stored with user context
-3. Dashboard provides filtering and search
-4. Export functionality for reporting
 
 ## 🚀 Next Steps
 
@@ -209,8 +176,8 @@ curl "http://localhost:3000/api/auth/login-activity?email=admin"
 
 - **Demo Mode**: Current implementation uses localStorage for simplicity
 - **Production**: Consider implementing proper session management
-- **Database**: All activity is permanently stored for audit purposes
-- **Privacy**: IP addresses and user agents are logged for security
+- **Database**: User data is stored for authentication purposes
+- **Security**: Password hashing with bcrypt for secure storage
 
 ---
 

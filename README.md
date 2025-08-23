@@ -137,10 +137,10 @@ The application includes a complete authentication system with demo accounts:
 | Demo | `demo@example.com` | `Demo123!` | Full access |
 
 ### Login Activity Tracking
-- All login attempts are automatically logged
-- View activity history at `/login-activity`
-- Export data to CSV for reporting
-- Monitor IP addresses and user agents
+
+* All login attempts are automatically logged
+* Export data to CSV for reporting
+* Monitor IP addresses and user agents
 
 ## 📁 Project Structure
 
@@ -151,8 +151,7 @@ coaltools/
 │   │   ├── auth/          # Authentication pages
 │   │   ├── coal-tools-*/  # Individual coal tools pages
 │   │   ├── invoice/       # Invoice management
-│   │   ├── kwitansi/      # Receipt generator
-│   │   └── login-activity/ # Login activity dashboard
+│   │   └── kwitansi/      # Receipt generator
 │   ├── api/               # API routes
 │   │   ├── auth/          # Authentication APIs
 │   │   ├── kas-besar/     # Large cash management
@@ -178,6 +177,7 @@ coaltools/
 ├── next.config.ts        # Next.js configuration
 ├── tailwind.config.js    # Tailwind CSS configuration
 └── tsconfig.json         # TypeScript configuration
+
 ```
 
 ## 🚀 Available Scripts
@@ -224,16 +224,15 @@ NEXTAUTH_URL="http://localhost:3000"
 
 Once the application is running, you can access different sections:
 
-- **Main Dashboard**: `http://localhost:3000/`
-- **Authentication**: `http://localhost:3000/auth`
-- **Login Activity**: `http://localhost:3000/login-activity`
-- **Coal Tools**:
-  - **Kas Kecil**: `http://localhost:3000/coal-tools-kaskecil`
-  - **Kas Besar**: `http://localhost:3000/coal-tools-kasbesar`
-  - **Kalkulator Gaji**: `http://localhost:3000/coal-tools-kalkulatorgaji`
-  - **Laporan Produksi**: `http://localhost:3000/coal-tools-laporanproduksi`
-- **Invoice Generator**: `http://localhost:3000/invoice`
-- **Kwitansi Generator**: `http://localhost:3000/kwitansi`
+* **Main Dashboard**: `http://localhost:3000/`
+* **Authentication**: `http://localhost:3000/auth`
+* **Coal Tools**:  
+   * **Kas Kecil**: `http://localhost:3000/coal-tools-kaskecil`  
+   * **Kas Besar**: `http://localhost:3000/coal-tools-kasbesar`  
+   * **Kalkulator Gaji**: `http://localhost:3000/coal-tools-kalkulatorgaji`  
+   * **Laporan Produksi**: `http://localhost:3000/coal-tools-laporanproduksi`
+* **Invoice Generator**: `http://localhost:3000/invoice`
+* **Kwitansi Generator**: `http://localhost:3000/kwitansi`
 
 ## 🛠️ Troubleshooting
 
@@ -331,14 +330,14 @@ If you encounter any issues or have questions:
 ## 🎯 Recent Updates
 
 ### ✅ **Latest Features Added**
-- **Complete Authentication System** with 4 demo accounts
-- **Login Activity Tracking** with comprehensive monitoring
-- **Database Integration** with PostgreSQL and Prisma
-- **Individual Tool Pages** for better navigation
-- **Enhanced UI/UX** with modern components
-- **PDF Generation** for invoices and receipts
-- **Real-time Data Sync** across all components
-- **Export Functionality** for reports and data
+
+* **Complete Authentication System** with 4 demo accounts
+* **Database Integration** with PostgreSQL and Prisma
+* **Individual Tool Pages** for better navigation
+* **Enhanced UI/UX** with modern components
+* **PDF Generation** for invoices and receipts
+* **Real-time Data Sync** across all components
+* **Export Functionality** for reports and data
 
 ### 🔧 **Technical Improvements**
 - **TypeScript Integration** throughout the application
