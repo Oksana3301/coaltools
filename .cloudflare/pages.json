@@ -1,15 +1,12 @@
 {
   "build": {
-    "command": "npm run build",
+    "command": "npm run build:cloudflare",
     "output_directory": ".next",
     "environment": {
       "NODE_VERSION": "18"
     }
   },
-  "routes": [
-    {
-      "pattern": "/*",
-      "serve": "/index.html"
-    }
-  ]
+  "deploy": {
+    "environment": "production"
+  }
 }
