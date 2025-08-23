@@ -8,7 +8,7 @@ console.log('🚀 Starting Cloudflare Pages build...');
 
 try {
   // Step 1: Install dependencies with legacy peer deps
-  console.log('📦 Installing dependencies...');
+  console.log('📦 Installing dependencies with legacy peer deps...');
   execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
   
   // Step 2: Generate Prisma client
