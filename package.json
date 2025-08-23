@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "build:cloudflare": "node scripts/build-cloudflare.js",
+    "build:pages": "npm run build:cloudflare",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
