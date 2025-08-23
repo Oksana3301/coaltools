@@ -1,11 +1,20 @@
-name = "mycoaltools"
+name = "coaltools"
 compatibility_date = "2024-01-01"
 
 [build]
-command = "npm run build"
+command = "npm run build:cloudflare"
+watch_dir = "."
+
+[build.upload]
+format = "service-worker"
 
 [env.production]
-name = "mycoaltools"
+name = "coaltools-production"
 
 [env.production.vars]
 NODE_ENV = "production"
+
+# Add your environment variables here
+# DATABASE_URL = "your_database_url"
+# NEXTAUTH_SECRET = "your_secret"
+# NEXTAUTH_URL = "https://your-domain.pages.dev"

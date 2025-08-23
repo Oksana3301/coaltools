@@ -3,7 +3,7 @@
 ## Prerequisites
 
 1. **Cloudflare Account**: Sign up at [cloudflare.com](https://cloudflare.com)
-2. **Domain**: `mycoaltools.work` (already owned)
+2. **Domain**: `mycoaltools.online` (purchased from Rumah Web)
 3. **GitHub Repository**: [https://github.com/Oksana3301/coaltools](https://github.com/Oksana3301/coaltools)
 
 ## Step 1: Connect GitHub Repository
@@ -31,7 +31,7 @@ Add these environment variables in the Cloudflare Pages settings:
 NODE_ENV=production
 DATABASE_URL=your_database_connection_string
 NEXTAUTH_SECRET=your_secret_key
-NEXTAUTH_URL=https://mycoaltools.work
+NEXTAUTH_URL=https://mycoaltools.online
 ```
 
 ## Step 3: Deploy
@@ -44,7 +44,7 @@ NEXTAUTH_URL=https://mycoaltools.work
 
 1. In your Cloudflare Pages project, go to **Custom domains**
 2. Click **Set up a custom domain**
-3. Enter: `mycoaltools.work`
+3. Enter: `mycoaltools.online`
 4. Click **Continue**
 5. The domain will be automatically configured
 
@@ -66,7 +66,7 @@ Since this is a full-stack application with database features, you'll need to:
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
 | `NEXTAUTH_SECRET` | Authentication secret key | `your-secret-key-here` |
-| `NEXTAUTH_URL` | Your domain URL | `https://mycoaltools.work` |
+| `NEXTAUTH_URL` | Your domain URL | `https://mycoaltools.online` |
 
 ## Troubleshooting
 
@@ -113,4 +113,4 @@ If you encounter issues:
 
 ---
 
-**Your application will be live at**: `https://mycoaltools.work`
+**Your application will be live at**: `https://mycoaltools.online`

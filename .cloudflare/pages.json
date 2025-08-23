@@ -1,0 +1,15 @@
+{
+  "build": {
+    "command": "npm run build",
+    "output_directory": ".next",
+    "environment": {
+      "NODE_VERSION": "18"
+    }
+  },
+  "routes": [
+    {
+      "pattern": "/*",
+      "serve": "/index.html"
+    }
+  ]
+}
