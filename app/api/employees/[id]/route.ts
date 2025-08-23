@@ -51,3 +51,73 @@ export async function GET(
     )
   }
 }
+
+// PUT - Update karyawan
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+    const body = await request.json()
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: body
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: employee,
+      message: 'Karyawan berhasil diupdate'
+    })
+  } catch (error) {
+    console.error('Error updating employee:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Gagal mengupdate karyawan'
+      },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Hapus karyawan (soft delete)
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params
+    const { searchParams } = new URL(request.url)
+    const hardDelete = searchParams.get('hardDelete') === 'true'
+
+    if (hardDelete) {
+      // Hard delete - completely remove from database
+      await prisma.employee.delete({
+        where: { id }
+      })
+    } else {
+      // Soft delete - set aktif to false
+      await prisma.employee.update({
+        where: { id },
+        data: { aktif: false }
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: hardDelete ? 'Karyawan berhasil dihapus permanen' : 'Karyawan berhasil dinonaktifkan'
+    })
+  } catch (error) {
+    console.error('Error deleting employee:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Gagal menghapus karyawan'
+      },
+      { status: 500 }
+    )
+  }
+}

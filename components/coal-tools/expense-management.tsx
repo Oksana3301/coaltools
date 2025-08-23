@@ -475,6 +475,7 @@ export function ExpenseManagement() {
     })
     setEditingExpense(expense)
     setIsFormOpen(true)
+    setActiveTab('form')
   }
 
   // Enhanced edit functions

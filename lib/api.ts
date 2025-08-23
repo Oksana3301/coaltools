@@ -353,8 +353,8 @@ class ApiService {
   }
 
   // Delete employee (soft delete)
-  async deleteEmployee(id: string): Promise<ApiResponse<null>> {
-    return this.fetchApi<null>(`/employees?id=${id}`, {
+  async deleteEmployee(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/employees/${id}?hardDelete=${hardDelete}`, {
       method: 'DELETE'
     })
   }
@@ -392,8 +392,8 @@ class ApiService {
   }
 
   // Delete pay component (soft delete)
-  async deletePayComponent(id: string): Promise<ApiResponse<null>> {
-    return this.fetchApi<null>(`/pay-components?id=${id}`, {
+  async deletePayComponent(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/pay-components?id=${id}&hardDelete=${hardDelete}`, {
       method: 'DELETE'
     })
   }

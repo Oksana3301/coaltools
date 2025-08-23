@@ -194,6 +194,7 @@ export function KasBesarManagement() {
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<KasBesarExpense | null>(null)
+  const [activeTab, setActiveTab] = useState('list') // Add activeTab state
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
@@ -716,6 +717,7 @@ export function KasBesarManagement() {
     })
     setEditingExpense(expense)
     setIsFormOpen(true)
+    setActiveTab('form')
   }
 
   // Enhanced edit functions for kas besar
@@ -851,6 +853,7 @@ export function KasBesarManagement() {
     setEditingExpense(expense)
     setEditingApprovedId(expense.id)
     setIsFormOpen(true)
+    setActiveTab('form')
   }
 
   const requestApprovalOverride = async () => {
@@ -1391,7 +1394,7 @@ export function KasBesarManagement() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="form" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="form">Form Input</TabsTrigger>
           <TabsTrigger value="list">Daftar Transaksi</TabsTrigger>
