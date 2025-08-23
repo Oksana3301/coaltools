@@ -103,10 +103,11 @@ export async function PATCH(
 
     // Validate status transition rules
     const validTransitions: Record<string, string[]> = {
-      'DRAFT': ['REVIEWED'],
-      'REVIEWED': ['APPROVED', 'DRAFT'],
-      'APPROVED': ['PAID'],
-      'PAID': [] // Final status
+      'DRAFT': ['REVIEWED', 'ARCHIVED'],
+      'REVIEWED': ['APPROVED', 'DRAFT', 'ARCHIVED'],
+      'APPROVED': ['PAID', 'ARCHIVED'],
+      'PAID': ['ARCHIVED'], // Allow archiving paid payrolls
+      'ARCHIVED': [] // Final status
     }
 
     const allowedNext = validTransitions[currentPayroll.status] || []

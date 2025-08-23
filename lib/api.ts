@@ -145,7 +145,7 @@ export interface PayrollRun {
   id?: string
   periodeAwal: string
   periodeAkhir: string
-  status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID'
+  status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED'
   createdBy: string
   approvedBy?: string
   createdAt?: string
@@ -177,7 +177,7 @@ export interface PayrollLine {
   pajakNominal?: number
   potonganLain?: number
   neto: number
-  status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID'
+  status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED'
   notes?: string
   createdAt?: string
   updatedAt?: string
@@ -196,6 +196,54 @@ export interface PayrollLineComponent {
   amount: number
   taxable: boolean
   createdAt?: string
+}
+
+export interface ProductionReport {
+  id?: string
+  tanggal: string
+  nopol: string
+  pembeliId?: string
+  pembeliNama: string
+  tujuan: string
+  grossTon: number
+  tareTon: number
+  nettoTon: number
+  sourceFile?: string
+  notes?: string
+  status: 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'ARCHIVED'
+  createdBy: string
+  approvedBy?: string
+  createdAt?: string
+  updatedAt?: string
+  deletedAt?: string
+  creator?: {
+    id: string
+    name: string
+    email: string
+  }
+  approver?: {
+    id: string
+    name: string
+    email: string
+  }
+  buyer?: {
+    id: string
+    nama: string
+    hargaPerTonDefault?: number
+  }
+}
+
+export interface Buyer {
+  id?: string
+  nama: string
+  hargaPerTonDefault?: number
+  alamat?: string
+  telepon?: string
+  email?: string
+  npwp?: string
+  createdAt?: string
+  updatedAt?: string
+  aktif?: boolean
 }
 
 class ApiService {
@@ -450,7 +498,7 @@ class ApiService {
   // Update payroll run status
   async updatePayrollRunStatus(
     id: string, 
-    status: PayrollRun['status'],
+    status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED',
     approvedBy?: string,
     notes?: string
   ): Promise<ApiResponse<PayrollRun>> {
@@ -527,6 +575,104 @@ class ApiService {
     return this.fetchApi<KasKecilExpense>(`/kas-kecil/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ action: 'restore' })
+    })
+  }
+
+  // PRODUCTION REPORT METHODS
+
+  // Get production reports
+  async getProductionReports(params?: {
+    page?: number
+    limit?: number
+    status?: 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'ARCHIVED'
+    includeDeleted?: boolean
+  }): Promise<ApiResponse<ProductionReport[]>> {
+    const searchParams = new URLSearchParams()
+    
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.includeDeleted) searchParams.append('includeDeleted', 'true')
+
+    const query = searchParams.toString()
+    return this.fetchApi<ProductionReport[]>(`/production-reports${query ? `?${query}` : ''}`)
+  }
+
+  // Get production report by ID
+  async getProductionReportById(id: string): Promise<ApiResponse<ProductionReport>> {
+    return this.fetchApi<ProductionReport>(`/production-reports/${id}`)
+  }
+
+  // Create production report
+  async createProductionReport(data: Omit<ProductionReport, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'creator' | 'approver' | 'buyer'>): Promise<ApiResponse<ProductionReport>> {
+    return this.fetchApi<ProductionReport>('/production-reports', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Update production report
+  async updateProductionReport(data: Partial<ProductionReport> & { id: string }): Promise<ApiResponse<ProductionReport>> {
+    return this.fetchApi<ProductionReport>(`/production-reports/${data.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Update production report status
+  async updateProductionReportStatus(
+    id: string, 
+    status: 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'ARCHIVED',
+    approvedBy?: string,
+    notes?: string
+  ): Promise<ApiResponse<ProductionReport>> {
+    return this.fetchApi<ProductionReport>(`/production-reports/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, approvedBy, notes })
+    })
+  }
+
+  // Soft delete production report
+  async softDeleteProductionReport(id: string): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/production-reports/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  // Hard delete production report
+  async hardDeleteProductionReport(id: string): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/production-reports/${id}?hardDelete=true`, {
+      method: 'DELETE'
+    })
+  }
+
+  // BUYER METHODS
+
+  // Get all buyers
+  async getBuyers(): Promise<ApiResponse<Buyer[]>> {
+    return this.fetchApi<Buyer[]>('/buyers')
+  }
+
+  // Create buyer
+  async createBuyer(data: Omit<Buyer, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Buyer>> {
+    return this.fetchApi<Buyer>('/buyers', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Update buyer
+  async updateBuyer(data: Partial<Buyer> & { id: string }): Promise<ApiResponse<Buyer>> {
+    return this.fetchApi<Buyer>(`/buyers/${data.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Delete buyer (soft delete)
+  async deleteBuyer(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/buyers/${id}?hardDelete=${hardDelete}`, {
+      method: 'DELETE'
     })
   }
 

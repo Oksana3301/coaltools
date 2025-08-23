@@ -15,21 +15,19 @@ export async function POST(request: NextRequest) {
 
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email: validatedData.email }
+      where: { email: validatedData.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
+      }
     })
 
     if (!user) {
-      // Log failed login attempt
-      await prisma.loginActivity.create({
-        data: {
-          userId: 'unknown',
-          email: validatedData.email,
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
-          status: 'FAILED'
-        }
-      })
-
       return NextResponse.json(
         { success: false, error: 'Email atau password salah' },
         { status: 401 }
@@ -40,36 +38,14 @@ export async function POST(request: NextRequest) {
     const isPasswordValid = await bcrypt.compare(validatedData.password, user.password)
 
     if (!isPasswordValid) {
-      // Log failed login attempt
-      await prisma.loginActivity.create({
-        data: {
-          userId: user.id,
-          email: validatedData.email,
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
-          status: 'FAILED'
-        }
-      })
-
       return NextResponse.json(
         { success: false, error: 'Email atau password salah' },
         { status: 401 }
       )
     }
 
-    // Log successful login
-    await prisma.loginActivity.create({
-      data: {
-        userId: user.id,
-        email: validatedData.email,
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        status: 'SUCCESS'
-      }
-    })
-
     // Return user data (without password)
-    const { password, ...userWithoutPassword } = user
+    const { password: _, ...userWithoutPassword } = user
 
     return NextResponse.json({
       success: true,
@@ -83,7 +59,7 @@ export async function POST(request: NextRequest) {
         { 
           success: false, 
           error: 'Data tidak valid', 
-          details: error.errors 
+          details: error.issues 
         },
         { status: 400 }
       )

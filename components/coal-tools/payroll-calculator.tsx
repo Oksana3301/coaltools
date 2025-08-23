@@ -186,6 +186,7 @@ export function PayrollCalculator() {
   // Deletion states
   const [deletingEmployee, setDeletingEmployee] = useState<string | null>(null)
   const [deletingPayComponent, setDeletingPayComponent] = useState<string | null>(null)
+  const [deletingPayrollRun, setDeletingPayrollRun] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState<{
     type: 'employee' | 'payComponent' | 'payrollRun'
     id: string
@@ -415,6 +416,41 @@ export function PayrollCalculator() {
       })
     } finally {
       setDeletingPayComponent(null)
+      setShowDeleteDialog(null)
+    }
+  }
+
+  const handleDeletePayrollRun = async (id: string, hardDelete: boolean = false) => {
+    setDeletingPayrollRun(id)
+    try {
+      // Use updatePayrollRunStatus to change status to ARCHIVED
+      const response = await apiService.updatePayrollRunStatus(id, 'ARCHIVED')
+      
+      if (response.success) {
+        toast({
+          title: "Payroll dihapus",
+          description: "Payroll run berhasil diarsipkan"
+        })
+        
+        // Reload payroll runs
+        const payrollRes = await apiService.getPayrollRuns()
+        if (payrollRes.success) {
+          setPayrollRuns(payrollRes.data || [])
+        }
+        
+        // If this was the current payroll run, clear it
+        if (currentPayrollRun?.id === id) {
+          setCurrentPayrollRun(null)
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menghapus payroll run",
+        variant: "destructive"
+      })
+    } finally {
+      setDeletingPayrollRun(null)
       setShowDeleteDialog(null)
     }
   }
@@ -873,7 +909,7 @@ export function PayrollCalculator() {
                                 name: `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
                               })
                             }}
-                            disabled={run.status === 'APPROVED' || run.status === 'PAID'}
+                            disabled={run.status === 'APPROVED' || run.status === 'PAID' || deletingPayrollRun === run.id}
                             className={
                               run.status === 'APPROVED' || run.status === 'PAID'
                                 ? "opacity-50 cursor-not-allowed" 
@@ -885,7 +921,11 @@ export function PayrollCalculator() {
                               "Delete Payroll Run"
                             }
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {deletingPayrollRun === run.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -1299,6 +1339,153 @@ export function PayrollCalculator() {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* Pay Component Form Dialog */}
+                <Dialog open={isPayComponentFormOpen} onOpenChange={setIsPayComponentFormOpen}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingPayComponent ? 'Edit Komponen Gaji' : 'Tambah Komponen Gaji Baru'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {editingPayComponent ? 'Update komponen gaji' : 'Isi form untuk menambah komponen gaji baru'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="component-nama">Nama Komponen</Label>
+                        <Input
+                          id="component-nama"
+                          value={payComponentForm.nama}
+                          onChange={(e) => setPayComponentForm(prev => ({ ...prev, nama: e.target.value }))}
+                          placeholder="Contoh: Tunjangan Transport"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="component-tipe">Tipe</Label>
+                          <Select 
+                            value={payComponentForm.tipe} 
+                            onValueChange={(value) => setPayComponentForm(prev => ({ ...prev, tipe: value as 'EARNING' | 'DEDUCTION' }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="EARNING">Tambahan</SelectItem>
+                              <SelectItem value="DEDUCTION">Potongan</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="component-metode">Metode</Label>
+                          <Select 
+                            value={payComponentForm.metode} 
+                            onValueChange={(value) => setPayComponentForm(prev => ({ ...prev, metode: value as 'FLAT' | 'PER_HARI' | 'PERSENTASE' }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="FLAT">Flat</SelectItem>
+                              <SelectItem value="PER_HARI">Per Hari</SelectItem>
+                              <SelectItem value="PERSENTASE">Persentase</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="component-basis">Basis Perhitungan</Label>
+                        <Select 
+                          value={payComponentForm.basis} 
+                          onValueChange={(value) => setPayComponentForm(prev => ({ ...prev, basis: value as 'UPAH_HARIAN' | 'BRUTO' | 'HARI_KERJA' }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="UPAH_HARIAN">Upah Harian</SelectItem>
+                            <SelectItem value="BRUTO">Bruto</SelectItem>
+                            <SelectItem value="HARI_KERJA">Hari Kerja</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="component-rate">
+                            {payComponentForm.metode === 'PERSENTASE' ? 'Rate (%)' : 'Rate'}
+                          </Label>
+                          <Input
+                            id="component-rate"
+                            type="number"
+                            value={payComponentForm.rate}
+                            onChange={(e) => setPayComponentForm(prev => ({ ...prev, rate: e.target.value }))}
+                            placeholder={payComponentForm.metode === 'PERSENTASE' ? '10' : '1000'}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="component-nominal">Nominal (Flat)</Label>
+                          <Input
+                            id="component-nominal"
+                            type="number"
+                            value={payComponentForm.nominal}
+                            onChange={(e) => setPayComponentForm(prev => ({ ...prev, nominal: e.target.value }))}
+                            placeholder="50000"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="component-order">Urutan</Label>
+                        <Input
+                          id="component-order"
+                          type="number"
+                          value={payComponentForm.order}
+                          onChange={(e) => setPayComponentForm(prev => ({ ...prev, order: e.target.value }))}
+                          placeholder="1"
+                        />
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="component-taxable"
+                          checked={payComponentForm.taxable}
+                          onChange={(e) => setPayComponentForm(prev => ({ ...prev, taxable: e.target.checked }))}
+                        />
+                        <Label htmlFor="component-taxable">Kena Pajak</Label>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsPayComponentFormOpen(false)
+                            resetPayComponentForm()
+                          }}
+                        >
+                          Batal
+                        </Button>
+                        <Button
+                          onClick={handlePayComponentSubmit}
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          {editingPayComponent ? 'Update' : 'Simpan'}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
@@ -1383,13 +1570,24 @@ export function PayrollCalculator() {
         <TabsContent value="components" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Komponen Gaji
-              </CardTitle>
-              <CardDescription>
-                Kelola komponen gaji dinamis (tunjangan, potongan, dll)
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Komponen Gaji
+                  </CardTitle>
+                  <CardDescription>
+                    Kelola komponen gaji dinamis (tunjangan, potongan, dll)
+                  </CardDescription>
+                </div>
+                <Button onClick={() => {
+                  resetPayComponentForm()
+                  setIsPayComponentFormOpen(true)
+                }}>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Tambah Komponen
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -1440,7 +1638,11 @@ export function PayrollCalculator() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => editPayComponent(component)}
+                          >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
@@ -1472,7 +1674,14 @@ export function PayrollCalculator() {
                   </Card>
                 ))}
                 
-                <Button className="w-full" variant="outline">
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => {
+                    resetPayComponentForm()
+                    setIsPayComponentFormOpen(true)
+                  }}
+                >
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Tambah Komponen Baru
                 </Button>
@@ -1785,21 +1994,13 @@ export function PayrollCalculator() {
                       } else if (showDeleteDialog.type === 'payComponent') {
                         handleDeletePayComponent(showDeleteDialog.id, false)
                       } else {
-                        // For payroll run, we'll archive it instead of hard delete
-                        // This requires a different API call or status update
-                        toast({
-                          title: "Archiving Payroll",
-                          description: "Payroll run is archived instead of deleted. It will be removed from history."
-                        })
-                        // In a real app, you'd call an API to archive the run
-                        // For now, we'll just close the dialog
-                        setShowDeleteDialog(null)
+                        handleDeletePayrollRun(showDeleteDialog.id, false)
                       }
                     }}
-                    disabled={deletingEmployee === showDeleteDialog.id || deletingPayComponent === showDeleteDialog.id}
+                    disabled={deletingEmployee === showDeleteDialog.id || deletingPayComponent === showDeleteDialog.id || deletingPayrollRun === showDeleteDialog.id}
                     className="flex-1 bg-red-600 hover:bg-red-700"
                   >
-                    {deletingEmployee === showDeleteDialog.id || deletingPayComponent === showDeleteDialog.id ? (
+                    {deletingEmployee === showDeleteDialog.id || deletingPayComponent === showDeleteDialog.id || deletingPayrollRun === showDeleteDialog.id ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <Trash2 className="h-4 w-4 mr-2" />

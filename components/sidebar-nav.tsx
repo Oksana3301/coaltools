@@ -17,7 +17,9 @@ import {
   Settings,
   BarChart3,
   Building2,
-  Activity
+  Activity,
+  Wallet,
+  CreditCard
 } from "lucide-react"
 
 const navigation = [
@@ -71,12 +73,6 @@ const navigation = [
       }
     ]
   },
-  {
-    name: "Login Activity",
-    href: "/login-activity",
-    icon: Activity,
-    description: "Monitor login activities"
-  }
 ]
 
 export function SidebarNav() {

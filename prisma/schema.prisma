@@ -29,32 +29,10 @@ model User {
   approvedTransactions KasBesarExpense[] @relation("ApprovedBy")
   payrollRuns          PayrollRun[]
   approvedPayrolls     PayrollRun[]      @relation("PayrollApprovedBy")
-  loginActivities      LoginActivity[]   // Added relation to login activities
+  productionReports    ProductionReport[] @relation("ProductionCreatedBy")
+  approvedProductions  ProductionReport[] @relation("ProductionApprovedBy")
 
   @@map("users")
-}
-
-// Model untuk tracking login activity
-model LoginActivity {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  email     String
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  status    LoginStatus @default(SUCCESS)
-  createdAt DateTime @default(now())
-
-  // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("login_activities")
-}
-
-// Login status enum
-enum LoginStatus {
-  SUCCESS
-  FAILED
-  LOCKED
 }
 
 // Model untuk Kas Besar
@@ -303,6 +281,63 @@ enum PayrollStatus {
   REVIEWED
   APPROVED
   PAID
+  ARCHIVED
+}
+
+// Enums untuk production report
+enum ProductionStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  ARCHIVED
+}
+
+// Model untuk production report (laporan produksi)
+model ProductionReport {
+  id           String           @id @default(cuid())
+  tanggal      String
+  nopol        String
+  pembeliId    String?          @map("pembeli_id")
+  pembeliNama  String           @map("pembeli_nama")
+  tujuan       String
+  grossTon     Float            @map("gross_ton")
+  tareTon      Float            @map("tare_ton")
+  nettoTon     Float            @map("netto_ton")
+  sourceFile   String?          @map("source_file")
+  notes        String?
+  status       ProductionStatus @default(DRAFT)
+  createdBy    String           @map("created_by")
+  approvedBy   String?          @map("approved_by")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?        @map("deleted_at")
+
+  // Relations
+  creator      User             @relation("ProductionCreatedBy", fields: [createdBy], references: [id])
+  approver     User?            @relation("ProductionApprovedBy", fields: [approvedBy], references: [id])
+  buyer        Buyer?           @relation(fields: [pembeliId], references: [id])
+
+  @@map("production_reports")
+}
+
+// Model untuk buyer (pembeli)
+model Buyer {
+  id                    String   @id @default(cuid())
+  nama                  String
+  hargaPerTonDefault    Float?   @map("harga_per_ton_default")
+  alamat                String?
+  telepon               String?
+  email                 String?
+  npwp                  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  aktif                 Boolean  @default(true)
+
+  // Relations
+  productionReports     ProductionReport[]
+
+  @@map("buyers")
 }
 
 // Model untuk audit log

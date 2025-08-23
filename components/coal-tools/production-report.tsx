@@ -36,16 +36,18 @@ import {
   RefreshCw,
   Settings,
   Zap,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useProductionReports } from "@/hooks/use-production-reports"
+import type { ProductionReport, Buyer } from "@/lib/api"
+import { getCurrentUser } from "@/lib/auth"
 import { 
   uploadFile, 
   exportToExcel, 
   exportToCSV, 
   generatePDF,
-  saveToLocalStorage,
-  loadFromLocalStorage,
   validateFileType,
   validateFileSize,
   generateProductionTemplate,
@@ -53,28 +55,6 @@ import {
 } from "@/lib/file-utils"
 
 // Types
-interface WeighTransaction {
-  id: string
-  tanggal: string
-  nopol: string
-  pembeli_id?: string
-  pembeli_nama: string
-  tujuan: string
-  gross_ton: number
-  tare_ton: number
-  netto_ton: number
-  source_file?: string
-  notes?: string
-  created_at: string
-  status?: 'draft' | 'submitted' | 'reviewed' | 'approved' | 'archived'
-}
-
-interface Buyer {
-  id: string
-  nama: string
-  harga_per_ton_default?: number
-}
-
 interface ProductionPeriod {
   id: string
   bulan: string
@@ -95,45 +75,25 @@ interface DailySummary {
   transaksi_count: number
 }
 
-// Sample data
-const SAMPLE_BUYERS: Buyer[] = [
-  { id: '1', nama: 'PT. Sumber Energi', harga_per_ton_default: 850000 },
-  { id: '2', nama: 'CV. Bara Mandiri', harga_per_ton_default: 820000 },
-  { id: '3', nama: 'PT. Mega Coal', harga_per_ton_default: 870000 }
-]
-
-const SAMPLE_TRANSACTIONS: WeighTransaction[] = [
-  {
-    id: '1',
-    tanggal: '2024-01-15',
-    nopol: 'B 1234 XYZ',
-    pembeli_id: '1',
-    pembeli_nama: 'PT. Sumber Energi',
-    tujuan: 'Stockpile A',
-    gross_ton: 35.680,
-    tare_ton: 11.000,
-    netto_ton: 24.680,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: '2',
-    tanggal: '2024-01-15',
-    nopol: 'B 5678 ABC',
-    pembeli_id: '2',
-    pembeli_nama: 'CV. Bara Mandiri',
-    tujuan: 'Stockpile B',
-    gross_ton: 42.150,
-    tare_ton: 12.500,
-    netto_ton: 29.650,
-    created_at: new Date().toISOString()
-  }
-]
-
 export function ProductionReport() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [transactions, setTransactions] = useState<WeighTransaction[]>([])
-  const [buyers, setBuyers] = useState<Buyer[]>(SAMPLE_BUYERS)
+  
+  // Use the production reports hook
+  const {
+    productionReports,
+    buyers,
+    loading,
+    error,
+    createProductionReport,
+    updateProductionReport,
+    deleteProductionReport,
+    updateProductionReportStatus,
+    createBuyer,
+    updateBuyer: updateBuyerFromHook,
+    deleteBuyer
+  } = useProductionReports()
+
   const [selectedBuyer, setSelectedBuyer] = useState<string>('all')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [productionTargets, setProductionTargets] = useState<Map<string, number>>(new Map())
@@ -156,7 +116,7 @@ export function ProductionReport() {
     total_harga_penjualan: 0
   })
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingTransaction, setEditingTransaction] = useState<WeighTransaction | null>(null)
+  const [editingTransaction, setEditingTransaction] = useState<ProductionReport | null>(null)
   const [formData, setFormData] = useState({
     tanggal: '',
     nopol: '',
@@ -171,7 +131,7 @@ export function ProductionReport() {
   const [inlineEditId, setInlineEditId] = useState<string | null>(null)
   const [quickEditMode, setQuickEditMode] = useState(false)
   const [bulkEditMode, setBulkEditMode] = useState(false)
-  const [transactionVersions, setTransactionVersions] = useState<Map<string, WeighTransaction[]>>(new Map())
+  const [transactionVersions, setTransactionVersions] = useState<Map<string, ProductionReport[]>>(new Map())
   const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null)
   const [editingField, setEditingField] = useState<{id: string, field: string} | null>(null)
   const [inlineEditValues, setInlineEditValues] = useState<Record<string, any>>({})
@@ -183,128 +143,45 @@ export function ProductionReport() {
   const [approvalReason, setApprovalReason] = useState('')
   const [supervisorPassword, setSupervisorPassword] = useState('')
 
-  // Load data from localStorage on mount
-  useEffect(() => {
-    const savedTransactions = loadFromLocalStorage('production_transactions', SAMPLE_TRANSACTIONS)
-    setTransactions(savedTransactions)
-  }, [])
+  // Deletion states
+  const [deletingTransaction, setDeletingTransaction] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState<{
+    type: 'transaction' | 'buyer'
+    id: string
+    name: string
+  } | null>(null)
 
-  // Save to localStorage whenever transactions change
+  // Calculate analytics whenever production reports change
   useEffect(() => {
-    if (transactions.length > 0) {
-      saveToLocalStorage('production_transactions', transactions)
+    if (productionReports.length > 0) {
+      // Calculate analytics based on production reports
+      // This will be implemented later
     }
-  }, [transactions])
+  }, [productionReports])
 
-  // Calculate analytics whenever transactions change
-  useEffect(() => {
-    calculateAnalytics()
-  }, [transactions, currentPeriod])
-
-  // Advanced Analytics Functions
-  const calculateAnalytics = () => {
-    // Monthly production trend
-    const monthlyData = getMonthlyProductionTrend()
-    
-    // Buyer analysis
-    const buyerData = getBuyerAnalysis()
-    
-    // Production efficiency
-    const efficiency = calculateProductionEfficiency()
-    
-    setAnalytics({
-      monthlyTrend: monthlyData,
-      buyerAnalysis: buyerData,
-      efficiency
-    })
-  }
-
-  const getMonthlyProductionTrend = () => {
-    const monthlyProduction: Record<string, number> = {}
-    
-    transactions.forEach(transaction => {
-      const date = new Date(transaction.tanggal)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      
-      if (!monthlyProduction[monthKey]) {
-        monthlyProduction[monthKey] = 0
-      }
-      monthlyProduction[monthKey] += transaction.netto_ton
-    })
-    
-    return Object.entries(monthlyProduction)
-      .map(([month, production]) => ({ month, production }))
-      .sort((a, b) => a.month.localeCompare(b.month))
-  }
-
-  const getBuyerAnalysis = () => {
-    const buyerVolumes: Record<string, number> = {}
-    const totalVolume = transactions.reduce((sum, t) => sum + t.netto_ton, 0)
-    
-    transactions.forEach(transaction => {
-      const buyerName = transaction.pembeli_nama
-      if (!buyerVolumes[buyerName]) {
-        buyerVolumes[buyerName] = 0
-      }
-      buyerVolumes[buyerName] += transaction.netto_ton
-    })
-    
-    return Object.entries(buyerVolumes)
-      .map(([buyer, volume]) => ({
-        buyer,
-        volume,
-        percentage: totalVolume > 0 ? (volume / totalVolume) * 100 : 0
-      }))
-      .sort((a, b) => b.volume - a.volume)
-  }
-
-  const calculateProductionEfficiency = () => {
-    const currentMonthTarget = productionTargets.get(currentPeriod.bulan) || 1000
-    const actualProduction = transactions.reduce((sum, t) => sum + t.netto_ton, 0)
+  // Get buyer analytics
+  const getBuyerAnalytics = (buyerName: string) => {
+    const buyerTransactions = productionReports.filter(t => t.pembeliNama === buyerName)
+    const totalVolume = buyerTransactions.reduce((sum, t) => sum + t.nettoTon, 0)
+    const totalValue = buyerTransactions.reduce((sum, t) => {
+      const buyer = buyers.find(b => b.nama === buyerName)
+      const pricePerTon = buyer?.hargaPerTonDefault || 850000
+      return sum + (t.nettoTon * pricePerTon)
+    }, 0)
     
     return {
-      target: currentMonthTarget,
-      actual: actualProduction,
-      percentage: currentMonthTarget > 0 ? (actualProduction / currentMonthTarget) * 100 : 0
-    }
-  }
-
-  // Buyer Management Functions
-  const addBuyer = (buyerData: Omit<Buyer, 'id'>) => {
-    const newBuyer: Buyer = {
-      ...buyerData,
-      id: Date.now().toString()
-    }
-    setBuyers(prev => [...prev, newBuyer])
-    toast({
-      title: "Pembeli ditambahkan",
-      description: `${newBuyer.nama} berhasil ditambahkan`
-    })
-  }
-
-  const updateBuyer = (id: string, updates: Partial<Buyer>) => {
-    setBuyers(prev => prev.map(buyer => 
-      buyer.id === id ? { ...buyer, ...updates } : buyer
-    ))
-  }
-
-  const getBuyerPerformance = (buyerId: string) => {
-    const buyerTransactions = transactions.filter(t => t.pembeli_id === buyerId)
-    const totalVolume = buyerTransactions.reduce((sum, t) => sum + t.netto_ton, 0)
-    const avgVolume = buyerTransactions.length > 0 ? totalVolume / buyerTransactions.length : 0
-    
-    return {
-      totalTransactions: buyerTransactions.length,
       totalVolume,
-      averageVolume: avgVolume,
+      totalValue,
+      transactionCount: buyerTransactions.length,
+      averageVolume: buyerTransactions.length > 0 ? totalVolume / buyerTransactions.length : 0,
       lastTransaction: buyerTransactions.length > 0 ? buyerTransactions[buyerTransactions.length - 1].tanggal : null
     }
   }
 
-  // Advanced filtering with date range and buyer
+  // Enhanced filtering with date range and buyer
   const getFilteredTransactions = () => {
-    return transactions.filter(transaction => {
-      const matchesBuyer = selectedBuyer === 'all' || transaction.pembeli_nama === selectedBuyer
+    return productionReports.filter(transaction => {
+      const matchesBuyer = selectedBuyer === 'all' || transaction.pembeliNama === selectedBuyer
       
       let matchesDateRange = true
       if (dateRange.start && dateRange.end) {
@@ -359,24 +236,26 @@ export function ProductionReport() {
       }
 
       // Skip header row and convert to transactions
-      const importedTransactions: WeighTransaction[] = data.slice(1).map((row: unknown[], index: number) => {
+      const importedTransactions = data.slice(1).map((row: unknown, index: number) => {
         const rowData = row as string[]
         return {
-          id: `imported_${Date.now()}_${index}`,
           tanggal: rowData[0] || '',
           nopol: rowData[1] || '',
-          pembeli_id: '',
-          pembeli_nama: rowData[2] || '',
+          pembeliNama: rowData[2] || '',
           tujuan: rowData[3] || '',
-          gross_ton: parseFloat(rowData[4]) || 0,
-          tare_ton: parseFloat(rowData[5]) || 0,
-          netto_ton: parseFloat(rowData[6]) || (parseFloat(rowData[4]) - parseFloat(rowData[5])),
+          grossTon: parseFloat(rowData[4]) || 0,
+          tareTon: parseFloat(rowData[5]) || 0,
+          nettoTon: parseFloat(rowData[6]) || (parseFloat(rowData[4]) - parseFloat(rowData[5])),
           notes: rowData[7] || '',
-          created_at: new Date().toISOString()
+          createdBy: getCurrentUser()?.id || 'demo-user',
+          status: 'DRAFT' as const
         }
       })
 
-      setTransactions(prev => [...prev, ...importedTransactions])
+      // Create production reports in database
+      for (const transaction of importedTransactions) {
+        await createProductionReport(transaction)
+      }
       
       toast({
         title: "Import berhasil",
@@ -393,7 +272,7 @@ export function ProductionReport() {
 
   const validateForm = () => {
     const requiredFields = ['tanggal', 'nopol', 'pembeli_nama', 'tujuan']
-    const missingFields = requiredFields.filter(field => !formData[field])
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData])
     
     if (missingFields.length > 0) {
       toast({
@@ -434,28 +313,43 @@ export function ProductionReport() {
     return true
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return
 
-    const transaction: WeighTransaction = {
-      id: editingTransaction ? editingTransaction.id : Date.now().toString(),
-      ...formData,
-      netto_ton: calculatedNetto,
-      created_at: new Date().toISOString()
+    const transactionData = {
+      tanggal: formData.tanggal,
+      nopol: formData.nopol,
+      pembeliNama: formData.pembeli_nama,
+      tujuan: formData.tujuan,
+      grossTon: formData.gross_ton,
+      tareTon: formData.tare_ton,
+      nettoTon: calculatedNetto,
+      notes: formData.notes,
+      createdBy: getCurrentUser()?.id || 'demo-user',
+      status: 'DRAFT' as const
     }
 
     if (editingTransaction) {
-      setTransactions(prev => prev.map(t => t.id === editingTransaction.id ? transaction : t))
-      toast({
-        title: "Berhasil diperbarui",
-        description: "Data transaksi berhasil diperbarui"
+      const result = await updateProductionReport({
+        id: editingTransaction.id!,
+        ...transactionData
       })
+      
+      if (result.success) {
+        toast({
+          title: "Berhasil diperbarui",
+          description: "Data transaksi berhasil diperbarui"
+        })
+      }
     } else {
-      setTransactions(prev => [...prev, transaction])
-      toast({
-        title: "Berhasil ditambahkan",
-        description: "Data transaksi berhasil ditambahkan"
-      })
+      const result = await createProductionReport(transactionData)
+      
+      if (result.success) {
+        toast({
+          title: "Berhasil ditambahkan",
+          description: "Data transaksi berhasil ditambahkan"
+        })
+      }
     }
 
     resetForm()
@@ -475,64 +369,66 @@ export function ProductionReport() {
     setIsFormOpen(false)
   }
 
-  const handleEdit = (transaction: WeighTransaction) => {
+  const handleEdit = (transaction: ProductionReport) => {
     setFormData({
       tanggal: transaction.tanggal,
       nopol: transaction.nopol,
-      pembeli_nama: transaction.pembeli_nama,
+      pembeli_nama: transaction.pembeliNama,
       tujuan: transaction.tujuan,
-      gross_ton: transaction.gross_ton,
-      tare_ton: transaction.tare_ton,
+      gross_ton: transaction.grossTon,
+      tare_ton: transaction.tareTon,
       notes: transaction.notes || ''
     })
     setEditingTransaction(transaction)
     setIsFormOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id))
-    toast({
-      title: "Berhasil dihapus",
-      description: "Data transaksi berhasil dihapus"
-    })
+  const handleDelete = async (id: string) => {
+    const result = await deleteProductionReport(id, false)
+    if (result.success) {
+      toast({
+        title: "Berhasil dihapus",
+        description: "Data transaksi berhasil dihapus"
+      })
+    }
   }
 
   // Enhanced edit functions for production report
-  const saveTransactionVersion = (transaction: WeighTransaction) => {
-    const versions = transactionVersions.get(transaction.id) || []
-    versions.push({...transaction, created_at: new Date().toISOString()})
-    setTransactionVersions(new Map(transactionVersions.set(transaction.id, versions)))
+  const saveTransactionVersion = (transaction: ProductionReport) => {
+    const versions = transactionVersions.get(transaction.id!) || []
+    versions.push({...transaction, createdAt: new Date().toISOString()})
+    setTransactionVersions(new Map(transactionVersions.set(transaction.id!, versions)))
   }
 
-  const handleInlineEdit = (transaction: WeighTransaction, field: string) => {
-    setInlineEditId(transaction.id)
-    setEditingField({id: transaction.id, field})
+  const handleInlineEdit = (transaction: ProductionReport, field: string) => {
+    setInlineEditId(transaction.id!)
+    setEditingField({id: transaction.id!, field})
     setInlineEditValues({
       ...inlineEditValues,
-      [transaction.id]: {
-        ...inlineEditValues[transaction.id],
-        [field]: transaction[field as keyof WeighTransaction]
+      [transaction.id!]: {
+        ...inlineEditValues[transaction.id!],
+        [field]: transaction[field as keyof ProductionReport]
       }
     })
   }
 
-  const saveInlineEdit = (transactionId: string) => {
-    const transaction = transactions.find(t => t.id === transactionId)
+  const saveInlineEdit = async (transactionId: string) => {
+    const transaction = productionReports.find(t => t.id === transactionId)
     if (transaction && editingField && inlineEditValues[transactionId]) {
       // Save version before updating
       saveTransactionVersion(transaction)
       
-      const updatedTransactions = transactions.map(t => 
-        t.id === transactionId 
-          ? { ...t, [editingField.field]: inlineEditValues[transactionId][editingField.field] }
-          : t
-      )
-      setTransactions(updatedTransactions)
-      
-      toast({
-        title: "Field updated",
-        description: `${editingField.field} has been updated successfully`
+      const result = await updateProductionReport({
+        id: transactionId,
+        [editingField.field]: inlineEditValues[transactionId][editingField.field]
       })
+      
+      if (result.success) {
+        toast({
+          title: "Field updated",
+          description: `${editingField.field} has been updated successfully`
+        })
+      }
     }
     
     setInlineEditId(null)
@@ -544,45 +440,53 @@ export function ProductionReport() {
     setEditingField(null)
   }
 
-  const handleDuplicateTransaction = (transaction: WeighTransaction) => {
-    const duplicatedTransaction: WeighTransaction = {
-      ...transaction,
-      id: `trans_${Date.now()}`,
-      created_at: new Date().toISOString(),
-      tanggal: new Date().toISOString().split('T')[0]
+  const handleDuplicateTransaction = async (transaction: ProductionReport) => {
+    const duplicatedTransaction = {
+      tanggal: new Date().toISOString().split('T')[0],
+      nopol: transaction.nopol,
+      pembeliNama: transaction.pembeliNama,
+      tujuan: transaction.tujuan,
+      grossTon: transaction.grossTon,
+      tareTon: transaction.tareTon,
+      nettoTon: transaction.nettoTon,
+      notes: transaction.notes,
+      createdBy: getCurrentUser()?.id || 'demo-user',
+      status: 'DRAFT' as const
     }
-    setTransactions([...transactions, duplicatedTransaction])
     
-    toast({
-      title: "Transaction duplicated",
-      description: "A copy of the transaction has been created with today's date"
-    })
+    const result = await createProductionReport(duplicatedTransaction)
+    if (result.success) {
+      toast({
+        title: "Transaction duplicated",
+        description: "A copy of the transaction has been created with today's date"
+      })
+    }
   }
 
-  const handleQuickEdit = (transaction: WeighTransaction) => {
+  const handleQuickEdit = (transaction: ProductionReport) => {
     // Check if this is an approved transaction and needs authorization
-    if (transaction.status === 'approved' && !allowApprovedEdit) {
-      setShowApprovalOverride(transaction.id)
+    if (transaction.status === 'APPROVED' && !allowApprovedEdit) {
+      setShowApprovalOverride(transaction.id!)
       return
     }
     
     setQuickEditMode(true)
-    setInlineEditId(transaction.id)
+    setInlineEditId(transaction.id!)
     setInlineEditValues({
       ...inlineEditValues,
-      [transaction.id]: {
-        gross_ton: transaction.gross_ton,
-        tare_ton: transaction.tare_ton,
-        pembeli_nama: transaction.pembeli_nama,
+      [transaction.id!]: {
+        grossTon: transaction.grossTon,
+        tareTon: transaction.tareTon,
+        pembeliNama: transaction.pembeliNama,
         nopol: transaction.nopol
       }
     })
   }
 
   // Handle approved transaction editing with authorization for production
-  const handleApprovedTransactionEdit = (transaction: WeighTransaction) => {
-    if (transaction.status === 'approved' && !allowApprovedEdit) {
-      setShowApprovalOverride(transaction.id)
+  const handleApprovedTransactionEdit = (transaction: ProductionReport) => {
+    if (transaction.status === 'APPROVED' && !allowApprovedEdit) {
+      setShowApprovalOverride(transaction.id!)
       return
     }
     
@@ -592,10 +496,10 @@ export function ProductionReport() {
     setFormData({
       tanggal: transaction.tanggal,
       nopol: transaction.nopol,
-      pembeli_nama: transaction.pembeli_nama,
+      pembeli_nama: transaction.pembeliNama,
       tujuan: transaction.tujuan,
-      gross_ton: transaction.gross_ton,
-      tare_ton: transaction.tare_ton,
+      gross_ton: transaction.grossTon,
+      tare_ton: transaction.tareTon,
       notes: transaction.notes || ''
     })
     setEditingTransaction(transaction)
@@ -646,7 +550,7 @@ export function ProductionReport() {
     setApprovalReason('')
 
     // Trigger the original edit action
-    const transaction = transactions.find(t => t.id === showApprovalOverride)
+    const transaction = productionReports.find(t => t.id === showApprovalOverride)
     if (transaction) {
       handleQuickEdit(transaction)
     }
@@ -668,22 +572,25 @@ export function ProductionReport() {
     setSelectedTransactions(newSelected)
   }
 
-  const handleBulkEdit = (field: string, value: any) => {
-    const updatedTransactions = transactions.map(transaction => {
-      if (selectedTransactions.has(transaction.id)) {
+  const handleBulkEdit = async (field: string, value: any) => {
+    // Update selected transactions in database
+    for (const transactionId of selectedTransactions) {
+      const transaction = productionReports.find(t => t.id === transactionId)
+      if (transaction) {
         saveTransactionVersion(transaction)
-        return { ...transaction, [field]: value }
+        await updateProductionReport({
+          id: transactionId,
+          [field]: value
+        })
       }
-      return transaction
-    })
-    setTransactions(updatedTransactions)
-    setSelectedTransactions(new Set())
-    setBulkEditMode(false)
+    }
     
     toast({
       title: "Bulk edit applied",
       description: `${selectedTransactions.size} transactions updated`
     })
+    setSelectedTransactions(new Set())
+    setBulkEditMode(false)
   }
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -699,126 +606,113 @@ export function ProductionReport() {
       return
     }
 
-    // Simulate file processing
-    toast({
-      title: "File sedang diproses",
-      description: "Mengimpor data dari file..."
-    })
-
-    // Simulate delay and success
-    setTimeout(() => {
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
       toast({
-        title: "Import berhasil",
-        description: `Berhasil mengimpor ${Math.floor(Math.random() * 50) + 10} transaksi dari ${file.name}`
+        title: "File terlalu besar",
+        description: "Ukuran file maksimal 5MB",
+        variant: "destructive"
       })
-    }, 2000)
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      return
     }
+
+    handleImport(file)
+    event.target.value = '' // Reset input
   }
 
-  const exportToExcel = () => {
-    toast({
-      title: "Export berhasil",
-      description: "Data produksi berhasil diekspor ke Excel"
-    })
+  const handleExportExcel = () => {
+    const exportData = productionReports.map(t => ({
+      Tanggal: t.tanggal,
+      'No Polisi': t.nopol,
+      'Pembeli': t.pembeliNama,
+      'Tujuan': t.tujuan,
+      'Gross (ton)': t.grossTon,
+      'Tare (ton)': t.tareTon,
+      'Netto (ton)': t.nettoTon,
+      'Catatan': t.notes || ''
+    }))
+
+    exportToExcel(exportData, `laporan-produksi-${new Date().toISOString().split('T')[0]}`)
+  }
+
+  const handleExportCSV = () => {
+    const exportData = productionReports.map(t => ({
+      Tanggal: t.tanggal,
+      'No_Polisi': t.nopol,
+      'Pembeli': t.pembeliNama,
+      'Tujuan': t.tujuan,
+      'Gross_ton': t.grossTon,
+      'Tare_ton': t.tareTon,
+      'Netto_ton': t.nettoTon,
+      'Catatan': t.notes || ''
+    }))
+
+    exportToCSV(exportData, `laporan-produksi-${new Date().toISOString().split('T')[0]}`)
   }
 
   const exportToPDF = () => {
-    const reportData = transactions.map(t => `
+    const reportData = productionReports.map(t => `
       <tr>
         <td>${t.tanggal}</td>
         <td>${t.nopol}</td>
-        <td>${t.pembeli_nama}</td>
+        <td>${t.pembeliNama}</td>
         <td>${t.tujuan}</td>
-        <td style="text-align: right;">${formatNumber(t.gross_ton)} ton</td>
-        <td style="text-align: right;">${formatNumber(t.tare_ton)} ton</td>
-        <td style="text-align: right;">${formatNumber(t.netto_ton)} ton</td>
+        <td>${formatNumber(t.grossTon)}</td>
+        <td>${formatNumber(t.tareTon)}</td>
+        <td>${formatNumber(t.nettoTon)}</td>
+        <td>${t.notes || '-'}</td>
       </tr>
     `).join('')
 
     const htmlContent = `
-      <h2>Laporan Produksi Batu Bara</h2>
-      <p><strong>Periode:</strong> ${currentPeriod.bulan} ${currentPeriod.tahun}</p>
-      <p><strong>Total Transaksi:</strong> ${transactions.length}</p>
-      <p><strong>Total Produksi:</strong> ${formatNumber(transactions.reduce((sum, t) => sum + t.netto_ton, 0))} ton</p>
-      <p><strong>Total Penjualan:</strong> ${formatNumber(getTotalPenjualan())} ton</p>
-      <p><strong>Total Nilai:</strong> ${formatCurrency(getTotalHargaPenjualan())}</p>
-      
-      <h3>Detail Transaksi:</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Tanggal</th>
-            <th>No Polisi</th>
-            <th>Pembeli</th>
-            <th>Tujuan</th>
-            <th>Gross (ton)</th>
-            <th>Tare (ton)</th>
-            <th>Netto (ton)</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${reportData}
-        </tbody>
-      </table>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            h1 { color: #333; }
+            .summary { margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <h1>Laporan Produksi Batu Bara</h1>
+          <div class="summary">
+            <p><strong>Periode:</strong> ${currentPeriod.bulan} ${currentPeriod.tahun}</p>
+            <p><strong>Total Transaksi:</strong> ${productionReports.length}</p>
+            <p><strong>Total Produksi:</strong> ${formatNumber(productionReports.reduce((sum, t) => sum + t.nettoTon, 0))} ton</p>
+            <p><strong>Total Penjualan:</strong> ${formatNumber(getTotalPenjualan())} ton</p>
+            <p><strong>Total Nilai:</strong> ${formatCurrency(getTotalHargaPenjualan())}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>No Polisi</th>
+                <th>Pembeli</th>
+                <th>Tujuan</th>
+                <th>Gross (ton)</th>
+                <th>Tare (ton)</th>
+                <th>Netto (ton)</th>
+                <th>Catatan</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportData}
+            </tbody>
+          </table>
+        </body>
+      </html>
     `
 
-    generatePDF(htmlContent, `Laporan_Produksi_${currentPeriod.bulan}_${currentPeriod.tahun}.pdf`)
-    
-    toast({
-      title: "PDF berhasil dibuat",
-      description: "Laporan produksi berhasil digenerate ke PDF"
-    })
-  }
-
-  const handleExportExcel = () => {
-    const exportData = transactions.map(t => ({
-      Tanggal: t.tanggal,
-      'No Polisi': t.nopol,
-      Pembeli: t.pembeli_nama,
-      Tujuan: t.tujuan,
-      'Gross (ton)': t.gross_ton,
-      'Tare (ton)': t.tare_ton,
-      'Netto (ton)': t.netto_ton,
-      Catatan: t.notes || ''
-    }))
-
-    if (exportToExcel(exportData, `Produksi_${currentPeriod.bulan}_${currentPeriod.tahun}.xlsx`, 'Produksi')) {
-      toast({
-        title: "Export berhasil",
-        description: "Data produksi berhasil diekspor ke Excel"
-      })
-    }
-  }
-
-  const handleExportCSV = () => {
-    const exportData = transactions.map(t => ({
-      Tanggal: t.tanggal,
-      'No_Polisi': t.nopol,
-      Pembeli: t.pembeli_nama,
-      Tujuan: t.tujuan,
-      'Gross_ton': t.gross_ton,
-      'Tare_ton': t.tare_ton,
-      'Netto_ton': t.netto_ton,
-      Catatan: t.notes || ''
-    }))
-
-    if (exportToCSV(exportData, `Produksi_${currentPeriod.bulan}_${currentPeriod.tahun}.csv`)) {
-      toast({
-        title: "Export berhasil",
-        description: "Data produksi berhasil diekspor ke CSV"
-      })
-    }
+    generatePDF(htmlContent, `laporan-produksi-${new Date().toISOString().split('T')[0]}`)
   }
 
   // Calculate daily summaries
-  const getDailySummaries = (): DailySummary[] => {
+  const getDailySummaries = () => {
     const summaries: { [key: string]: DailySummary } = {}
     
-    transactions.forEach(t => {
+    productionReports.forEach(t => {
       if (!summaries[t.tanggal]) {
         summaries[t.tanggal] = {
           tanggal: t.tanggal,
@@ -826,7 +720,7 @@ export function ProductionReport() {
           transaksi_count: 0
         }
       }
-      summaries[t.tanggal].netto_total_ton += t.netto_ton
+      summaries[t.tanggal].netto_total_ton += t.nettoTon
       summaries[t.tanggal].transaksi_count += 1
     })
     
@@ -835,976 +729,607 @@ export function ProductionReport() {
 
   // Calculate period summary
   const getTotalPenjualan = (): number => {
-    return transactions.reduce((sum, t) => sum + t.netto_ton, 0) + 
+    return productionReports.reduce((sum, t) => sum + t.nettoTon, 0) + 
            currentPeriod.adj_plus_ton - 
            currentPeriod.adj_minus_ton + 
            currentPeriod.deposit_opening_ton
   }
 
   const getTotalHargaPenjualan = (): number => {
-    const totalTon = getTotalPenjualan()
-    return totalTon * currentPeriod.harga_per_ton_default
+    return getTotalPenjualan() * currentPeriod.harga_per_ton_default
   }
 
-  // Get top buyers
-  const getTopBuyers = () => {
+  // Get buyer summary
+  const getBuyerSummary = () => {
     const buyerSummary: { [key: string]: { nama: string, total_ton: number, transaksi_count: number } } = {}
     
-    transactions.forEach(t => {
-      if (!buyerSummary[t.pembeli_nama]) {
-        buyerSummary[t.pembeli_nama] = {
-          nama: t.pembeli_nama,
+    productionReports.forEach(t => {
+      if (!buyerSummary[t.pembeliNama]) {
+        buyerSummary[t.pembeliNama] = {
+          nama: t.pembeliNama,
           total_ton: 0,
           transaksi_count: 0
         }
       }
-      buyerSummary[t.pembeli_nama].total_ton += t.netto_ton
-      buyerSummary[t.pembeli_nama].transaksi_count += 1
+      buyerSummary[t.pembeliNama].total_ton += t.nettoTon
+      buyerSummary[t.pembeliNama].transaksi_count += 1
     })
     
-    return Object.values(buyerSummary)
-      .sort((a, b) => b.total_ton - a.total_ton)
-      .slice(0, 5)
+    return Object.values(buyerSummary).sort((a, b) => b.total_ton - a.total_ton)
   }
 
   // Check for outliers (unusual tare weights)
   const getOutliers = () => {
-    return transactions.filter(t => t.tare_ton < 9 || t.tare_ton > 15)
+    return productionReports.filter(t => t.tareTon < 9 || t.tareTon > 15)
   }
 
-  const dailySummaries = getDailySummaries()
-  const totalPenjualan = getTotalPenjualan()
-  const totalHargaPenjualan = getTotalHargaPenjualan()
-  const topBuyers = getTopBuyers()
-  const outliers = getOutliers()
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      'DRAFT': { color: 'bg-gray-100 text-gray-800', label: 'Draft' },
+      'SUBMITTED': { color: 'bg-blue-100 text-blue-800', label: 'Submitted' },
+      'REVIEWED': { color: 'bg-yellow-100 text-yellow-800', label: 'Reviewed' },
+      'APPROVED': { color: 'bg-green-100 text-green-800', label: 'Approved' },
+      'ARCHIVED': { color: 'bg-purple-100 text-purple-800', label: 'Archived' },
+      'draft': { color: 'bg-gray-100 text-gray-800', label: 'Draft' },
+      'submitted': { color: 'bg-blue-100 text-blue-800', label: 'Submitted' },
+      'reviewed': { color: 'bg-yellow-100 text-yellow-800', label: 'Reviewed' },
+      'approved': { color: 'bg-green-100 text-green-800', label: 'Approved' },
+      'archived': { color: 'bg-purple-100 text-purple-800', label: 'Archived' }
+    }
+    
+    const badge = badges[status as keyof typeof badges] || { color: 'bg-gray-100 text-gray-800', label: 'Unknown' }
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badge.color}`}>
+        {badge.label}
+      </span>
+    )
+  }
+
+  // Handle deletion with confirmation
+  const handleDeleteWithConfirmation = (transaction: ProductionReport) => {
+    setShowDeleteDialog({
+      type: 'transaction',
+      id: transaction.id!,
+      name: `Transaksi ${transaction.nopol} - ${transaction.pembeliNama}`
+    })
+  }
+
+  const handleDeleteConfirmed = async () => {
+    if (!showDeleteDialog) return
+    
+    setDeletingTransaction(showDeleteDialog.id)
+    const result = await deleteProductionReport(showDeleteDialog.id, false)
+    setDeletingTransaction(null)
+    setShowDeleteDialog(null)
+    
+    if (result.success) {
+      toast({
+        title: "Berhasil dihapus",
+        description: "Data transaksi berhasil dihapus"
+      })
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Database Connection Error</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry Connection
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Laporan Produksi Batu Bara</h2>
-          <p className="text-muted-foreground">
-            Kelola transaksi timbangan harian dan laporan produksi dengan import/export Excel
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Laporan Produksi</h1>
+          <p className="text-gray-600">Kelola data produksi batu bara dan laporan timbangan</p>
         </div>
         <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.csv"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) {
-                handleImport(file)
-                e.target.value = ''
-              }
-            }}
-            className="hidden"
-          />
-          <Button 
+          <Button
+            onClick={() => setIsFormOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah Transaksi
+          </Button>
+          <Button
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="h-4 w-4 mr-2" />
             Import Excel
           </Button>
-          <Button 
-            variant="outline"
-            onClick={() => generateProductionTemplate()}
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Template
-          </Button>
-          <Button 
-            onClick={() => setIsFormOpen(true)}
-            className="bg-orange-600 hover:bg-orange-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah Transaksi
-          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.csv"
+            onChange={handleFileImport}
+            className="hidden"
+          />
         </div>
       </div>
 
-      {/* Advanced Analytics Dashboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Production Analytics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Production Efficiency */}
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Target vs Actual ({currentPeriod.bulan})</span>
-                <span className="text-sm text-muted-foreground">
-                  {analytics.efficiency.percentage.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(analytics.efficiency.percentage, 100)}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Actual: {formatNumber(analytics.efficiency.actual)} ton</span>
-                <span>Target: {formatNumber(analytics.efficiency.target)} ton</span>
-              </div>
-            </div>
-
-            {/* Buyer Distribution */}
-            <div>
-              <h4 className="font-medium mb-3">Top Buyers Volume</h4>
-              <div className="space-y-2">
-                {analytics.buyerAnalysis.slice(0, 5).map((buyer, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm">{buyer.buyer}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${buyer.percentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium w-16 text-right">
-                        {formatNumber(buyer.volume)} ton
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Buyer Management
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="buyer-filter">Filter by Buyer</Label>
-              <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Buyers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Buyers</SelectItem>
-                  {buyers.map(buyer => (
-                    <SelectItem key={buyer.id} value={buyer.nama}>
-                      {buyer.nama}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="start-date">Start Date</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="end-date">End Date</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => {
-                setSelectedBuyer('all')
-                setDateRange({ start: '', end: '' })
-              }}
-            >
-              Reset Filters
-            </Button>
-
-            <div className="pt-4 border-t">
-              <h4 className="font-medium mb-2">Quick Stats</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Total Buyers:</span>
-                  <span className="font-medium">{buyers.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Active Transactions:</span>
-                  <span className="font-medium">{getFilteredTransactions().length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Filtered Volume:</span>
-                  <span className="font-medium">
-                    {formatNumber(getFilteredTransactions().reduce((sum, t) => sum + t.netto_ton, 0))} ton
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="transactions" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="transactions">Transaksi Harian</TabsTrigger>
-          <TabsTrigger value="period">Periode & Harga</TabsTrigger>
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+      {/* Main Content */}
+      <Tabs defaultValue="transactions" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="transactions">Daftar Transaksi</TabsTrigger>
+          <TabsTrigger value="analytics">Analisis</TabsTrigger>
           <TabsTrigger value="reports">Laporan</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="transactions" className="mt-6">
-          <div className="space-y-6">
-            {/* Form Input */}
-            {isFormOpen && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-5 w-5" />
-                    {editingTransaction ? 'Edit Transaksi' : 'Form Input Transaksi Timbangan'}
-                  </CardTitle>
-                  <CardDescription>
-                    Input data timbangan harian. Netto akan dihitung otomatis dari Gross - Tare.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tanggal">Tanggal *</Label>
-                      <Input
-                        id="tanggal"
-                        type="date"
-                        value={formData.tanggal}
-                        onChange={(e) => handleInputChange('tanggal', e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="nopol">No Polisi *</Label>
-                      <Input
-                        id="nopol"
-                        value={formData.nopol}
-                        onChange={(e) => handleInputChange('nopol', e.target.value)}
-                        placeholder="B 1234 XYZ"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="pembeli_nama">Pembeli *</Label>
-                      <Select 
-                        value={formData.pembeli_nama} 
-                        onValueChange={(value) => handleInputChange('pembeli_nama', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih pembeli" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {buyers.map(buyer => (
-                            <SelectItem key={buyer.id} value={buyer.nama}>
-                              {buyer.nama}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="tujuan">Tujuan *</Label>
-                      <Input
-                        id="tujuan"
-                        value={formData.tujuan}
-                        onChange={(e) => handleInputChange('tujuan', e.target.value)}
-                        placeholder="Stockpile A / Site B"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gross_ton">Gross (Ton) *</Label>
-                      <Input
-                        id="gross_ton"
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={formData.gross_ton}
-                        onChange={(e) => handleInputChange('gross_ton', parseFloat(e.target.value) || 0)}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="tare_ton">Tare (Ton) *</Label>
-                      <Input
-                        id="tare_ton"
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={formData.tare_ton}
-                        onChange={(e) => handleInputChange('tare_ton', parseFloat(e.target.value) || 0)}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="netto_calculated">Netto (Ton)</Label>
-                      <Input
-                        id="netto_calculated"
-                        value={formatNumber(calculatedNetto)}
-                        readOnly
-                        className="bg-green-50 font-semibold text-green-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Quality Check Warnings */}
-                  {formData.tare_ton > 0 && (formData.tare_ton < 9 || formData.tare_ton > 15) && (
-                    <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                      <span className="text-yellow-800 text-sm">
-                        Peringatan: Tare {formatNumber(formData.tare_ton)} ton di luar kisaran normal (9-15 ton)
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Catatan</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange('notes', e.target.value)}
-                      placeholder="Catatan tambahan (opsional)"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="flex gap-4 pt-4">
-                    <Button onClick={handleSubmit} className="bg-orange-600 hover:bg-orange-700">
-                      <Save className="h-4 w-4 mr-2" />
-                      {editingTransaction ? 'Perbarui' : 'Simpan'} Transaksi
-                    </Button>
-                    <Button variant="outline" onClick={resetForm}>
-                      Batal
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Transaction List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Daftar Transaksi Timbangan</CardTitle>
-                <CardDescription>
-                  Total {transactions.length} transaksi • 
-                  Total Netto: {formatNumber(transactions.reduce((sum, t) => sum + t.netto_ton, 0))} ton
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {transactions.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-4">Belum ada data transaksi</p>
-                    <Button onClick={() => setIsFormOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tambah Transaksi Pertama
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {transactions.map((transaction) => (
-                      <Card key={transaction.id} className="border">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <h3 className="font-semibold text-lg">{transaction.nopol}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(transaction.tanggal).toLocaleDateString('id-ID')} • {transaction.pembeli_nama}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-2xl text-green-600">
-                                {formatNumber(transaction.netto_ton)} ton
-                              </p>
-                              <p className="text-sm text-muted-foreground">Netto</p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                            <div>
-                              <span className="font-medium">Tujuan:</span>
-                              <p className="text-muted-foreground">{transaction.tujuan}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium">Gross:</span>
-                              <p className="text-muted-foreground">{formatNumber(transaction.gross_ton)} ton</p>
-                            </div>
-                            <div>
-                              <span className="font-medium">Tare:</span>
-                              <p className={`${(transaction.tare_ton < 9 || transaction.tare_ton > 15) ? 'text-yellow-600 font-semibold' : 'text-muted-foreground'}`}>
-                                {formatNumber(transaction.tare_ton)} ton
-                                {(transaction.tare_ton < 9 || transaction.tare_ton > 15) && (
-                                  <AlertTriangle className="inline h-4 w-4 ml-1" />
-                                )}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="font-medium">Netto:</span>
-                              <p className="text-green-600 font-semibold">{formatNumber(transaction.netto_ton)} ton</p>
-                            </div>
-                          </div>
-
-                          {transaction.notes && (
-                            <div className="mb-4 p-2 bg-gray-50 rounded text-sm">
-                              <span className="font-medium">Catatan:</span> {transaction.notes}
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center pt-4 border-t">
-                            <div className="flex gap-2 items-center">
-                              {bulkEditMode && (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTransactions.has(transaction.id)}
-                                  onChange={() => handleSelectTransaction(transaction.id)}
-                                  className="h-4 w-4 text-blue-600 rounded"
-                                />
-                              )}
-                              
-                              {/* Enhanced Edit Button Group */}
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => transaction.status === 'approved' ? handleApprovedTransactionEdit(transaction) : handleEdit(transaction)}
-                                  disabled={transaction.status === 'archived'}
-                                  className={transaction.status === 'approved' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-blue-50"}
-                                  title={transaction.status === 'approved' ? "Edit Approved Production Data (Requires Authorization)" : "Edit Transaction"}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  {transaction.status === 'approved' ? 'Edit*' : 'Edit'}
-                                </Button>
-                                
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleQuickEdit(transaction)}
-                                  disabled={transaction.status === 'archived'}
-                                  className={transaction.status === 'approved' ? "hover:bg-orange-50 border-orange-200" : "hover:bg-green-50"}
-                                  title={transaction.status === 'approved' ? "Quick Edit Approved (Requires Authorization)" : "Quick Edit - Edit key fields inline"}
-                                >
-                                  <Zap className="h-4 w-4" />
-                                  {transaction.status === 'approved' && <span className="text-xs ml-1">*</span>}
-                                </Button>
-                                
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDuplicateTransaction(transaction)}
-                                  className="hover:bg-purple-50"
-                                  title="Duplicate this transaction"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                                
-                                {transactionVersions.get(transaction.id)?.length && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowVersionHistory(transaction.id)}
-                                    className="hover:bg-yellow-50"
-                                    title="View edit history"
-                                  >
-                                    <History className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                              
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  if (transaction.status === 'approved' && !allowApprovedEdit) {
-                                    setShowApprovalOverride(transaction.id)
-                                    return
-                                  }
-                                  handleDelete(transaction.id)
-                                }}
-                                disabled={transaction.status === 'archived'}
-                                className={transaction.status === 'approved' ? "hover:bg-red-100 border-red-200" : "hover:bg-red-50"}
-                                title={transaction.status === 'approved' ? "Delete Approved Transaction (Requires Authorization)" : "Delete Transaction"}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                {transaction.status === 'approved' ? 'Hapus*' : 'Hapus'}
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="period" className="mt-6">
+        {/* Transactions Tab */}
+        <TabsContent value="transactions" className="space-y-6">
+          {/* Filters */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                Periode & Pengaturan Harga
-              </CardTitle>
-              <CardDescription>
-                Kelola periode produksi, harga per ton, dan penyesuaian
-              </CardDescription>
+              <CardTitle>Filter Data</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="border-2">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Periode Produksi</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Bulan</Label>
-                        <Input value={currentPeriod.bulan} readOnly />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tahun</Label>
-                        <Input value={currentPeriod.tahun} readOnly />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tanggal Mulai</Label>
-                        <Input
-                          type="date"
-                          value={currentPeriod.start_date}
-                          onChange={(e) => setCurrentPeriod(prev => ({ ...prev, start_date: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tanggal Selesai</Label>
-                        <Input
-                          type="date"
-                          value={currentPeriod.end_date}
-                          onChange={(e) => setCurrentPeriod(prev => ({ ...prev, end_date: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Harga & Penyesuaian</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Harga per Ton Default (Rp)</Label>
-                      <Input
-                        type="number"
-                        value={currentPeriod.harga_per_ton_default}
-                        onChange={(e) => setCurrentPeriod(prev => ({ 
-                          ...prev, 
-                          harga_per_ton_default: parseFloat(e.target.value) || 0 
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Deposit/Opening Stock (Ton)</Label>
-                      <Input
-                        type="number"
-                        step="0.001"
-                        value={currentPeriod.deposit_opening_ton}
-                        onChange={(e) => setCurrentPeriod(prev => ({ 
-                          ...prev, 
-                          deposit_opening_ton: parseFloat(e.target.value) || 0 
-                        }))}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Penyesuaian Plus (Ton)</Label>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          value={currentPeriod.adj_plus_ton}
-                          onChange={(e) => setCurrentPeriod(prev => ({ 
-                            ...prev, 
-                            adj_plus_ton: parseFloat(e.target.value) || 0 
-                          }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Penyesuaian Minus (Ton)</Label>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          value={currentPeriod.adj_minus_ton}
-                          onChange={(e) => setCurrentPeriod(prev => ({ 
-                            ...prev, 
-                            adj_minus_ton: parseFloat(e.target.value) || 0 
-                          }))}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="buyer-filter">Pembeli</Label>
+                  <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Semua pembeli" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua pembeli</SelectItem>
+                      {buyers.map((buyer) => (
+                        <SelectItem key={buyer.id} value={buyer.nama}>
+                          {buyer.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="start-date">Tanggal Mulai</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end-date">Tanggal Akhir</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  />
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Summary Calculation */}
-              <Card className="border-2 border-green-200 bg-green-50">
-                <CardHeader>
-                  <CardTitle className="text-lg text-green-800">Ringkasan Penjualan</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <p className="text-sm text-green-600">Total Penjualan</p>
-                      <p className="text-2xl font-bold text-green-800">
-                        {formatNumber(totalPenjualan)} ton
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-green-600">Harga per Ton</p>
-                      <p className="text-2xl font-bold text-green-800">
-                        {formatCurrency(currentPeriod.harga_per_ton_default)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-green-600">Total Harga Penjualan</p>
-                      <p className="text-2xl font-bold text-green-800">
-                        {formatCurrency(totalHargaPenjualan)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Transactions List */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Daftar Transaksi Timbangan</CardTitle>
+                  <CardDescription>
+                    Total {productionReports.length} transaksi • 
+                    Total Netto: {formatNumber(productionReports.reduce((sum, t) => sum + t.nettoTon, 0))} ton
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleExportExcel}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Excel
+                  </Button>
+                  <Button variant="outline" onClick={exportToPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export PDF
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p>Loading transaksi...</p>
+                </div>
+              ) : productionReports.length === 0 ? (
+                <div className="text-center py-12">
+                  <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada transaksi</h3>
+                  <p className="text-gray-500 mb-4">Mulai dengan menambahkan transaksi timbangan baru</p>
+                  <Button onClick={() => setIsFormOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Tambah Transaksi
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {getFilteredTransactions().map((transaction) => (
+                    <Card key={transaction.id} className="border">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium">{transaction.nopol}</span>
+                              {getStatusBadge(transaction.status)}
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-500">Tanggal:</span>
+                                <p>{transaction.tanggal}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Pembeli:</span>
+                                <p>{transaction.pembeliNama}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Tujuan:</span>
+                                <p>{transaction.tujuan}</p>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Netto:</span>
+                                <p className="font-medium">{formatNumber(transaction.nettoTon)} ton</p>
+                              </div>
+                            </div>
+                            {transaction.notes && (
+                              <div className="mt-2">
+                                <span className="text-gray-500 text-sm">Catatan:</span>
+                                <p className="text-sm">{transaction.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(transaction)}
+                              disabled={transaction.status === 'SUBMITTED' || transaction.status === 'ARCHIVED'}
+                              title={
+                                transaction.status === 'SUBMITTED' ? "Submitted transactions cannot be edited" :
+                                transaction.status === 'ARCHIVED' ? "Archived transactions cannot be edited" :
+                                "Edit Transaction"
+                              }
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDuplicateTransaction(transaction)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteWithConfirmation(transaction)}
+                              disabled={transaction.status === 'APPROVED' || transaction.status === 'ARCHIVED' || deletingTransaction === transaction.id}
+                              className={
+                                transaction.status === 'APPROVED' || transaction.status === 'ARCHIVED'
+                                  ? "opacity-50 cursor-not-allowed" 
+                                  : "hover:bg-red-50 border-red-200"
+                              }
+                              title={
+                                transaction.status === 'APPROVED' ? "Approved transactions cannot be deleted" :
+                                transaction.status === 'ARCHIVED' ? "Archived transactions cannot be deleted" :
+                                "Delete Transaction"
+                              }
+                            >
+                              {deletingTransaction === transaction.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="dashboard" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Daily Summary */}
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Summary Cards */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Ringkasan Harian
+                  Ringkasan
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {dailySummaries.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">Belum ada data</p>
-                  ) : (
-                    dailySummaries.map((summary) => (
-                      <div key={summary.tanggal} className="flex justify-between items-center p-2 bg-green-50 rounded">
-                        <div>
-                          <p className="font-medium">
-                            {new Date(summary.tanggal).toLocaleDateString('id-ID')}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {summary.transaksi_count} transaksi
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600">
-                            {formatNumber(summary.netto_total_ton)} ton
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span>Total Transaksi:</span>
+                  <span className="font-semibold">{productionReports.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Produksi:</span>
+                  <span className="font-semibold">
+                    {formatNumber(productionReports.reduce((sum, t) => sum + t.nettoTon, 0))} ton
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Rata-rata Netto per Transaksi:</span>
+                  <span className="font-semibold">
+                    {productionReports.length > 0 
+                      ? formatNumber(productionReports.reduce((sum, t) => sum + t.nettoTon, 0) / productionReports.length)
+                      : '0'} ton
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Top Buyers */}
+            {/* Buyer Analysis */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Top Pembeli
+                  <Users className="h-5 w-5" />
+                  Analisis Pembeli
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {topBuyers.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">Belum ada data</p>
-                  ) : (
-                    topBuyers.map((buyer, index) => (
-                      <div key={buyer.nama} className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                        <div>
-                          <p className="font-medium">#{index + 1} {buyer.nama}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {buyer.transaksi_count} transaksi
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-blue-600">
-                            {formatNumber(buyer.total_ton)} ton
-                          </p>
-                        </div>
+                  {getBuyerSummary().slice(0, 5).map((buyer) => (
+                    <div key={buyer.nama} className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{buyer.nama}</p>
+                        <p className="text-sm text-gray-500">{buyer.transaksi_count} transaksi</p>
                       </div>
-                    ))
-                  )}
+                      <span className="font-semibold">{formatNumber(buyer.total_ton)} ton</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Quality Alerts */}
+            {/* Outliers */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
-                  Peringatan Kualitas
+                  Outliers
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {outliers.length === 0 ? (
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="h-5 w-5" />
-                      <span>Semua data dalam batas normal</span>
+                <div className="space-y-2">
+                  {getOutliers().slice(0, 5).map((transaction) => (
+                    <div key={transaction.id} className="text-sm">
+                      <p className="font-medium">{transaction.nopol}</p>
+                      <p className="text-gray-500">Tare: {formatNumber(transaction.tareTon)} ton</p>
                     </div>
-                  ) : (
-                    outliers.map((transaction) => (
-                      <div key={transaction.id} className="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                        <p className="font-medium text-yellow-800">
-                          {transaction.nopol} - Tare tidak normal
-                        </p>
-                        <p className="text-sm text-yellow-600">
-                          Tare: {formatNumber(transaction.tare_ton)} ton (normal: 9-15 ton)
-                        </p>
-                      </div>
-                    ))
+                  ))}
+                  {getOutliers().length === 0 && (
+                    <p className="text-gray-500 text-sm">Tidak ada outliers</p>
                   )}
                 </div>
               </CardContent>
             </Card>
-
-            {/* Production Statistics */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="h-5 w-5" />
-                  Statistik Produksi
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total Transaksi:</span>
-                    <span className="font-semibold">{transactions.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Rata-rata Netto per Transaksi:</span>
-                    <span className="font-semibold">
-                      {transactions.length > 0 
-                        ? formatNumber(transactions.reduce((sum, t) => sum + t.netto_ton, 0) / transactions.length)
-                        : '0'} ton
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Rata-rata Gross:</span>
-                    <span className="font-semibold">
-                      {transactions.length > 0 
-                        ? formatNumber(transactions.reduce((sum, t) => sum + t.gross_ton, 0) / transactions.length)
-                        : '0'} ton
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Rata-rata Tare:</span>
-                    <span className="font-semibold">
-                      {transactions.length > 0 
-                        ? formatNumber(transactions.reduce((sum, t) => sum + t.tare_ton, 0) / transactions.length)
-                        : '0'} ton
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="reports" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Export Data</CardTitle>
-                <CardDescription>
-                  Unduh laporan dalam berbagai format
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button className="w-full" onClick={handleExportExcel}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export Detail ke Excel
-                </Button>
-                <Button className="w-full" variant="outline" onClick={exportToPDF}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export Rekap ke PDF
-                </Button>
-                <Button className="w-full" variant="outline" onClick={handleExportCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export ke CSV
-                </Button>
-                <Button className="w-full" variant="outline" onClick={() => generateProductionTemplate()}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Template Import Excel
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Ringkasan Periode</CardTitle>
-                <CardDescription>
-                  {currentPeriod.bulan} {currentPeriod.tahun}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total Transaksi:</span>
-                    <span className="font-semibold">{transactions.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total Produksi:</span>
-                    <span className="font-semibold">
-                      {formatNumber(transactions.reduce((sum, t) => sum + t.netto_ton, 0))} ton
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total Penjualan:</span>
-                    <span className="font-semibold text-green-600">
-                      {formatNumber(totalPenjualan)} ton
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total Nilai:</span>
-                    <span className="font-semibold text-green-600">
-                      {formatCurrency(totalHargaPenjualan)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Jumlah Pembeli:</span>
-                    <span className="font-semibold">{topBuyers.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Data Outlier:</span>
-                    <span className={`font-semibold ${outliers.length > 0 ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {outliers.length}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Bulk Edit Toolbar for Production */}
-      {bulkEditMode && selectedTransactions.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 z-50">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">{selectedTransactions.size} transactions selected</span>
-            
-            <Select onValueChange={(value) => handleBulkEdit('pembeli_nama', value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Set buyer" />
-              </SelectTrigger>
-              <SelectContent>
-                {buyers.map(buyer => (
-                  <SelectItem key={buyer.id} value={buyer.nama}>
-                    {buyer.nama}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              placeholder="Set destination"
-              onChange={(e) => handleBulkEdit('tujuan', e.target.value)}
-              className="w-40"
-            />
-
-            <Button
-              variant="outline"
-              onClick={() => {setBulkEditMode(false); setSelectedTransactions(new Set())}}
-            >
-              <X className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Version History Modal for Production */}
-      {showVersionHistory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-auto">
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Transaction History
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowVersionHistory(null)}
-                className="absolute top-4 right-4"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <CardTitle>Laporan Periode</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {transactionVersions.get(showVersionHistory)?.map((version, index) => (
-                  <div key={index} className="border rounded p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Version {index + 1}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(version.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="text-sm space-y-1">
-                      <p><strong>Vehicle:</strong> {version.nopol}</p>
-                      <p><strong>Buyer:</strong> {version.pembeli_nama}</p>
-                                             <p><strong>Net Weight:</strong> {version.netto_ton} tons</p>
-                      <p><strong>Destination:</strong> {version.tujuan}</p>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="period-month">Bulan</Label>
+                    <Select value={currentPeriod.bulan} onValueChange={(value) => setCurrentPeriod(prev => ({ ...prev, bulan: value }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((month) => (
+                          <SelectItem key={month} value={month}>{month}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
+                  <div>
+                    <Label htmlFor="period-year">Tahun</Label>
+                    <Input
+                      id="period-year"
+                      type="number"
+                      value={currentPeriod.tahun}
+                      onChange={(e) => setCurrentPeriod(prev => ({ ...prev, tahun: parseInt(e.target.value) }))}
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="default-price">Harga Default per Ton</Label>
+                    <Input
+                      id="default-price"
+                      type="number"
+                      value={currentPeriod.harga_per_ton_default}
+                      onChange={(e) => setCurrentPeriod(prev => ({ ...prev, harga_per_ton_default: parseFloat(e.target.value) }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="opening-deposit">Deposit Awal (ton)</Label>
+                    <Input
+                      id="opening-deposit"
+                      type="number"
+                      value={currentPeriod.deposit_opening_ton}
+                      onChange={(e) => setCurrentPeriod(prev => ({ ...prev, deposit_opening_ton: parseFloat(e.target.value) }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="total-production">Total Produksi (ton)</Label>
+                    <Input
+                      id="total-production"
+                      type="number"
+                      value={getTotalPenjualan()}
+                      readOnly
+                      className="bg-gray-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={handleExportExcel}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Excel
+                  </Button>
+                  <Button onClick={exportToPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export PDF
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add/Edit Transaction Form */}
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                {editingTransaction ? 'Edit Transaksi' : 'Tambah Transaksi Baru'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="tanggal">Tanggal</Label>
+                  <Input
+                    id="tanggal"
+                    type="date"
+                    value={formData.tanggal}
+                    onChange={(e) => handleInputChange('tanggal', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nopol">No Polisi</Label>
+                  <Input
+                    id="nopol"
+                    value={formData.nopol}
+                    onChange={(e) => handleInputChange('nopol', e.target.value)}
+                    placeholder="B 1234 XYZ"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="pembeli">Pembeli</Label>
+                  <Select value={formData.pembeli_nama} onValueChange={(value) => handleInputChange('pembeli_nama', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih pembeli" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {buyers.map((buyer) => (
+                        <SelectItem key={buyer.id} value={buyer.nama}>
+                          {buyer.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="tujuan">Tujuan</Label>
+                  <Input
+                    id="tujuan"
+                    value={formData.tujuan}
+                    onChange={(e) => handleInputChange('tujuan', e.target.value)}
+                    placeholder="Stockpile A"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="gross">Gross (ton)</Label>
+                  <Input
+                    id="gross"
+                    type="number"
+                    step="0.001"
+                    value={formData.gross_ton}
+                    onChange={(e) => handleInputChange('gross_ton', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="tare">Tare (ton)</Label>
+                  <Input
+                    id="tare"
+                    type="number"
+                    step="0.001"
+                    value={formData.tare_ton}
+                    onChange={(e) => handleInputChange('tare_ton', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="netto">Netto (ton)</Label>
+                  <Input
+                    id="netto"
+                    type="number"
+                    step="0.001"
+                    value={calculatedNetto}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Catatan</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Catatan tambahan..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button onClick={handleSubmit} className="flex-1">
+                  <Save className="h-4 w-4 mr-2" />
+                  {editingTransaction ? 'Update' : 'Simpan'}
+                </Button>
+                <Button variant="outline" onClick={resetForm} className="flex-1">
+                  <X className="h-4 w-4 mr-2" />
+                  Batal
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Approval Override Modal for Production */}
+      {/* Approval Override Modal */}
       {showApprovalOverride && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
@@ -1878,51 +1403,57 @@ export function ProductionReport() {
         </div>
       )}
 
-      {/* Enhanced Controls Bar for Production */}
-      <div className="fixed top-20 right-6 bg-white border rounded-lg shadow-lg p-2 z-40">
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setBulkEditMode(!bulkEditMode)}
-            className={bulkEditMode ? "bg-blue-50" : ""}
-            title="Toggle bulk edit mode for transactions"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setQuickEditMode(!quickEditMode)}
-            className={quickEditMode ? "bg-green-50" : ""}
-            title="Toggle quick edit mode"
-          >
-            <Zap className="h-4 w-4" />
-          </Button>
-          
-          {allowApprovedEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAllowApprovedEdit(false)}
-              className="bg-orange-50 border-orange-200 text-orange-700"
-              title="Disable approved production data editing"
-            >
-              <AlertTriangle className="h-4 w-4" />
-            </Button>
-          )}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.reload()}
-            title="Refresh data"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+      {/* Deletion Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600">
+                <Trash2 className="h-5 w-5" />
+                Konfirmasi Hapus
+              </CardTitle>
+              <CardDescription>
+                Apakah Anda yakin ingin menghapus {showDeleteDialog.type === 'transaction' ? 'transaksi' : 'pembeli'} ini?
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-3 rounded">
+                  <p className="font-medium">{showDeleteDialog.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {showDeleteDialog.type === 'transaction' 
+                      ? 'Transaksi ini akan diarsipkan (soft delete)'
+                      : 'Pembeli ini akan dinonaktifkan (soft delete)'
+                    }
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDeleteConfirmed}
+                    disabled={deletingTransaction === showDeleteDialog.id}
+                    className="flex-1 bg-red-600 hover:bg-red-700"
+                  >
+                    {deletingTransaction === showDeleteDialog.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Hapus
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog(null)}
+                    className="flex-1"
+                  >
+                    Batal
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      )}
     </div>
   )
 }
