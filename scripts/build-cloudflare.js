@@ -7,11 +7,15 @@ const path = require('path');
 console.log('🚀 Starting Cloudflare Pages build...');
 
 try {
-  // Step 1: Generate Prisma client
+  // Step 1: Install dependencies with legacy peer deps
+  console.log('📦 Installing dependencies...');
+  execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
+  
+  // Step 2: Generate Prisma client
   console.log('📦 Generating Prisma client...');
   execSync('npx prisma generate', { stdio: 'inherit' });
   
-  // Step 2: Build Next.js application
+  // Step 3: Build Next.js application
   console.log('🏗️ Building Next.js application...');
   execSync('npx next build', { stdio: 'inherit' });
   
