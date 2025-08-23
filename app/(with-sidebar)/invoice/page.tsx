@@ -1,14 +1,47 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
-import { Plus, Trash2, Download, Receipt, Calculator, Users, Building2, Upload, Image, X } from "lucide-react"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { 
+  Upload, 
+  Download, 
+  FileSpreadsheet, 
+  Truck,
+  TrendingUp,
+  Plus,
+  Save,
+  Trash2,
+  Edit,
+  AlertTriangle,
+  CheckCircle,
+  BarChart3,
+  FileText,
+  Users,
+  X,
+  Copy,
+  History,
+  RefreshCw,
+  Settings,
+  Zap,
+  Clock,
+  Loader2,
+  Receipt,
+  Building2,
+  Image
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Separator } from "@/components/ui/separator"
 
 interface InvoiceItem {
   id: string

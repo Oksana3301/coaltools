@@ -15,16 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email: validatedData.email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true
-      }
+      where: { email: validatedData.email }
     })
 
     if (!user) {
@@ -45,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Return user data (without password)
-    const { password: _, ...userWithoutPassword } = user
+    const { password, ...userWithoutPassword } = user
 
     return NextResponse.json({
       success: true,

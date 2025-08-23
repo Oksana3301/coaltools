@@ -756,7 +756,7 @@ export default function KwitansiPage() {
                       className="h-8 text-xs"
                     />
                     <div className="text-xs text-gray-500 mt-1">
-                      Examples: "Di Transfer ke rekening", "Dibayar melalui transfer", "Dikirim ke rekening", "Disetor ke"
+                      Examples: &quot;Di Transfer ke rekening&quot;, &quot;Dibayar melalui transfer&quot;, &quot;Dikirim ke rekening&quot;, &quot;Disetor ke&quot;
                     </div>
                   </div>
                   <div>
@@ -897,8 +897,9 @@ export default function KwitansiPage() {
 
                 {/* Bank Transfer Details */}
                 <div className="mb-6">
-                  <span className="text-sm">Di Transfer ke rekening Bank BRI_Nomor Rekening : </span>
-                  <span className="text-sm">{formData.nomorRekening} A/n {formData.namaRekening}</span>
+                  <span className="text-sm">Di Transfer ke rekening Bank BRI<br />
+                  Nomor Rekening : 0058-0100-4963-562<br />
+                  A/n AZHAR LATIF</span>
                 </div>
 
                 {/* Amount Box and Signature */}

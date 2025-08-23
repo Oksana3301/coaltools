@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -11,9 +11,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:reset": "prisma db push --force-reset",
-    "db:seed": "tsx scripts/create-demo-user.ts",
-    "db:seed-users": "tsx scripts/create-demo-users.ts",
-    "setup:supabase": "node scripts/setup-supabase.js"
+    "db:seed-users": "node scripts/seed-users.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
