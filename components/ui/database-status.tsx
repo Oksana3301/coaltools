@@ -15,15 +15,20 @@ export function DatabaseStatus({ className }: DatabaseStatusProps) {
   const checkDatabaseStatus = async () => {
     setIsChecking(true)
     try {
-      const response = await fetch('/api/kas-kecil')
+      const response = await fetch('/api/kas-kecil?page=1&limit=1')
       const data = await response.json()
       
-      if (data.code === 'DB_CONNECTION_ERROR') {
+      // Check if response is successful (status 200) and has valid data structure
+      if (response.ok && (data.success === true || data.data !== undefined)) {
+        setIsOnline(true)
+      } else if (data.code === 'DB_CONNECTION_ERROR') {
         setIsOnline(false)
       } else {
-        setIsOnline(true)
+        // If response is not ok, check if it's a database error
+        setIsOnline(false)
       }
     } catch (error) {
+      console.error('Database status check error:', error)
       setIsOnline(false)
     } finally {
       setIsChecking(false)
