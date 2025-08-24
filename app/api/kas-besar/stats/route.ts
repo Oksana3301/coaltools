@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Handle soft delete filter - exclude deleted records
+    where.deletedAt = null
+
     const [
       totalTransactions,
       totalAmount,
@@ -47,18 +50,20 @@ export async function GET(request: NextRequest) {
         _count: { status: true }
       }),
       
-      // Monthly data (last 6 months)
-      prisma.$queryRaw`
-        SELECT 
-          DATE_TRUNC('month', "createdAt") as month,
-          COUNT(*) as count,
-          SUM(total) as amount
-        FROM kas_besar_expenses 
-        WHERE "createdAt" >= NOW() - INTERVAL '6 months'
-        ${userId ? `AND "createdBy" = '${userId}'` : ''}
-        GROUP BY DATE_TRUNC('month', "createdAt")
-        ORDER BY month DESC
-      `,
+      // Monthly data (last 6 months) - simplified approach
+      prisma.kasBesarExpense.findMany({
+        where: {
+          ...where,
+          createdAt: {
+            gte: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000) // 6 months ago
+          }
+        },
+        select: {
+          createdAt: true,
+          total: true
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
       
       // Top vendors
       prisma.kasBesarExpense.groupBy({
@@ -83,6 +88,17 @@ export async function GET(request: NextRequest) {
       })
     ])
 
+    // Process monthly data
+    const monthlyStats = monthlyData.reduce((acc, tx) => {
+      const month = tx.createdAt.toISOString().substring(0, 7) // YYYY-MM format
+      if (!acc[month]) {
+        acc[month] = { count: 0, amount: 0 }
+      }
+      acc[month].count++
+      acc[month].amount += tx.total
+      return acc
+    }, {} as Record<string, { count: number, amount: number }>)
+
     const stats = {
       totalTransactions,
       totalAmount: totalAmount._sum.total || 0,
@@ -90,7 +106,11 @@ export async function GET(request: NextRequest) {
         acc[item.status] = item._count.status
         return acc
       }, {} as Record<string, number>),
-      monthlyData,
+      monthlyData: Object.entries(monthlyStats).map(([month, data]) => ({
+        month,
+        count: data.count,
+        amount: data.amount
+      })),
       topVendors: topVendors.map(vendor => ({
         name: vendor.vendorNama,
         totalAmount: vendor._sum.total || 0,

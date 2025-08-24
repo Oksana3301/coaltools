@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const search = searchParams.get('search')
     const userId = searchParams.get('userId')
+    const includeDeleted = searchParams.get('includeDeleted') === 'true'
 
     const skip = (page - 1) * limit
 
@@ -57,6 +58,11 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       where.createdBy = userId
+    }
+
+    // Handle soft delete filter
+    if (!includeDeleted) {
+      where.deletedAt = null
     }
 
     const [expenses, total] = await Promise.all([

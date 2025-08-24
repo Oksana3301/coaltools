@@ -488,6 +488,10 @@ export function KasBesarManagement() {
     } catch (error) {
       // Error handling is done in the hook
       console.error('Submit error:', error)
+      // Ensure error is properly handled and not rendered as [object Event]
+      if (error instanceof Error) {
+        console.error('Submit error message:', error.message)
+      }
     }
   }
 
@@ -1104,13 +1108,11 @@ export function KasBesarManagement() {
             </Button>
             
             <DropdownMenu open={isQuickActionsOpen} onOpenChange={setIsQuickActionsOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  className="bg-red-600 hover:bg-red-700 rounded-l-none border-l border-red-500 px-2"
-                  disabled={creating || updating || Boolean(deleting)}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
+              <DropdownMenuTrigger 
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:not([class*='size-']):size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-red-600 hover:bg-red-700 rounded-l-none border-l border-red-500 px-2"
+                disabled={creating || updating || Boolean(deleting)}
+              >
+                <ChevronDown className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel className="flex items-center gap-2">
@@ -1226,7 +1228,9 @@ export function KasBesarManagement() {
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <div>
                 <h3 className="font-semibold text-red-800">Database Connection Error</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <p className="text-sm text-red-700 mt-1">
+                  {typeof error === 'string' ? error : 'Terjadi kesalahan yang tidak diketahui'}
+                </p>
                 <div className="flex gap-2 mt-3">
                   <Button 
                     size="sm" 

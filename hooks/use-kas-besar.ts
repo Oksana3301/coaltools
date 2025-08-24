@@ -56,7 +56,15 @@ export function useKasBesar(options: UseKasBesarOptions = {}) {
         throw new Error(response.error || 'Gagal mengambil data')
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan'
+      // Ensure we always set a string error message, never an event object
+      let errorMessage = 'Terjadi kesalahan'
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = String(err.message)
+      }
       setError(errorMessage)
       console.error('Error loading kas besar expenses:', err)
       
@@ -99,7 +107,15 @@ export function useKasBesar(options: UseKasBesarOptions = {}) {
         throw new Error(response.error || 'Gagal membuat kas besar')
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan'
+      // Ensure we always set a string error message, never an event object
+      let errorMessage = 'Terjadi kesalahan'
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = String(err.message)
+      }
       setError(errorMessage)
       toast({
         title: "Error",
