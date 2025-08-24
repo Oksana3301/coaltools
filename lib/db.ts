@@ -44,11 +44,8 @@ if (prisma) {
     })
 }
 
-// Helper function to ensure Prisma client is available
-export function getPrismaClient(): PrismaClient {
-  if (!prisma) {
-    throw new Error('Database connection not available. Please check your DATABASE_URL environment variable.')
-  }
+// Helper function to ensure Prisma client is available - returns null instead of throwing
+export function getPrismaClient(): PrismaClient | null {
   return prisma
 }
 
@@ -64,4 +61,9 @@ export function getPrismaClientForBuild(): PrismaClient | null {
     return null
   }
   return prisma
+}
+
+// Check if database is available
+export function isDatabaseAvailable(): boolean {
+  return prisma !== null
 }

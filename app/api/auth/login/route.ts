@@ -13,8 +13,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = LoginSchema.parse(body)
 
-    // Get Prisma client (will throw error if not available)
+    // Get Prisma client (returns null if not available)
     const prisma = getPrismaClient()
+    
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
 
     // Find user by email
     const user = await prisma.user.findUnique({
@@ -56,14 +63,6 @@ export async function POST(request: NextRequest) {
           details: error.issues 
         },
         { status: 400 }
-      )
-    }
-
-    // Handle database connection errors
-    if (error instanceof Error && error.message.includes('Database connection not available')) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
       )
     }
 

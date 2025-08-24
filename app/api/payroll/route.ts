@@ -16,6 +16,13 @@ const payrollRunSchema = z.object({
 // GET - Ambil semua payroll runs
 export async function GET(request: NextRequest) {
     const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     
   try {
     const { searchParams } = new URL(request.url)
@@ -82,6 +89,13 @@ export async function GET(request: NextRequest) {
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
     const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     
   try {
     const body = await request.json()
@@ -313,6 +327,13 @@ export async function POST(request: NextRequest) {
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
     const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     
   try {
     const body = await request.json()
@@ -399,6 +420,13 @@ export async function PUT(request: NextRequest) {
 // DELETE - Hapus payroll run
 export async function DELETE(request: NextRequest) {
     const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     
   try {
     const { searchParams } = new URL(request.url)

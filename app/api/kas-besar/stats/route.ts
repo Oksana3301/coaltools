@@ -4,6 +4,13 @@ import { getPrismaClient } from '@/lib/db'
 // GET - Ambil statistik kas besar
 export async function GET(request: NextRequest) {
     const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     
   try {
     const { searchParams } = new URL(request.url)
