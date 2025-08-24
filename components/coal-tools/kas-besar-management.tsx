@@ -194,7 +194,7 @@ export function KasBesarManagement() {
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<KasBesarExpense | null>(null)
-  const [activeTab, setActiveTab] = useState('list') // Add activeTab state
+  const [activeTab, setActiveTab] = useState('form') // Changed default to 'form' to show form first
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
@@ -479,12 +479,40 @@ export function KasBesarManagement() {
           ...expenseData,
           id: editingExpense.id
         })
+        
+        toast({
+          title: "✅ Transaksi Berhasil Diperbarui",
+          description: `Transaksi kas besar "${expenseData.barang}" telah diperbarui dengan sukses.`,
+        })
       } else {
         // Create new expense
         await createExpense(expenseData)
+        
+        toast({
+          title: "✅ Transaksi Berhasil Ditambahkan",
+          description: `Transaksi kas besar "${expenseData.barang}" telah ditambahkan dengan sukses.`,
+        })
       }
 
       resetForm()
+      
+      // Show success message and option to add another
+      setTimeout(() => {
+        toast({
+          title: "🎉 Transaksi Tersimpan!",
+          description: "Apakah Anda ingin menambahkan transaksi lain?",
+          action: (
+            <Button 
+              size="sm" 
+              onClick={() => handleQuickAdd()}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Tambah Lagi
+            </Button>
+          ),
+        })
+      }, 1000)
+      
     } catch (error) {
       // Error handling is done in the hook
       console.error('Submit error:', error)
@@ -497,6 +525,9 @@ export function KasBesarManagement() {
 
   // Quick add function with smart pre-filling
   const handleQuickAdd = (presetType?: string) => {
+    // Switch to form tab first
+    setActiveTab('form')
+    
     if (expenses.length > 0) {
       const lastExpense = expenses[expenses.length - 1]
       const today = new Date().toISOString().split('T')[0]
@@ -531,6 +562,9 @@ export function KasBesarManagement() {
       })
       return
     }
+
+    // Switch to form tab first
+    setActiveTab('form')
 
     const lastExpense = expenses[expenses.length - 1]
     const today = new Date().toISOString().split('T')[0]
@@ -693,6 +727,8 @@ export function KasBesarManagement() {
     setFormErrors({})
     setEditingExpense(null)
     setIsFormOpen(false)
+    // Keep the form tab active so user can start a new transaction
+    setActiveTab('form')
   }
 
   const handleEdit = (expense: KasBesarExpense) => {
@@ -1406,7 +1442,49 @@ export function KasBesarManagement() {
         </TabsList>
 
         <TabsContent value="form" className="mt-6">
-          {isFormOpen && (
+          {!isFormOpen ? (
+            // Welcome screen when no form is open
+            <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
+              <CardContent className="pt-12 pb-12">
+                <div className="text-center space-y-6">
+                  <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <DollarSign className="h-8 w-8 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                      Form Input Kas Besar
+                    </h3>
+                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                      Mulai input transaksi kas besar baru. Form ini mendukung validasi kontrak dan dokumen pendukung yang diperlukan.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 justify-center">
+                    <Button 
+                      onClick={() => handleQuickAdd()}
+                      className="bg-red-600 hover:bg-red-700 px-6 py-3"
+                      size="lg"
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Tambah Transaksi Baru
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleCopyLastTransaction()}
+                      className="px-6 py-3"
+                      size="lg"
+                      disabled={expenses.length === 0}
+                    >
+                      <Copy className="h-5 w-5 mr-2" />
+                      Salin Transaksi Terakhir
+                    </Button>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <p>💡 Tips: Gunakan Ctrl+Shift+A untuk menambah transaksi dengan cepat</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1853,14 +1931,25 @@ export function KasBesarManagement() {
                   </CardDescription>
                 </div>
                 
-                {allowApprovedEdit && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-md">
-                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm text-orange-700 font-medium">
-                      Approved Edit Mode Active
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  <Button 
+                    onClick={() => handleQuickAdd()}
+                    className="bg-red-600 hover:bg-red-700"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Tambah Transaksi
+                  </Button>
+                  
+                  {allowApprovedEdit && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-md">
+                      <AlertTriangle className="h-4 w-4 text-orange-600" />
+                      <span className="text-sm text-orange-700 font-medium">
+                        Approved Edit Mode Active
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Legend for Approved Transaction Editing */}
