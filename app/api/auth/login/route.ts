@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const validatedData = LoginSchema.parse(body)
+
+    // Get Prisma client (will throw error if not available)
+    const prisma = getPrismaClient()
 
     // Find user by email
     const user = await prisma.user.findUnique({
@@ -53,6 +56,14 @@ export async function POST(request: NextRequest) {
           details: error.issues 
         },
         { status: 400 }
+      )
+    }
+
+    // Handle database connection errors
+    if (error instanceof Error && error.message.includes('Database connection not available')) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
       )
     }
 

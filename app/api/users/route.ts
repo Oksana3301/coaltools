@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 const UserSchema = z.object({
@@ -11,6 +11,8 @@ const UserSchema = z.object({
 // GET - Ambil semua users
 export async function GET() {
   try {
+    const prisma = getPrismaClient();
+    
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -31,6 +33,14 @@ export async function GET() {
       data: users
     })
   } catch (error) {
+    // Handle database connection errors
+    if (error instanceof Error && error.message.includes('Database connection not available')) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     console.error('Error fetching users:', error)
     return NextResponse.json(
       { success: false, error: 'Gagal mengambil data users' },
@@ -42,6 +52,8 @@ export async function GET() {
 // POST - Buat user baru
 export async function POST(request: NextRequest) {
   try {
+    const prisma = getPrismaClient();
+    
     const body = await request.json()
     const validatedData = UserSchema.parse(body)
 
@@ -82,6 +94,14 @@ export async function POST(request: NextRequest) {
           details: error.errors 
         },
         { status: 400 }
+      )
+    }
+
+    // Handle database connection errors
+    if (error instanceof Error && error.message.includes('Database connection not available')) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
       )
     }
 

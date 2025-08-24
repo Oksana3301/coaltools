@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema untuk validasi input pay component
@@ -25,6 +25,8 @@ const payComponentSchema = z.object({
 
 // GET - Ambil semua komponen gaji
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const tipe = searchParams.get('tipe')
@@ -58,6 +60,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Tambah komponen gaji baru
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const validatedData = payComponentSchema.parse(body)
@@ -118,6 +122,8 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update komponen gaji
 export async function PUT(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const { id, ...updateData } = body
@@ -170,6 +176,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus komponen gaji (soft delete)
 export async function DELETE(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

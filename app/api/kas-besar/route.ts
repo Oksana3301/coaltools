@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema validation untuk Kas Besar
@@ -30,6 +30,8 @@ const UpdateKasBesarSchema = KasBesarSchema.partial().extend({
 
 // GET - Ambil semua data kas besar
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -118,6 +120,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat data kas besar baru
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     
@@ -175,6 +179,8 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update data kas besar
 export async function PUT(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     
@@ -247,6 +253,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus data kas besar
 export async function DELETE(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

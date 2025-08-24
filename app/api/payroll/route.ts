@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema untuk validasi input payroll
@@ -15,6 +15,8 @@ const payrollRunSchema = z.object({
 
 // GET - Ambil semua payroll runs
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -79,6 +81,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const validatedData = payrollRunSchema.parse(body)
@@ -308,6 +312,8 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const { id, status, approvedBy, payrollLines, ...updateData } = body
@@ -392,6 +398,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus payroll run
 export async function DELETE(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema untuk validasi input production report
@@ -19,6 +19,8 @@ const productionReportSchema = z.object({
 
 // GET - Ambil semua production reports
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -80,6 +82,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat production report baru
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const validatedData = productionReportSchema.parse(body)

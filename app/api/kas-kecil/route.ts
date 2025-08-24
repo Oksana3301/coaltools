@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 
 // GET - Fetch all kas kecil expenses (excluding soft deleted)
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -86,6 +88,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new kas kecil expense
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     

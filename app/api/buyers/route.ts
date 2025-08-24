@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema untuk validasi input buyer
@@ -14,6 +14,8 @@ const buyerSchema = z.object({
 
 // GET - Ambil semua buyers
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'
@@ -43,6 +45,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat buyer baru
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const validatedData = buyerSchema.parse(body)

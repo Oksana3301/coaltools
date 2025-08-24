@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema untuk validasi input employee
@@ -18,6 +18,8 @@ const employeeSchema = z.object({
 
 // GET - Ambil semua karyawan
 export async function GET(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -72,6 +74,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Tambah karyawan baru
 export async function POST(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const validatedData = employeeSchema.parse(body)
@@ -111,6 +115,8 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update karyawan
 export async function PUT(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const body = await request.json()
     const { id, ...updateData } = body
@@ -163,6 +169,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus karyawan (soft delete dengan aktif = false)
 export async function DELETE(request: NextRequest) {
+    const prisma = getPrismaClient();
+    
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
