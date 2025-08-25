@@ -274,16 +274,16 @@ export default function KwitansiPage() {
               <!-- Yellow background -->
               <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
               <!-- Red triangle -->
-              <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+              <polygon points="50,25 75,70 25,70" fill="#dc2626"/>
               <!-- Green palm tree/leaf -->
-              <path d="M35 65 Q50 45 65 65" stroke="white" stroke-width="2" fill="none"/>
-              <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
-              <path d="M40 60 Q50 40 60 60" stroke="white" stroke-width="2" fill="none"/>
-              <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
-              <path d="M45 55 Q50 35 55 55" stroke="white" stroke-width="2" fill="none"/>
-              <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+              <path d="M30 65 Q50 50 70 65" stroke="white" stroke-width="2" fill="none"/>
+              <path d="M30 65 Q45 55 50 60 Q55 55 70 65" fill="#22c55e"/>
+              <path d="M35 60 Q50 45 65 60" stroke="white" stroke-width="2" fill="none"/>
+              <path d="M35 60 Q47 50 50 55 Q53 50 65 60" fill="#22c55e"/>
+              <path d="M40 55 Q50 40 60 55" stroke="white" stroke-width="2" fill="none"/>
+              <path d="M40 55 Q48 45 50 50 Q52 45 60 55" fill="#22c55e"/>
               <!-- Tree trunk -->
-              <rect x="47" y="65" width="6" height="15" fill="white"/>
+              <rect x="47" y="65" width="6" height="12" fill="white"/>
             </svg>
           </div>
           <div class="company-info">
@@ -628,16 +628,16 @@ export default function KwitansiPage() {
                 <!-- Yellow background -->
                 <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
                 <!-- Red triangle -->
-                <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+                <polygon points="50,25 75,70 25,70" fill="#dc2626"/>
                 <!-- Green palm tree/leaf -->
-                <path d="M35 65 Q50 45 65 65" stroke="white" stroke-width="2" fill="none"/>
-                <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
-                <path d="M40 60 Q50 40 60 60" stroke="white" stroke-width="2" fill="none"/>
-                <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
-                <path d="M45 55 Q50 35 55 55" stroke="white" stroke-width="2" fill="none"/>
-                <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+                <path d="M30 65 Q50 50 70 65" stroke="white" stroke-width="2" fill="none"/>
+                <path d="M30 65 Q45 55 50 60 Q55 55 70 65" fill="#22c55e"/>
+                <path d="M35 60 Q50 45 65 60" stroke="white" stroke-width="2" fill="none"/>
+                <path d="M35 60 Q47 50 50 55 Q53 50 65 60" fill="#22c55e"/>
+                <path d="M40 55 Q50 40 60 55" stroke="white" stroke-width="2" fill="none"/>
+                <path d="M40 55 Q48 45 50 50 Q52 45 60 55" fill="#22c55e"/>
                 <!-- Tree trunk -->
-                <rect x="47" y="65" width="6" height="15" fill="white"/>
+                <rect x="47" y="65" width="6" height="12" fill="white"/>
               </svg>
             </div>
             <div class="company-info">
@@ -901,21 +901,21 @@ export default function KwitansiPage() {
                   <div className="p-6">
                     <div className="flex items-start gap-4">
                       {/* Logo */}
-                      <div className="w-32 h-32 flex items-center justify-center">
+                      <div className="w-28 h-28 flex items-center justify-center">
                         <svg viewBox="0 0 100 100" className="w-full h-full">
                           {/* Yellow background */}
                           <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
                           {/* Red triangle */}
-                          <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+                          <polygon points="50,25 75,70 25,70" fill="#dc2626"/>
                           {/* Green palm tree/leaf */}
-                          <path d="M35 65 Q50 45 65 65" stroke="white" strokeWidth="2" fill="none"/>
-                          <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
-                          <path d="M40 60 Q50 40 60 60" stroke="white" strokeWidth="2" fill="none"/>
-                          <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
-                          <path d="M45 55 Q50 35 55 55" stroke="white" strokeWidth="2" fill="none"/>
-                          <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+                          <path d="M30 65 Q50 50 70 65" stroke="white" strokeWidth="2" fill="none"/>
+                          <path d="M30 65 Q45 55 50 60 Q55 55 70 65" fill="#22c55e"/>
+                          <path d="M35 60 Q50 45 65 60" stroke="white" strokeWidth="2" fill="none"/>
+                          <path d="M35 60 Q47 50 50 55 Q53 50 65 60" fill="#22c55e"/>
+                          <path d="M40 55 Q50 40 60 55" stroke="white" strokeWidth="2" fill="none"/>
+                          <path d="M40 55 Q48 45 50 50 Q52 45 60 55" fill="#22c55e"/>
                           {/* Tree trunk */}
-                          <rect x="47" y="65" width="6" height="15" fill="white"/>
+                          <rect x="47" y="65" width="6" height="12" fill="white"/>
                         </svg>
                       </div>
                       
