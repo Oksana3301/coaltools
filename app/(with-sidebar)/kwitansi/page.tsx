@@ -268,30 +268,9 @@ export default function KwitansiPage() {
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="logo">
-            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
-              <!-- Yellow background -->
-              <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
-              <!-- Red triangle -->
-              <polygon points="50,25 75,70 25,70" fill="#dc2626"/>
-              <!-- Green palm tree/leaf -->
-              <path d="M30 65 Q50 50 70 65" stroke="white" stroke-width="2" fill="none"/>
-              <path d="M30 65 Q45 55 50 60 Q55 55 70 65" fill="#22c55e"/>
-              <path d="M35 60 Q50 45 65 60" stroke="white" stroke-width="2" fill="none"/>
-              <path d="M35 60 Q47 50 50 55 Q53 50 65 60" fill="#22c55e"/>
-              <path d="M40 55 Q50 40 60 55" stroke="white" stroke-width="2" fill="none"/>
-              <path d="M40 55 Q48 45 50 50 Q52 45 60 55" fill="#22c55e"/>
-              <!-- Tree trunk -->
-              <rect x="47" y="65" width="6" height="12" fill="white"/>
-            </svg>
-          </div>
-          <div class="company-info">
-            <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
-            <div class="company-type">(GENERAL SUPPLIERS & CONTRACTORS)</div>
-            <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
-            <div class="company-contact">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</div>
-          </div>
+        <!-- Header Image Section -->
+        <div class="header-image">
+          <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" style="width: 100%; max-width: 800px; height: auto;" />
         </div>
         
         <!-- Header separator lines -->
@@ -622,30 +601,9 @@ export default function KwitansiPage() {
         </div>
         
         <div class="kwitansi-container">
-          <div class="header">
-            <div class="logo">
-              <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
-                <!-- Yellow background -->
-                <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
-                <!-- Red triangle -->
-                <polygon points="50,25 75,70 25,70" fill="#dc2626"/>
-                <!-- Green palm tree/leaf -->
-                <path d="M30 65 Q50 50 70 65" stroke="white" stroke-width="2" fill="none"/>
-                <path d="M30 65 Q45 55 50 60 Q55 55 70 65" fill="#22c55e"/>
-                <path d="M35 60 Q50 45 65 60" stroke="white" stroke-width="2" fill="none"/>
-                <path d="M35 60 Q47 50 50 55 Q53 50 65 60" fill="#22c55e"/>
-                <path d="M40 55 Q50 40 60 55" stroke="white" stroke-width="2" fill="none"/>
-                <path d="M40 55 Q48 45 50 50 Q52 45 60 55" fill="#22c55e"/>
-                <!-- Tree trunk -->
-                <rect x="47" y="65" width="6" height="12" fill="white"/>
-              </svg>
-            </div>
-            <div class="company-info">
-              <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
-              <div class="company-type">(GENERAL SUPPLIERS & CONTRACTORS)</div>
-              <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
-              <div class="company-contact">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</div>
-            </div>
+          <!-- Header Image Section -->
+          <div class="header-image">
+            <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" style="width: 100%; max-width: 800px; height: auto;" />
           </div>
           
           <!-- Header separator lines -->
@@ -898,35 +856,9 @@ export default function KwitansiPage() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="border-2 border-gray-200 rounded-lg bg-white" style={{ aspectRatio: '1.414', maxHeight: '600px', overflow: 'auto' }}>
-                  <div className="p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Logo */}
-                      <div className="w-28 h-28 flex items-center justify-center">
-                        <svg viewBox="0 0 100 100" className="w-full h-full">
-                          {/* Yellow background */}
-                          <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
-                          {/* Red triangle */}
-                          <polygon points="50,25 75,70 25,70" fill="#dc2626"/>
-                          {/* Green palm tree/leaf */}
-                          <path d="M30 65 Q50 50 70 65" stroke="white" strokeWidth="2" fill="none"/>
-                          <path d="M30 65 Q45 55 50 60 Q55 55 70 65" fill="#22c55e"/>
-                          <path d="M35 60 Q50 45 65 60" stroke="white" strokeWidth="2" fill="none"/>
-                          <path d="M35 60 Q47 50 50 55 Q53 50 65 60" fill="#22c55e"/>
-                          <path d="M40 55 Q50 40 60 55" stroke="white" strokeWidth="2" fill="none"/>
-                          <path d="M40 55 Q48 45 50 50 Q52 45 60 55" fill="#22c55e"/>
-                          {/* Tree trunk */}
-                          <rect x="47" y="65" width="6" height="12" fill="white"/>
-                        </svg>
-                      </div>
-                      
-                      {/* Company Info */}
-                      <div className="flex-1">
-                        <h1 className="text-3xl font-bold text-red-600 mb-1 uppercase">PT. GLOBAL LESTARI ALAM</h1>
-                        <p className="text-sm text-green-600 mb-2 uppercase font-semibold">(GENERAL SUPPLIERS & CONTRACTORS)</p>
-                        <p className="text-xs text-black mb-1">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
-                        <p className="text-xs text-black">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
-                      </div>
-                    </div>
+                  {/* Header Image Section */}
+                  <div className="w-full">
+                    <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" className="w-full max-w-full mx-auto" />
                   </div>
                   
                   {/* Header separator lines */}

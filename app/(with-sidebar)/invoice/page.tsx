@@ -1614,55 +1614,28 @@ export default function CreateInvoicePage() {
                 {/* Invoice Preview */}
                 <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6 text-sm print:border-0 print:p-0">
                   
-                  {/* Header with Company Info and Invoice Details */}
-                  <div className="p-4">
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="flex items-end gap-4">
-                        {/* Logo */}
-                        <div className="w-32 h-32 flex-shrink-0">
-                          <svg viewBox="0 0 100 100" className="w-full h-full">
-                            {/* Yellow background */}
-                            <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
-                            {/* Red triangle */}
-                            <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
-                            {/* Green palm tree/leaf */}
-                            <path d="M35 65 Q50 45 65 65" stroke="white" strokeWidth="2" fill="none"/>
-                            <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
-                            <path d="M40 60 Q50 40 60 60" stroke="white" strokeWidth="2" fill="none"/>
-                            <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
-                            <path d="M45 55 Q50 35 55 55" stroke="white" strokeWidth="2" fill="none"/>
-                            <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
-                            {/* Tree trunk */}
-                            <rect x="47" y="65" width="6" height="15" fill="white"/>
-                          </svg>
-                        </div>
-                        
-                        {/* Company Info */}
-                        <div className="flex-1 min-w-0">
-                          <h1 className="text-2xl font-bold mb-1 text-red-600 uppercase">PT. GLOBAL LESTARI ALAM</h1>
-                          <p className="text-sm mb-2 text-green-600 uppercase font-semibold">(GENERAL SUPPLIERS & CONTRACTORS)</p>
-                          <p className="text-xs text-black mb-1 leading-tight">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
-                          <p className="text-xs text-black leading-tight">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
-                        </div>
-                      </div>
+                  {/* Header Image Section */}
+                  <div className="w-full">
+                    <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" className="w-full max-w-full mx-auto" />
+                  </div>
 
-                      {/* Invoice Title and Details */}
-                      <div className="text-right">
-                        <h1 className="text-xl font-bold text-gray-800 mb-2">INVOICE</h1>
-                        <div className="bg-gray-50 p-3 rounded border text-xs">
-                          <div className="space-y-1">
-                            <div className="flex justify-between">
-                              <span className="font-medium">Invoice:</span>
-                              <span>{invoice.invoiceNumber || "INV/YYYY/MM/DD/001"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-medium">Tanggal:</span>
-                              <span>{invoice.date ? new Date(invoice.date).toLocaleDateString('id-ID') : "-"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-medium">Jatuh Tempo:</span>
-                              <span>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('id-ID') : "-"}</span>
-                            </div>
+                  {/* Invoice Title and Details */}
+                  <div className="flex justify-end">
+                    <div className="text-right">
+                      <h1 className="text-xl font-bold text-gray-800 mb-2">INVOICE</h1>
+                      <div className="bg-gray-50 p-3 rounded border text-xs">
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span className="font-medium">Invoice:</span>
+                            <span>{invoice.invoiceNumber || "INV/YYYY/MM/DD/001"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium">Tanggal:</span>
+                            <span>{invoice.date ? new Date(invoice.date).toLocaleDateString('id-ID') : "-"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium">Jatuh Tempo:</span>
+                            <span>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('id-ID') : "-"}</span>
                           </div>
                         </div>
                       </div>
