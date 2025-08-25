@@ -130,9 +130,8 @@ export default function KwitansiPage() {
             line-height: 1.4;
           }
           .header {
-            border-bottom: 2px solid black;
             padding: 20px 25px;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             display: flex;
             align-items: flex-start;
             gap: 25px;
@@ -141,12 +140,9 @@ export default function KwitansiPage() {
             width: 80px;
             height: 80px;
             flex-shrink: 0;
-            background: #fbbf24;
-            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 4px;
           }
           .company-info {
             flex: 1;
@@ -156,26 +152,37 @@ export default function KwitansiPage() {
             font-size: 22px;
             font-weight: bold;
             margin: 0 0 6px 0;
-            color: #374151;
+            color: #dc2626;
             line-height: 1.2;
+            text-transform: uppercase;
           }
           .company-type {
             font-size: 14px;
             color: #059669;
             margin: 0 0 12px 0;
             font-weight: 500;
+            text-transform: uppercase;
           }
           .company-address {
             font-size: 12px;
-            color: #374151;
+            color: #000;
             margin: 0 0 4px 0;
             line-height: 1.5;
           }
           .company-contact {
             font-size: 12px;
-            color: #374151;
+            color: #000;
             margin: 0;
             line-height: 1.5;
+          }
+          .header-separator {
+            margin-bottom: 20px;
+          }
+          .separator-line {
+            border: none;
+            height: 1px;
+            background-color: #000;
+            margin: 0 25px 2px 25px;
           }
           .content {
             padding: 0 20px;
@@ -258,14 +265,34 @@ export default function KwitansiPage() {
       <body>
         <div class="header">
           <div class="logo">
-            <img src="/gla-logo.svg" alt="PT. GLOBAL LESTARI ALAM Logo" style="width: 100%; height: 100%; object-fit: contain;">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+              <!-- Yellow background -->
+              <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
+              <!-- Red triangle -->
+              <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+              <!-- Green palm tree/leaf -->
+              <path d="M35 65 Q50 45 65 65" stroke="white" stroke-width="2" fill="none"/>
+              <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
+              <path d="M40 60 Q50 40 60 60" stroke="white" stroke-width="2" fill="none"/>
+              <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
+              <path d="M45 55 Q50 35 55 55" stroke="white" stroke-width="2" fill="none"/>
+              <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+              <!-- Tree trunk -->
+              <rect x="47" y="65" width="6" height="15" fill="white"/>
+            </svg>
           </div>
           <div class="company-info">
             <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
             <div class="company-type">(GENERAL SUPPLIERS & CONTRACTORS)</div>
-            <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangkerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
+            <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
             <div class="company-contact">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</div>
           </div>
+        </div>
+        
+        <!-- Header separator lines -->
+        <div class="header-separator">
+          <hr class="separator-line">
+          <hr class="separator-line">
         </div>
         
         <div class="content">
@@ -379,7 +406,6 @@ export default function KwitansiPage() {
           }
           
           .header {
-            border-bottom: 2px solid black;
             padding: 15px 20px;
             background: white;
             display: flex;
@@ -391,12 +417,9 @@ export default function KwitansiPage() {
             width: 80px;
             height: 80px;
             flex-shrink: 0;
-            background: #fbbf24;
-            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 4px;
           }
           
           .company-info {
@@ -407,9 +430,10 @@ export default function KwitansiPage() {
           .company-name {
             font-size: 22px;
             font-weight: bold;
-            color: #374151;
+            color: #dc2626;
             margin-bottom: 6px;
             line-height: 1.2;
+            text-transform: uppercase;
           }
           
           .company-type {
@@ -417,19 +441,31 @@ export default function KwitansiPage() {
             color: #059669;
             margin-bottom: 12px;
             font-weight: 500;
+            text-transform: uppercase;
           }
           
           .company-address {
             font-size: 9px;
-            color: #374151;
+            color: #000;
             margin-bottom: 2px;
             line-height: 1.3;
           }
           
           .company-contact {
             font-size: 9px;
-            color: #374151;
+            color: #000;
             line-height: 1.3;
+          }
+          
+          .header-separator {
+            margin-bottom: 15px;
+          }
+          
+          .separator-line {
+            border: none;
+            height: 1px;
+            background-color: #000;
+            margin: 0 20px 2px 20px;
           }
           
           .content {
@@ -583,14 +619,34 @@ export default function KwitansiPage() {
         <div class="kwitansi-container">
           <div class="header">
             <div class="logo">
-              <img src="/gla-logo.svg" alt="PT. GLOBAL LESTARI ALAM Logo" style="width: 100%; height: 100%; object-fit: contain;">
+              <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+                <!-- Yellow background -->
+                <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
+                <!-- Red triangle -->
+                <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+                <!-- Green palm tree/leaf -->
+                <path d="M35 65 Q50 45 65 65" stroke="white" stroke-width="2" fill="none"/>
+                <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
+                <path d="M40 60 Q50 40 60 60" stroke="white" stroke-width="2" fill="none"/>
+                <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
+                <path d="M45 55 Q50 35 55 55" stroke="white" stroke-width="2" fill="none"/>
+                <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+                <!-- Tree trunk -->
+                <rect x="47" y="65" width="6" height="15" fill="white"/>
+              </svg>
             </div>
             <div class="company-info">
               <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
               <div class="company-type">(GENERAL SUPPLIERS & CONTRACTORS)</div>
-              <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangkerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
+              <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
               <div class="company-contact">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</div>
             </div>
+          </div>
+          
+          <!-- Header separator lines -->
+          <div class="header-separator">
+            <hr class="separator-line">
+            <hr class="separator-line">
           </div>
           
           <div class="content">
@@ -837,21 +893,41 @@ export default function KwitansiPage() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="border-2 border-gray-200 rounded-lg bg-white" style={{ aspectRatio: '1.414', maxHeight: '600px', overflow: 'auto' }}>
-                  <div className="p-6 border-b-2 border-black">
+                  <div className="p-6">
                     <div className="flex items-start gap-4">
                       {/* Logo */}
-                      <div className="w-24 h-24 bg-yellow-400 rounded-lg flex items-center justify-center p-1">
-                        <img src="/gla-logo.svg" alt="PT. GLOBAL LESTARI ALAM Logo" className="w-full h-full object-contain" />
+                      <div className="w-24 h-24 flex items-center justify-center">
+                        <svg viewBox="0 0 100 100" className="w-full h-full">
+                          {/* Yellow background */}
+                          <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
+                          {/* Red triangle */}
+                          <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+                          {/* Green palm tree/leaf */}
+                          <path d="M35 65 Q50 45 65 65" stroke="white" strokeWidth="2" fill="none"/>
+                          <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
+                          <path d="M40 60 Q50 40 60 60" stroke="white" strokeWidth="2" fill="none"/>
+                          <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
+                          <path d="M45 55 Q50 35 55 55" stroke="white" strokeWidth="2" fill="none"/>
+                          <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+                          {/* Tree trunk */}
+                          <rect x="47" y="65" width="6" height="15" fill="white"/>
+                        </svg>
                       </div>
                       
                       {/* Company Info */}
                       <div className="flex-1">
-                        <h1 className="text-2xl font-bold text-gray-800 mb-2">PT. GLOBAL LESTARI ALAM</h1>
-                        <p className="text-sm text-green-600 mb-3">(GENERAL SUPPLIERS & CONTRACTORS)</p>
-                        <p className="text-xs text-gray-700 mb-1">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangkerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
-                        <p className="text-xs text-gray-700">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
+                        <h1 className="text-2xl font-bold text-red-600 mb-2 uppercase">PT. GLOBAL LESTARI ALAM</h1>
+                        <p className="text-sm text-green-600 mb-3 uppercase">(GENERAL SUPPLIERS & CONTRACTORS)</p>
+                        <p className="text-xs text-black mb-1">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
+                        <p className="text-xs text-black">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
                       </div>
                     </div>
+                  </div>
+                  
+                  {/* Header separator lines */}
+                  <div className="px-6">
+                    <hr className="border-t border-black mb-1" />
+                    <hr className="border-t border-black" />
                   </div>
 
                   {/* Kwitansi Content */}

@@ -372,26 +372,37 @@ export default function CreateInvoicePage() {
               font-size: 22px;
               font-weight: bold;
               margin: 0 0 6px 0;
-              color: #374151;
+              color: #dc2626;
               line-height: 1.2;
+              text-transform: uppercase;
             }
             .company-type {
               font-size: 14px;
               color: #059669;
               margin: 0 0 12px 0;
               font-weight: 500;
+              text-transform: uppercase;
             }
             .company-address {
               font-size: 12px;
-              color: #374151;
+              color: #000;
               margin: 0 0 4px 0;
               line-height: 1.5;
             }
             .company-contact {
               font-size: 12px;
-              color: #374151;
+              color: #000;
               margin: 0;
               line-height: 1.5;
+            }
+            .header-separator {
+              margin-bottom: 20px;
+            }
+            .separator-line {
+              border: none;
+              height: 1px;
+              background-color: #000;
+              margin: 0 25px 2px 25px;
             }
             .invoice-title {
               text-align: right;
@@ -552,12 +563,26 @@ export default function CreateInvoicePage() {
             <div class="header">
               <div style="display: flex; align-items: flex-end; gap: 15px;">
                 <div class="logo">
-                  <img src="/gla-logo.svg" alt="PT. GLOBAL LESTARI ALAM Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                  <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+                    <!-- Yellow background -->
+                    <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
+                    <!-- Red triangle -->
+                    <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+                    <!-- Green palm tree/leaf -->
+                    <path d="M35 65 Q50 45 65 65" stroke="white" stroke-width="2" fill="none"/>
+                    <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
+                    <path d="M40 60 Q50 40 60 60" stroke="white" stroke-width="2" fill="none"/>
+                    <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
+                    <path d="M45 55 Q50 35 55 55" stroke="white" stroke-width="2" fill="none"/>
+                    <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+                    <!-- Tree trunk -->
+                    <rect x="47" y="65" width="6" height="15" fill="white"/>
+                  </svg>
                 </div>
                 <div class="company-info">
                   <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
                   <div class="company-type">(GENERAL SUPPLIERS & CONTRACTORS)</div>
-                  <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangkerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
+                  <div class="company-address">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</div>
                   <div class="company-contact">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</div>
                 </div>
               </div>
@@ -569,6 +594,12 @@ export default function CreateInvoicePage() {
                   <div><strong>Jatuh Tempo:</strong> <span>${new Date(invoice.dueDate).toLocaleDateString('id-ID')}</span></div>
                 </div>
               </div>
+            </div>
+            
+            <!-- Header separator lines -->
+            <div class="header-separator">
+              <hr class="separator-line">
+              <hr class="separator-line">
             </div>
 
             <div class="customer-info">
@@ -1584,20 +1615,34 @@ export default function CreateInvoicePage() {
                 <div className="bg-white border-2 border-gray-200 rounded-lg p-6 space-y-6 text-sm print:border-0 print:p-0">
                   
                   {/* Header with Company Info and Invoice Details */}
-                  <div className="p-4 border-b-2 border-black">
+                  <div className="p-4">
                     <div className="flex items-end justify-between gap-4">
                       <div className="flex items-end gap-4">
                         {/* Logo */}
-                        <div className="w-24 h-24 flex-shrink-0 bg-yellow-400 rounded p-1">
-                          <img src="/gla-logo.svg" alt="PT. GLOBAL LESTARI ALAM Logo" className="w-full h-full object-contain" />
+                        <div className="w-24 h-24 flex-shrink-0">
+                          <svg viewBox="0 0 100 100" className="w-full h-full">
+                            {/* Yellow background */}
+                            <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
+                            {/* Red triangle */}
+                            <polygon points="50,20 80,70 20,70" fill="#dc2626"/>
+                            {/* Green palm tree/leaf */}
+                            <path d="M35 65 Q50 45 65 65" stroke="white" strokeWidth="2" fill="none"/>
+                            <path d="M35 65 Q45 50 50 55 Q55 50 65 65" fill="#22c55e"/>
+                            <path d="M40 60 Q50 40 60 60" stroke="white" strokeWidth="2" fill="none"/>
+                            <path d="M40 60 Q47 45 50 50 Q53 45 60 60" fill="#22c55e"/>
+                            <path d="M45 55 Q50 35 55 55" stroke="white" strokeWidth="2" fill="none"/>
+                            <path d="M45 55 Q48 40 50 45 Q52 40 55 55" fill="#22c55e"/>
+                            {/* Tree trunk */}
+                            <rect x="47" y="65" width="6" height="15" fill="white"/>
+                          </svg>
                         </div>
                         
                         {/* Company Info */}
                         <div className="flex-1 min-w-0">
-                          <h1 className="text-lg font-bold mb-2" style={{ color: '#374151' }}>PT. GLOBAL LESTARI ALAM</h1>
-                          <p className="text-xs mb-3" style={{ color: '#059669' }}>(GENERAL SUPPLIERS & CONTRACTORS)</p>
-                          <p className="text-xs text-gray-700 mb-1 leading-tight">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangkerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
-                          <p className="text-xs text-gray-700 leading-tight">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
+                          <h1 className="text-lg font-bold mb-2 text-red-600 uppercase">PT. GLOBAL LESTARI ALAM</h1>
+                          <p className="text-xs mb-3 text-green-600 uppercase">(GENERAL SUPPLIERS & CONTRACTORS)</p>
+                          <p className="text-xs text-black mb-1 leading-tight">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
+                          <p className="text-xs text-black leading-tight">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
                         </div>
                       </div>
 
@@ -1622,6 +1667,12 @@ export default function CreateInvoicePage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  {/* Header separator lines */}
+                  <div className="px-4">
+                    <hr className="border-t border-black mb-1" />
+                    <hr className="border-t border-black" />
                   </div>
 
                   <Separator />
