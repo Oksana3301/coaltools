@@ -38,10 +38,12 @@ import {
   Loader2,
   Receipt,
   Building2,
-  Image
+  Image,
+  Eye
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 
 interface InvoiceItem {
   id: string
@@ -1153,11 +1155,16 @@ export default function CreateInvoicePage() {
 
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Receipt className="h-8 w-8 text-white" />
+            </div>
+          </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
             Buat Invoice Baru
           </h1>
-          <p className="text-xl text-muted-foreground">
-            Lengkapi informasi invoice dan lihat preview secara real-time
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Lengkapi informasi invoice dan lihat preview secara real-time dengan format profesional
           </p>
         </div>
 
@@ -1740,6 +1747,67 @@ export default function CreateInvoicePage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4 mt-8">
+          <Button onClick={generatePDF} variant="outline" className="flex-1 h-12">
+            <Download className="h-4 w-4 mr-2" />
+            Generate PDF
+          </Button>
+          <Button variant="outline" className="flex-1 h-12">
+            <Copy className="h-4 w-4 mr-2" />
+            Copy Data
+          </Button>
+          <Button className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+            <Save className="h-4 w-4 mr-2" />
+            Simpan Invoice
+          </Button>
+        </div>
+
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+          <Card className="border-2 border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Format Profesional</h3>
+              </div>
+              <p className="text-gray-600">
+                Invoice dengan format standar Indonesia yang profesional dan lengkap sesuai standar akuntansi
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                  <Download className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Export PDF</h3>
+              </div>
+              <p className="text-gray-600">
+                Generate invoice langsung ke format PDF yang siap dicetak dengan kualitas tinggi
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-purple-200 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                  <Eye className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Preview Real-time</h3>
+              </div>
+              <p className="text-gray-600">
+                Lihat preview invoice secara real-time sebelum di-generate untuk memastikan akurasi
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
