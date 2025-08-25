@@ -137,8 +137,8 @@ export default function KwitansiPage() {
             gap: 25px;
           }
           .logo {
-            width: 80px;
-            height: 80px;
+            width: 85px;
+            height: 85px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -414,8 +414,8 @@ export default function KwitansiPage() {
           }
           
           .logo {
-            width: 80px;
-            height: 80px;
+            width: 85px;
+            height: 85px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -896,7 +896,7 @@ export default function KwitansiPage() {
                   <div className="p-6">
                     <div className="flex items-start gap-4">
                       {/* Logo */}
-                      <div className="w-24 h-24 flex items-center justify-center">
+                      <div className="w-28 h-28 flex items-center justify-center">
                         <svg viewBox="0 0 100 100" className="w-full h-full">
                           {/* Yellow background */}
                           <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>

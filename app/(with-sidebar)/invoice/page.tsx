@@ -354,8 +354,8 @@ export default function CreateInvoicePage() {
               gap: 25px;
             }
             .logo {
-              width: 80px;
-              height: 80px;
+              width: 85px;
+              height: 85px;
               flex-shrink: 0;
               background: #fbbf24;
               border-radius: 8px;
@@ -1619,7 +1619,7 @@ export default function CreateInvoicePage() {
                     <div className="flex items-end justify-between gap-4">
                       <div className="flex items-end gap-4">
                         {/* Logo */}
-                        <div className="w-24 h-24 flex-shrink-0">
+                        <div className="w-28 h-28 flex-shrink-0">
                           <svg viewBox="0 0 100 100" className="w-full h-full">
                             {/* Yellow background */}
                             <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
