@@ -354,8 +354,8 @@ export default function CreateInvoicePage() {
               gap: 25px;
             }
             .logo {
-              width: 85px;
-              height: 85px;
+              width: 90px;
+              height: 90px;
               flex-shrink: 0;
               background: #fbbf24;
               border-radius: 8px;
@@ -369,31 +369,31 @@ export default function CreateInvoicePage() {
               min-width: 0;
             }
             .company-name {
-              font-size: 22px;
+              font-size: 24px;
               font-weight: bold;
-              margin: 0 0 6px 0;
+              margin: 0 0 4px 0;
               color: #dc2626;
-              line-height: 1.2;
+              line-height: 1.1;
               text-transform: uppercase;
             }
             .company-type {
-              font-size: 14px;
+              font-size: 13px;
               color: #059669;
-              margin: 0 0 12px 0;
-              font-weight: 500;
+              margin: 0 0 8px 0;
+              font-weight: 600;
               text-transform: uppercase;
             }
             .company-address {
-              font-size: 12px;
+              font-size: 11px;
               color: #000;
-              margin: 0 0 4px 0;
-              line-height: 1.5;
+              margin: 0 0 3px 0;
+              line-height: 1.4;
             }
             .company-contact {
-              font-size: 12px;
+              font-size: 11px;
               color: #000;
               margin: 0;
-              line-height: 1.5;
+              line-height: 1.4;
             }
             .header-separator {
               margin-bottom: 20px;
@@ -1619,7 +1619,7 @@ export default function CreateInvoicePage() {
                     <div className="flex items-end justify-between gap-4">
                       <div className="flex items-end gap-4">
                         {/* Logo */}
-                        <div className="w-28 h-28 flex-shrink-0">
+                        <div className="w-32 h-32 flex-shrink-0">
                           <svg viewBox="0 0 100 100" className="w-full h-full">
                             {/* Yellow background */}
                             <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
@@ -1639,8 +1639,8 @@ export default function CreateInvoicePage() {
                         
                         {/* Company Info */}
                         <div className="flex-1 min-w-0">
-                          <h1 className="text-lg font-bold mb-2 text-red-600 uppercase">PT. GLOBAL LESTARI ALAM</h1>
-                          <p className="text-xs mb-3 text-green-600 uppercase">(GENERAL SUPPLIERS & CONTRACTORS)</p>
+                          <h1 className="text-2xl font-bold mb-1 text-red-600 uppercase">PT. GLOBAL LESTARI ALAM</h1>
+                          <p className="text-sm mb-2 text-green-600 uppercase font-semibold">(GENERAL SUPPLIERS & CONTRACTORS)</p>
                           <p className="text-xs text-black mb-1 leading-tight">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
                           <p className="text-xs text-black leading-tight">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
                         </div>

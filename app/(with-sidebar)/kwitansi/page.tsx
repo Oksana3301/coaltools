@@ -134,11 +134,11 @@ export default function KwitansiPage() {
             margin-bottom: 15px;
             display: flex;
             align-items: flex-start;
-            gap: 25px;
+            gap: 20px;
           }
           .logo {
-            width: 85px;
-            height: 85px;
+            width: 90px;
+            height: 90px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -149,31 +149,31 @@ export default function KwitansiPage() {
             min-width: 0;
           }
           .company-name {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
             color: #dc2626;
-            line-height: 1.2;
+            line-height: 1.1;
             text-transform: uppercase;
           }
           .company-type {
-            font-size: 14px;
+            font-size: 13px;
             color: #059669;
-            margin: 0 0 12px 0;
-            font-weight: 500;
+            margin: 0 0 8px 0;
+            font-weight: 600;
             text-transform: uppercase;
           }
           .company-address {
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
-            margin: 0 0 4px 0;
-            line-height: 1.5;
+            margin: 0 0 3px 0;
+            line-height: 1.4;
           }
           .company-contact {
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
             margin: 0;
-            line-height: 1.5;
+            line-height: 1.4;
           }
           .header-separator {
             margin-bottom: 20px;
@@ -410,12 +410,12 @@ export default function KwitansiPage() {
             background: white;
             display: flex;
             align-items: flex-start;
-            gap: 15px;
+            gap: 20px;
           }
           
           .logo {
-            width: 85px;
-            height: 85px;
+            width: 90px;
+            height: 90px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -428,19 +428,19 @@ export default function KwitansiPage() {
           }
           
           .company-name {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: bold;
             color: #dc2626;
-            margin-bottom: 6px;
-            line-height: 1.2;
+            margin-bottom: 4px;
+            line-height: 1.1;
             text-transform: uppercase;
           }
           
           .company-type {
-            font-size: 14px;
+            font-size: 13px;
             color: #059669;
-            margin-bottom: 12px;
-            font-weight: 500;
+            margin-bottom: 8px;
+            font-weight: 600;
             text-transform: uppercase;
           }
           
@@ -896,7 +896,7 @@ export default function KwitansiPage() {
                   <div className="p-6">
                     <div className="flex items-start gap-4">
                       {/* Logo */}
-                      <div className="w-28 h-28 flex items-center justify-center">
+                      <div className="w-32 h-32 flex items-center justify-center">
                         <svg viewBox="0 0 100 100" className="w-full h-full">
                           {/* Yellow background */}
                           <rect x="5" y="5" width="90" height="90" fill="#fbbf24" rx="8"/>
@@ -916,8 +916,8 @@ export default function KwitansiPage() {
                       
                       {/* Company Info */}
                       <div className="flex-1">
-                        <h1 className="text-2xl font-bold text-red-600 mb-2 uppercase">PT. GLOBAL LESTARI ALAM</h1>
-                        <p className="text-sm text-green-600 mb-3 uppercase">(GENERAL SUPPLIERS & CONTRACTORS)</p>
+                        <h1 className="text-3xl font-bold text-red-600 mb-1 uppercase">PT. GLOBAL LESTARI ALAM</h1>
+                        <p className="text-sm text-green-600 mb-2 uppercase font-semibold">(GENERAL SUPPLIERS & CONTRACTORS)</p>
                         <p className="text-xs text-black mb-1">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
                         <p className="text-xs text-black">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
                       </div>
