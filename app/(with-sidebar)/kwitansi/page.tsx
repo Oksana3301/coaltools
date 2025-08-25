@@ -76,11 +76,33 @@ export default function KwitansiPage() {
     tempat: "Sawahlunto",
     tanggalKwitansi: "7 Agustus 2025",
     bankName: "BRI",
-    transferMethod: "Di Transfer ke rekening"
+    transferMethod: "Di Transfer ke rekening",
+    signatureName: "ATIKA DEWI SURYANI",
+    signaturePosition: "Accounting"
   })
+
+  const [headerImage, setHeaderImage] = useState<string | null>(null)
+  const [headerImageName, setHeaderImageName] = useState<string>("")
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleHeaderUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setHeaderImage(e.target?.result as string)
+        setHeaderImageName(file.name)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeHeader = () => {
+    setHeaderImage(null)
+    setHeaderImageName("")
   }
 
   const formatCurrency = (amount: string) => {
@@ -264,14 +286,27 @@ export default function KwitansiPage() {
           @media print {
             body { margin: 0; }
             .no-print { display: none; }
+            .header-image { 
+              page-break-inside: avoid;
+              break-inside: avoid;
+              margin-bottom: 20px;
+            }
+            .header-image img { 
+              width: 100%; 
+              height: 103px; 
+              object-fit: cover;
+              display: block;
+            }
           }
         </style>
       </head>
       <body>
         <!-- Header Image Section -->
-        <div class="header-image">
-          <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" style="width: 100%; max-width: 800px; height: auto;" />
+        ${headerImage ? `
+        <div class="header-image" style="width: 100%; height: 103px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; page-break-inside: avoid;">
+          <img src="${headerImage}" alt="Custom Header" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
         </div>
+        ` : ''}
         
         <!-- Header separator lines -->
         <div class="header-separator">
@@ -311,12 +346,12 @@ export default function KwitansiPage() {
               Rp. 3.063.930
             </div>
             
-            <div class="signature-section">
-              <div class="place-date">Sawahlunto, 01-Agustus 2025</div>
-              <div class="signature-line"></div>
-              <div class="signature-name">ATIKA DEWI SURYANI</div>
-              <div class="signature-title">Accounting</div>
-            </div>
+                          <div class="signature-section">
+                <div class="place-date">${formData.tempat}, ${formData.tanggalKwitansi}</div>
+                <div class="signature-line"></div>
+                <div class="signature-name">${formData.signatureName}</div>
+                <div class="signature-title">${formData.signaturePosition}</div>
+              </div>
           </div>
         </div>
       </body>
@@ -591,6 +626,17 @@ export default function KwitansiPage() {
               max-width: none;
               width: 100%;
             }
+            .header-image { 
+              page-break-inside: avoid;
+              break-inside: avoid;
+              margin-bottom: 20px;
+            }
+            .header-image img { 
+              width: 100%; 
+              height: 103px; 
+              object-fit: cover;
+              display: block;
+            }
           }
         </style>
       </head>
@@ -601,9 +647,10 @@ export default function KwitansiPage() {
         </div>
         
         <div class="kwitansi-container">
+          ${headerImage ? `
           <!-- Header Image Section -->
-          <div class="header-image">
-            <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" style="width: 100%; max-width: 800px; height: auto;" />
+          <div class="header-image" style="width: 100%; height: 103px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; margin-bottom: 20px; page-break-inside: avoid;">
+            <img src="${headerImage}" alt="Custom Header" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
           </div>
           
           <!-- Header separator lines -->
@@ -611,6 +658,7 @@ export default function KwitansiPage() {
             <hr class="separator-line">
             <hr class="separator-line">
           </div>
+          ` : ''}
           
           <div class="content">
             <div class="title">KWITANSI</div>
@@ -645,10 +693,10 @@ export default function KwitansiPage() {
               </div>
               
               <div class="signature-section">
-                <div class="place-date">Sawahlunto, 01-Agustus 2025</div>
+                <div class="place-date">${formData.tempat}, ${formData.tanggalKwitansi}</div>
                 <div class="signature-line"></div>
-                <div class="signature-name">ATIKA DEWI SURYANI</div>
-                <div class="signature-title">Accounting</div>
+                <div class="signature-name">${formData.signatureName}</div>
+                <div class="signature-title">${formData.signaturePosition}</div>
               </div>
             </div>
           </div>
@@ -695,6 +743,74 @@ export default function KwitansiPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Form */}
           <div className="space-y-6">
+            {/* Header Upload Card */}
+            <Card className="border-2 border-blue-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-200">
+                <CardTitle className="flex items-center gap-3 text-xl text-blue-800">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                  </div>
+                  Header Generator
+                </CardTitle>
+                <CardDescription className="text-blue-600">
+                  Upload header image untuk kwitansi Anda
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!headerImage ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Building2 className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-medium text-gray-900">Upload Header Image</p>
+                        <p className="text-sm text-gray-500">PNG, JPG, SVG up to 2MB</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleHeaderUpload}
+                        className="hidden"
+                        id="header-upload"
+                      />
+                      <label
+                        htmlFor="header-upload"
+                        className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Pilih File
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-700">Header Preview:</span>
+                        <Button
+                          onClick={removeHeader}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                      <div className="w-full bg-white border rounded overflow-hidden" style={{ height: '103px' }}>
+                        <img
+                          src={headerImage}
+                          alt="Header Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">{headerImageName}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="border-2 border-blue-200 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-200">
                 <CardTitle className="flex items-center gap-3 text-xl text-blue-800">
@@ -826,18 +942,56 @@ export default function KwitansiPage() {
                       placeholder="Sawahlunto"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="tanggalKwitansi">Tanggal Kwitansi</Label>
-                    <Input
-                      id="tanggalKwitansi"
-                      value={formData.tanggalKwitansi}
-                      onChange={(e) => handleInputChange('tanggalKwitansi', e.target.value)}
-                      placeholder="7 Agustus 2025"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                                     <div>
+                     <Label htmlFor="tanggalKwitansi">Tanggal Kwitansi</Label>
+                     <Input
+                       id="tanggalKwitansi"
+                       value={formData.tanggalKwitansi}
+                       onChange={(e) => handleInputChange('tanggalKwitansi', e.target.value)}
+                       placeholder="7 Agustus 2025"
+                     />
+                   </div>
+                 </div>
+
+                 {/* Signature Information */}
+                 <div className="space-y-2">
+                   <Label className="text-sm font-medium">Signature Information</Label>
+                   <div className="p-3 bg-gray-50 rounded-lg border">
+                     <div className="text-xs text-gray-600 mb-2">
+                       Fill in the signature details that will appear at the bottom of the kwitansi
+                     </div>
+                     <div className="grid grid-cols-1 gap-2">
+                       <div>
+                         <Label htmlFor="signatureName" className="text-xs">Name of Signature</Label>
+                         <Input
+                           id="signatureName"
+                           value={formData.signatureName}
+                           onChange={(e) => handleInputChange('signatureName', e.target.value)}
+                           placeholder="ATIKA DEWI SURYANI"
+                           className="h-8 text-xs"
+                         />
+                         <div className="text-xs text-gray-500 mt-1">
+                           Current: Atika Dewi Suryani
+                         </div>
+                       </div>
+                       <div>
+                         <Label htmlFor="signaturePosition" className="text-xs">Position of the Person</Label>
+                         <Input
+                           id="signaturePosition"
+                           value={formData.signaturePosition}
+                           onChange={(e) => handleInputChange('signaturePosition', e.target.value)}
+                           placeholder="Accounting"
+                           className="h-8 text-xs"
+                         />
+                         <div className="text-xs text-gray-500 mt-1">
+                           Current: Accounting
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </CardContent>
+             </Card>
           </div>
 
           {/* Preview */}
@@ -857,15 +1011,23 @@ export default function KwitansiPage() {
               <CardContent className="p-6">
                 <div className="border-2 border-gray-200 rounded-lg bg-white" style={{ aspectRatio: '1.414', maxHeight: '600px', overflow: 'auto' }}>
                   {/* Header Image Section */}
-                  <div className="w-full">
-                    <img src="/header-gla.svg" alt="PT. GLOBAL LESTARI ALAM Header" className="w-full max-w-full mx-auto" />
-                  </div>
-                  
-                  {/* Header separator lines */}
-                  <div className="px-6">
-                    <hr className="border-t border-black mb-1" />
-                    <hr className="border-t border-black" />
-                  </div>
+                  {headerImage && (
+                    <>
+                      <div className="w-full h-20 bg-gray-50 border-b border-gray-200" style={{ height: '103px' }}>
+                        <img 
+                          src={headerImage} 
+                          alt="Custom Header" 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                      
+                      {/* Header separator lines */}
+                      <div className="px-6">
+                        <hr className="border-t border-black mb-1" />
+                        <hr className="border-t border-black" />
+                      </div>
+                    </>
+                  )}
 
                   {/* Kwitansi Content */}
                   <div className="p-6">
@@ -911,12 +1073,12 @@ export default function KwitansiPage() {
                       </div>
 
                       {/* Place, Date, and Signature */}
-                      <div className="text-right">
-                        <p className="text-sm mb-2">Sawahlunto, 01-Agustus 2025</p>
-                        <div className="border-b border-black w-32 mb-1"></div>
-                        <p className="text-sm font-semibold">ATIKA DEWI SURYANI</p>
-                        <p className="text-xs">Accounting</p>
-                      </div>
+                                             <div className="text-right">
+                         <p className="text-sm mb-2">{formData.tempat}, {formData.tanggalKwitansi}</p>
+                         <div className="border-b border-black w-32 mb-1"></div>
+                         <p className="text-sm font-semibold">{formData.signatureName}</p>
+                         <p className="text-xs">{formData.signaturePosition}</p>
+                       </div>
                     </div>
                   </div>
                 </div>
@@ -996,23 +1158,16 @@ export default function KwitansiPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="bg-white border-2 border-gray-200" style={{ aspectRatio: '1.414', minHeight: '500px' }}>
-              {/* Company Header */}
-              <div className="p-4 border-b-2 border-black">
-                <div className="flex items-start gap-4">
-                  {/* Logo */}
-                  <div className="w-20 h-20 flex-shrink-0 bg-yellow-400 rounded p-1">
-                    <img src="/gla-logo.svg" alt="PT. GLOBAL LESTARI ALAM Logo" className="w-full h-full object-contain" />
-                  </div>
-                  
-                  {/* Company Info */}
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-lg font-bold mb-2" style={{ color: '#374151' }}>PT. GLOBAL LESTARI ALAM</h1>
-                    <p className="text-xs mb-3" style={{ color: '#059669' }}>(GENERAL SUPPLIERS & CONTRACTORS)</p>
-                    <p className="text-xs text-gray-700 mb-1 leading-tight">Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangkerang Tengah, Kec. Marpoyan Damai, Kota Pekanbaru, 28282 Riau Indonesia</p>
-                    <p className="text-xs text-gray-700 leading-tight">Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com</p>
-                  </div>
+              {/* Custom Header */}
+              {headerImage && (
+                <div className="w-full h-20 bg-gray-50 border-b-2 border-black" style={{ height: '103px' }}>
+                  <img 
+                    src={headerImage} 
+                    alt="Custom Header" 
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
-              </div>
+              )}
 
               {/* Kwitansi Content */}
               <div className="p-5 flex flex-col h-full">
@@ -1058,11 +1213,12 @@ export default function KwitansiPage() {
                     <span className="font-bold text-sm">Rp. {formatCurrency(formData.jumlahUang)}</span>
                   </div>
 
-                  {/* Place, Date, and Signature */}
-                  <div className="text-center min-w-[160px]">
-                    <p className="text-xs text-gray-600 mb-12">{formData.tempat}, {formData.tanggalKwitansi}</p>
-                    <p className="text-xs font-bold">{formData.namaRekening}</p>
-                  </div>
+                                     {/* Place, Date, and Signature */}
+                   <div className="text-center min-w-[160px]">
+                     <p className="text-xs text-gray-600 mb-12">{formData.tempat}, {formData.tanggalKwitansi}</p>
+                     <p className="text-xs font-bold">{formData.signatureName}</p>
+                     <p className="text-xs text-gray-500">{formData.signaturePosition}</p>
+                   </div>
                 </div>
               </div>
             </div>
