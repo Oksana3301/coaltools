@@ -237,8 +237,8 @@ export default function KwitansiPage() {
             padding: 12px 15px;
             font-weight: bold;
             font-size: 14px;
-            color: black;
-            background: white;
+            color: white;
+            background: black;
             min-width: 150px;
             text-align: center;
           }
@@ -255,6 +255,11 @@ export default function KwitansiPage() {
             font-size: 11px;
             font-weight: bold;
             color: black;
+          }
+          .signature-title {
+            font-size: 10px;
+            color: #374151;
+            margin-top: 2px;
           }
           @media print {
             body { margin: 0; }
@@ -305,33 +310,33 @@ export default function KwitansiPage() {
           
           <div class="recipient-info">
             <span class="field-label">Telah terima dari </span>
-            <span class="field-value">${formData.namaPembayar}</span>
+            <span class="field-value">PT. GLOBAL LESTARI ALAM</span>
           </div>
           
           <div class="amount-words">
             <span class="field-label">Uang sejumlah </span>
-            <span class="field-value">#${getAmountInWords()}</span>
+            <span class="field-value"># Tiga Juta Enam Puluh Tiga Ribu Sembilan Ratus Tiga Puluh Rupiah</span>
           </div>
           
           <div class="payment-purpose">
             <span class="field-label">Untuk Pembayaran: </span>
-            <span>${formData.untukPembayaran}</span>
+            <span>Gaji Bulan Juli 2025 10 hari(Rp.2.258.060) + BBM(Rp.161.290) + Uang Makan(Rp.322.580) + Lembur 8 jam (322.000) = Rp. 3.063.930.Di kirim ke Rekening BCA-3215.484.73 a/n</span>
           </div>
           
-          <div class="bank-details">
-            <span class="field-label">${formData.transferMethod} Bank ${formData.bankName}_Nomor Rekening : </span>
-            <span>${formData.nomorRekening} A/n ${formData.namaRekening}</span>
+          <div class="recipient-name">
+            <span class="field-value">Atika Dewi Suryani</span>
           </div>
           
           <div class="bottom-section">
             <div class="amount-box">
-              Rp. ${formatCurrency(formData.jumlahUang)}
+              Rp. 3.063.930
             </div>
             
             <div class="signature-section">
-              <div class="place-date">${formData.tempat}, ${formData.tanggalKwitansi}</div>
+              <div class="place-date">Sawahlunto, 01-Agustus 2025</div>
               <div class="signature-line"></div>
-              <div class="signature-name">${formData.namaRekening}</div>
+              <div class="signature-name">ATIKA DEWI SURYANI</div>
+              <div class="signature-title">Accounting</div>
             </div>
           </div>
         </div>
@@ -536,8 +541,8 @@ export default function KwitansiPage() {
             padding: 12px 15px;
             font-weight: bold;
             font-size: 14px;
-            color: black;
-            background: white;
+            color: white;
+            background: black;
             min-width: 150px;
             text-align: center;
           }
@@ -659,33 +664,33 @@ export default function KwitansiPage() {
             
             <div class="recipient-info">
               <span class="field-label">Telah terima dari </span>
-              <span class="field-value">${formData.namaPembayar}</span>
+              <span class="field-value">PT. GLOBAL LESTARI ALAM</span>
             </div>
             
             <div class="amount-words">
               <span class="field-label">Uang sejumlah </span>
-              <span class="field-value">#${getAmountInWords()}</span>
+              <span class="field-value"># Tiga Juta Enam Puluh Tiga Ribu Sembilan Ratus Tiga Puluh Rupiah</span>
             </div>
             
             <div class="payment-purpose">
               <span class="field-label">Untuk Pembayaran: </span>
-              <span>${formData.untukPembayaran}</span>
+              <span>Gaji Bulan Juli 2025 10 hari(Rp.2.258.060) + BBM(Rp.161.290) + Uang Makan(Rp.322.580) + Lembur 8 jam (322.000) = Rp. 3.063.930.Di kirim ke Rekening BCA-3215.484.73 a/n</span>
             </div>
             
-            <div class="bank-details">
-              <span class="field-label">${formData.transferMethod} Bank ${formData.bankName}_Nomor Rekening : </span>
-              <span>${formData.nomorRekening} A/n ${formData.namaRekening}</span>
+            <div class="recipient-name">
+              <span class="field-value">Atika Dewi Suryani</span>
             </div>
             
             <div class="bottom-section">
               <div class="amount-box">
-                Rp. ${formatCurrency(formData.jumlahUang)}
+                Rp. 3.063.930
               </div>
               
               <div class="signature-section">
-                <div class="place-date">${formData.tempat}, ${formData.tanggalKwitansi}</div>
+                <div class="place-date">Sawahlunto, 01-Agustus 2025</div>
                 <div class="signature-line"></div>
-                <div class="signature-name">${formData.namaRekening}</div>
+                <div class="signature-name">ATIKA DEWI SURYANI</div>
+                <div class="signature-title">Accounting</div>
               </div>
             </div>
           </div>
@@ -946,40 +951,39 @@ export default function KwitansiPage() {
                     {/* Recipient Info */}
                     <div className="mb-4">
                       <span className="text-sm">Telah terima dari </span>
-                      <span className="text-sm underline px-2">{formData.namaPembayar}</span>
+                      <span className="text-sm underline px-2">PT. GLOBAL LESTARI ALAM</span>
                     </div>
 
                     {/* Amount in Words */}
                     <div className="mb-4">
                       <span className="text-sm">Uang sejumlah </span>
-                      <span className="text-sm underline px-2">#{getAmountInWords()}</span>
+                      <span className="text-sm underline px-2"># Tiga Juta Enam Puluh Tiga Ribu Sembilan Ratus Tiga Puluh Rupiah</span>
                     </div>
 
                     {/* Payment Purpose */}
                     <div className="mb-4">
                       <span className="text-sm">Untuk Pembayaran: </span>
-                      <span className="text-sm">{formData.untukPembayaran}</span>
+                      <span className="text-sm">Gaji Bulan Juli 2025 10 hari(Rp.2.258.060) + BBM(Rp.161.290) + Uang Makan(Rp.322.580) + Lembur 8 jam (322.000) = Rp. 3.063.930.Di kirim ke Rekening BCA-3215.484.73 a/n</span>
                     </div>
 
-                    {/* Bank Transfer Details */}
+                    {/* Recipient Name */}
                     <div className="mb-6">
-                      <span className="text-sm">Di Transfer ke rekening Bank BRI<br />
-                      Nomor Rekening : 0058-0100-4963-562<br />
-                      A/n AZHAR LATIF</span>
+                      <span className="text-sm font-semibold">Atika Dewi Suryani</span>
                     </div>
 
                     {/* Amount Box and Signature */}
                     <div className="flex justify-between items-end">
                       {/* Amount Box */}
-                      <div className="border-4 border-black p-3">
-                        <span className="font-bold text-lg">Rp. {formatCurrency(formData.jumlahUang)}</span>
+                      <div className="border-4 border-black p-3 bg-black text-white">
+                        <span className="font-bold text-lg">Rp. 3.063.930</span>
                       </div>
 
                       {/* Place, Date, and Signature */}
                       <div className="text-right">
-                        <p className="text-sm mb-2">{formData.tempat}, {formData.tanggalKwitansi}</p>
+                        <p className="text-sm mb-2">Sawahlunto, 01-Agustus 2025</p>
                         <div className="border-b border-black w-32 mb-1"></div>
-                        <p className="text-sm font-semibold">{formData.namaRekening}</p>
+                        <p className="text-sm font-semibold">ATIKA DEWI SURYANI</p>
+                        <p className="text-xs">Accounting</p>
                       </div>
                     </div>
                   </div>
