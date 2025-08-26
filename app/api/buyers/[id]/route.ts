@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 
+export const dynamic = "force-static"
+
 // GET - Ambil buyer berdasarkan ID
 export async function GET(
   request: NextRequest,
@@ -8,6 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = params
+    const prisma = getPrismaClient()
 
     const buyer = await prisma.buyer.findUnique({
       where: { id }
@@ -47,6 +50,7 @@ export async function PUT(
   try {
     const { id } = params
     const body = await request.json()
+    const prisma = getPrismaClient()
 
     const buyer = await prisma.buyer.update({
       where: { id },
@@ -79,6 +83,7 @@ export async function DELETE(
     const { id } = params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
+    const prisma = getPrismaClient()
 
     if (hardDelete) {
       // Hard delete - completely remove from database
