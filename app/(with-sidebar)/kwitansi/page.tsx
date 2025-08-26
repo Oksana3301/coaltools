@@ -61,7 +61,7 @@ function numberToWords(num: number): string {
 
 export default function KwitansiPage() {
   const { toast } = useToast()
-  const [showPreview, setShowPreview] = useState(false)
+
   const [showBankDetails, setShowBankDetails] = useState(false)
   const [formData, setFormData] = useState({
     nomorKwitansi: "KW-001/2025",
@@ -84,6 +84,7 @@ export default function KwitansiPage() {
 
   const [headerImage, setHeaderImage] = useState<string | null>(null)
   const [headerImageName, setHeaderImageName] = useState<string>("")
+  const [transferProofs, setTransferProofs] = useState<Array<{ file: File; keterangan: string; title: string }>>([])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -106,6 +107,64 @@ export default function KwitansiPage() {
     setHeaderImageName("")
   }
 
+  const handleTransferProofUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const validFiles = files.filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/gif', 'image/webp']
+      return validTypes.includes(file.type)
+    })
+    
+    if (transferProofs.length + validFiles.length > 10) {
+      toast({
+        title: "Error",
+        description: "Maksimal 10 file yang dapat diupload",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    const newTransferProofs = [...transferProofs, ...validFiles.map(file => ({ file, keterangan: '', title: '' }))]
+    setTransferProofs(newTransferProofs)
+    
+    // Convert files to base64 and save to localStorage
+    const saveFilesToStorage = async () => {
+      const base64Files: Array<{ base64: string; keterangan: string; title: string }> = []
+      for (const proof of newTransferProofs) {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string)
+          reader.readAsDataURL(proof.file)
+        })
+        base64Files.push({ base64, keterangan: proof.keterangan, title: proof.title })
+      }
+      localStorage.setItem('kwitansiTransferProofs', JSON.stringify(base64Files))
+      localStorage.setItem('kwitansiHeaderImage', headerImage || '')
+    }
+    
+    saveFilesToStorage()
+  }
+
+  const removeTransferProof = (index: number) => {
+    const newTransferProofs = transferProofs.filter((_, i) => i !== index)
+    setTransferProofs(newTransferProofs)
+    
+    // Update localStorage
+    const saveFilesToStorage = async () => {
+      const base64Files: Array<{ base64: string; keterangan: string }> = []
+      for (const proof of newTransferProofs) {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string)
+          reader.readAsDataURL(proof.file)
+        })
+        base64Files.push({ base64, keterangan: proof.keterangan })
+      }
+      localStorage.setItem('kwitansiTransferProofs', JSON.stringify(base64Files))
+    }
+    
+    saveFilesToStorage()
+  }
+
   const formatCurrency = (amount: string) => {
     const num = parseInt(amount.replace(/\D/g, ''))
     return new Intl.NumberFormat('id-ID').format(num)
@@ -124,7 +183,7 @@ export default function KwitansiPage() {
     return `Kwitansi_${cleanNomor}_${cleanPenerima}_Rp${amount}_${date}.pdf`
   }
 
-  const generateKwitansi = () => {
+  const generateKwitansi = async () => {
     // Generate filename based on form data
     const generateFilename = () => {
       const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
@@ -135,6 +194,17 @@ export default function KwitansiPage() {
     }
 
     const filename = generateFilename()
+    
+    // Convert transfer proofs to base64 for PDF
+    const base64Files: Array<{ base64: string; keterangan: string; title: string }> = []
+    for (const proof of transferProofs) {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string)
+        reader.readAsDataURL(proof.file)
+      })
+      base64Files.push({ base64, keterangan: proof.keterangan, title: proof.title })
+    }
     
     // Create a new window for PDF generation
     const printWindow = window.open('', '_blank')
@@ -379,6 +449,27 @@ export default function KwitansiPage() {
               </div>
           </div>
         </div>
+        
+        ${base64Files.length > 0 ? `
+          <div style="margin-top: 30px; page-break-before: always;">
+            <div style="padding: 0 20px;">
+              <div style="text-align: center; font-size: 20px; font-weight: bold; text-decoration: underline; margin-bottom: 20px; color: black;">
+                BUKTI TRANSFER & NOTA
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
+                ${base64Files.map((proof, index) => `
+                  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
+                    <div style="font-weight: bold; margin-bottom: 10px; color: #333;">
+                      ${proof.title || `Bukti Transfer ${index + 1}`}
+                    </div>
+                    <img src="${proof.base64}" alt="Bukti Transfer ${index + 1}" style="max-width: 100%; height: auto; max-height: 250px; object-fit: contain;" />
+                    ${proof.keterangan ? `<div style="margin-top: 10px; font-size: 12px; color: #666;">${proof.keterangan}</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        ` : ''}
       </body>
       </html>
     `
@@ -401,11 +492,9 @@ export default function KwitansiPage() {
     })
   }
 
-  const previewKwitansi = () => {
-    setShowPreview(true)
-  }
 
-  const openFullScreenPreview = () => {
+
+  const openFullScreenPreview = async () => {
     // Generate filename based on form data
     const generateFilename = () => {
       const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
@@ -416,6 +505,17 @@ export default function KwitansiPage() {
     }
 
     const filename = generateFilename()
+    
+    // Convert transfer proofs to base64 for preview
+    const base64Files: Array<{ base64: string; keterangan: string; title: string }> = []
+    for (const proof of transferProofs) {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string)
+        reader.readAsDataURL(proof.file)
+      })
+      base64Files.push({ base64, keterangan: proof.keterangan, title: proof.title })
+    }
     
     // Create a new window for full-screen preview
     const previewWindow = window.open('', '_blank')
@@ -745,6 +845,27 @@ export default function KwitansiPage() {
             </div>
           </div>
         </div>
+        
+        ${base64Files.length > 0 ? `
+          <div style="margin-top: 30px; page-break-before: always;">
+            <div style="padding: 0 20px;">
+              <div style="text-align: center; font-size: 20px; font-weight: bold; text-decoration: underline; margin-bottom: 20px; color: black;">
+                BUKTI TRANSFER & NOTA
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
+                ${base64Files.map((proof, index) => `
+                  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
+                    <div style="font-weight: bold; margin-bottom: 10px; color: #333;">
+                      ${proof.title || `Bukti Transfer ${index + 1}`}
+                    </div>
+                    <img src="${proof.base64}" alt="Bukti Transfer ${index + 1}" style="max-width: 100%; height: auto; max-height: 250px; object-fit: contain;" />
+                    ${proof.keterangan ? `<div style="margin-top: 10px; font-size: 12px; color: #666;">${proof.keterangan}</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        ` : ''}
       </body>
       </html>
     `
@@ -1078,6 +1199,76 @@ export default function KwitansiPage() {
                      </div>
                    </div>
                  </div>
+
+                 {/* Transfer Proof Section */}
+                 <div className="space-y-2">
+                   <Label className="text-sm font-medium">Bukti Transfer & Nota</Label>
+                   <div className="p-3 bg-gray-50 rounded-lg border">
+                     <div className="text-xs text-gray-600 mb-2">
+                       Upload bukti transfer dan nota (maksimal 10 file)
+                     </div>
+                     <div className="space-y-3">
+                       <div>
+                         <Label htmlFor="transfer-proofs" className="text-xs">Upload Bukti Transfer/Nota</Label>
+                         <Input
+                           id="transfer-proofs"
+                           type="file"
+                           accept="image/*"
+                           multiple
+                           onChange={handleTransferProofUpload}
+                           className="h-8 text-xs"
+                         />
+                         <div className="text-xs text-gray-500 mt-1">
+                           Format yang didukung: JPG, JPEG, PNG, SVG, GIF, WEBP (maksimal 10 file)
+                         </div>
+                       </div>
+                       
+                       {transferProofs.length > 0 && (
+                         <div className="space-y-2">
+                           <Label className="text-xs">File yang diupload ({transferProofs.length}/10):</Label>
+                           <div className="grid grid-cols-2 gap-2">
+                             {transferProofs.map((proof, index) => (
+                               <div key={index} className="relative border rounded p-2">
+                                 <img
+                                   src={URL.createObjectURL(proof.file)}
+                                   alt={`Bukti ${index + 1}`}
+                                   className="w-full h-16 object-cover rounded"
+                                 />
+                                 <button
+                                   onClick={() => removeTransferProof(index)}
+                                   className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                                 >
+                                   ×
+                                 </button>
+                                 <p className="text-xs text-gray-600 mt-1 truncate">{proof.file.name}</p>
+                                 <Input
+                                   placeholder="Judul Bukti Transfer"
+                                   value={proof.title}
+                                   onChange={(e) => {
+                                     const newProofs = [...transferProofs]
+                                     newProofs[index].title = e.target.value
+                                     setTransferProofs(newProofs)
+                                   }}
+                                   className="mt-1 text-xs h-6"
+                                 />
+                                 <Input
+                                   placeholder="Keterangan (opsional)"
+                                   value={proof.keterangan}
+                                   onChange={(e) => {
+                                     const newProofs = [...transferProofs]
+                                     newProofs[index].keterangan = e.target.value
+                                     setTransferProofs(newProofs)
+                                   }}
+                                   className="mt-1 text-xs h-6"
+                                 />
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 </div>
                </CardContent>
              </Card>
           </div>
@@ -1205,15 +1396,21 @@ export default function KwitansiPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-4 mt-8">
-          <Button onClick={previewKwitansi} variant="outline" className="flex-1 h-12">
+          <Button onClick={() => openFullScreenPreview()} variant="outline" className="flex-1 h-12">
             <Eye className="h-4 w-4 mr-2" />
-            Preview Modal
+            Preview Layar Penuh
           </Button>
-          <Button onClick={openFullScreenPreview} variant="outline" className="flex-1 h-12">
-            <Maximize className="h-4 w-4 mr-2" />
-            Full Screen
-          </Button>
-          <Button onClick={generateKwitansi} className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+          {transferProofs.length > 0 && (
+            <Button 
+              onClick={() => window.open('/kwitansi/proofs', '_blank')} 
+              variant="outline" 
+              className="flex-1 h-12"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Lihat Bukti Transfer
+            </Button>
+          )}
+          <Button onClick={() => generateKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
             <Download className="h-4 w-4 mr-2" />
             Generate PDF
           </Button>
@@ -1264,97 +1461,7 @@ export default function KwitansiPage() {
           </Card>
         </div>
 
-        {/* Preview Modal */}
-        <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Preview Kwitansi
-              </DialogTitle>
-            </DialogHeader>
-            <div className="bg-white border-2 border-gray-200" style={{ aspectRatio: '1.414', minHeight: '500px' }}>
-              {/* Custom Header */}
-              {headerImage && (
-                <div className="w-full h-20 bg-gray-50 border-b-2 border-black" style={{ height: '103px' }}>
-                  <img 
-                    src={headerImage} 
-                    alt="Custom Header" 
-                    className="w-full h-full object-cover" 
-                  />
-                </div>
-              )}
 
-              {/* Kwitansi Content */}
-              <div className="p-5 flex flex-col h-full">
-                {/* Title */}
-                <div className="text-center mb-6">
-                  <h2 className="text-lg font-bold underline">KWITANSI</h2>
-                </div>
-
-                {/* Receipt Number */}
-                <div className="mb-4">
-                  <span className="text-sm text-gray-600">NO. </span>
-                  <span className="text-sm underline px-1">{formData.nomorKwitansi}</span>
-                </div>
-
-                {/* Recipient Info */}
-                <div className="mb-4">
-                  <span className="text-sm text-gray-600">Telah terima dari </span>
-                  <span className="text-sm underline px-1">{formData.namaPembayar}</span>
-                </div>
-
-                {/* Amount in Words */}
-                <div className="mb-4">
-                  <span className="text-sm text-gray-600">Uang sejumlah </span>
-                  <span className="text-sm underline px-1">#{getAmountInWords()}</span>
-                </div>
-
-                {/* Payment Purpose */}
-                <div className="mb-4">
-                  <span className="text-sm text-gray-600">Untuk Pembayaran: </span>
-                  <span className="text-sm">{formData.untukPembayaran}</span>
-                </div>
-
-                {/* Bank Transfer Details */}
-                <div className="mb-6">
-                  <span className="text-sm text-gray-600">{formData.transferMethod} Bank {formData.bankName}_Nomor Rekening : </span>
-                  <span className="text-sm">{formData.nomorRekening} A/n {formData.namaRekening}</span>
-                </div>
-
-                {/* Amount Box and Signature */}
-                <div className="flex justify-between items-end mt-auto pt-5">
-                  {/* Amount Box */}
-                  <div className="border-2 border-black p-3 min-w-[120px] text-center">
-                    <span className="font-bold text-sm">Rp. {formatCurrency(formData.jumlahUang)}</span>
-                  </div>
-
-                                     {/* Place, Date, and Signature */}
-                   <div className="text-center min-w-[160px]">
-                     <p className="text-xs text-gray-600 mb-12">{formData.tempat}, {formData.tanggalKwitansi}</p>
-                     <p className="text-xs font-bold">{formData.signatureName}</p>
-                     <p className="text-xs text-gray-500">{formData.signaturePosition}</p>
-                   </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex gap-2 pt-4">
-              <Button onClick={() => setShowPreview(false)} variant="outline" className="flex-1">
-                <X className="h-4 w-4 mr-2" />
-                Tutup
-              </Button>
-              <Button onClick={openFullScreenPreview} variant="outline" className="flex-1">
-                <Maximize className="h-4 w-4 mr-2" />
-                Full Screen
-              </Button>
-              <Button onClick={generateKwitansi} className="flex-1">
-                <Download className="h-4 w-4 mr-2" />
-                Generate PDF
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   )
