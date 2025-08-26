@@ -6,20 +6,34 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Receipt, Download, Save, Plus, Trash2, FileText, Eye, Image } from 'lucide-react'
+import { Receipt, Download, Save, Plus, Trash2, FileText, Eye, Image, Building2, Calendar, User, DollarSign, CreditCard, MapPin, Phone, Mail, X, Maximize } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 
 export default function InvoicePage() {
   const { toast } = useToast()
   const [headerImage, setHeaderImage] = useState<string>('')
-  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [headerImageName, setHeaderImageName] = useState<string>('')
+  const [invoiceNumber, setInvoiceNumber] = useState('INV-001/2025')
   const [createdDate, setCreatedDate] = useState(new Date().toISOString().split('T')[0])
   const [dueDate, setDueDate] = useState('')
-  const [applicantName, setApplicantName] = useState('')
+  const [applicantName, setApplicantName] = useState('PT. GLOBAL LESTARI ALAM')
   const [recipientName, setRecipientName] = useState('')
   const [notes, setNotes] = useState('')
   const [termsAndConditions, setTermsAndConditions] = useState('')
   const [transferProofs, setTransferProofs] = useState<Array<{ file: File; keterangan: string; title: string }>>([])
+  const [showBankDetails, setShowBankDetails] = useState(false)
+  const [bankDetails, setBankDetails] = useState({
+    bankName: 'BRI',
+    accountNumber: '0058-0100-4963-562',
+    accountHolder: 'AZHAR LATIF',
+    transferMethod: 'Transfer ke rekening'
+  })
+  const [signatureInfo, setSignatureInfo] = useState({
+    name: 'ATIKA DEWI SURYANI',
+    position: 'Accounting',
+    place: 'Sawahlunto',
+    date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  })
   const [items, setItems] = useState([{ 
     id: '1', 
     description: '', 
@@ -34,11 +48,16 @@ export default function InvoicePage() {
     if (file) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        const result = e.target?.result as string
-        setHeaderImage(result)
+        setHeaderImage(e.target?.result as string)
+        setHeaderImageName(file.name)
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const removeHeader = () => {
+    setHeaderImage('')
+    setHeaderImageName('')
   }
 
   const addItem = () => {
@@ -758,52 +777,98 @@ export default function InvoicePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Invoice Generator</h1>
-          <p className="text-gray-600">Buat invoice profesional dengan header kustom</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <a href="/business-tools" className="hover:text-primary">Alat Bisnis</a>
+          <span>/</span>
+          <span className="text-primary">Generator Invoice</span>
         </div>
 
-        {/* Header Generator */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Image className="h-5 w-5" />
-              Generator Header
-            </CardTitle>
-            <CardDescription>Upload gambar header kustom untuk layout A4 portrait</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-                              <div>
-                  <Label htmlFor="header-upload">Upload Gambar Header</Label>
-                <Input
-                  id="header-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleHeaderUpload}
-                  className="mt-1"
-                />
-              </div>
-              
-              {headerImage && (
-                <div>
-                  <Label>Preview (A4 Portrait - tinggi 120px):</Label>
-                  <div className="mt-2 border rounded-lg overflow-hidden" style={{ height: '120px' }}>
-                    <img
-                      src={headerImage}
-                      alt="Header Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              )}
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Receipt className="h-8 w-8 text-white" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-4">
+            Generator Invoice
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Buat invoice profesional dengan format Indonesia yang siap untuk dicetak dan digunakan
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Header Upload Card */}
+            <Card className="border-2 border-green-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-200">
+                <CardTitle className="flex items-center gap-3 text-xl text-green-800">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-green-600" />
+                  </div>
+                  Generator Header
+                </CardTitle>
+                <CardDescription className="text-green-600">
+                  Unggah gambar header untuk invoice Anda
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!headerImage ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                        <Building2 className="h-8 w-8 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-medium text-gray-900">Unggah Gambar Header</p>
+                        <p className="text-sm text-gray-500">PNG, JPG, SVG maksimal 2MB</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleHeaderUpload}
+                        className="hidden"
+                        id="header-upload"
+                      />
+                      <label
+                        htmlFor="header-upload"
+                        className="cursor-pointer bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Pilih File
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-700">Pratinjau Header:</span>
+                        <Button
+                          onClick={removeHeader}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Hapus
+                        </Button>
+                      </div>
+                      <div className="w-full bg-white border rounded overflow-hidden" style={{ height: '120px' }}>
+                        <img
+                          src={headerImage}
+                          alt="Header Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">{headerImageName}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           {/* Form */}
           <div className="space-y-6">
             <Card>
