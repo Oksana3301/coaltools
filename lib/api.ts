@@ -111,14 +111,19 @@ export interface KasBesarStats {
 export interface Employee {
   id?: string
   nama: string
+  nik?: string
   jabatan: string
   site: string
+  tempatLahir?: string
+  tanggalLahir?: string
+  alamat?: string
   kontrakUpahHarian: number
   defaultUangMakan: number
   defaultUangBbm: number
   bankName?: string
   bankAccount?: string
   npwp?: string
+  startDate?: string
   aktif: boolean
   createdAt?: string
   updatedAt?: string

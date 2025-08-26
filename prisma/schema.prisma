@@ -23,6 +23,7 @@ model User {
   payrollRuns          PayrollRun[]
   approvedProductions  ProductionReport[] @relation("ProductionApprovedBy")
   productionReports    ProductionReport[] @relation("ProductionCreatedBy")
+  kwitansi            Kwitansi[]
 
   @@map("users")
 }
@@ -91,19 +92,25 @@ model KasKecilExpense {
 model Employee {
   id                String             @id @default(cuid())
   nama              String
+  nik               String?            @unique
   jabatan           String
   site              String
+  tempatLahir       String?            @map("tempat_lahir")
+  tanggalLahir      String?            @map("tanggal_lahir")
+  alamat            String?
   kontrakUpahHarian Float              @map("kontrak_upah_harian")
   defaultUangMakan  Float              @map("default_uang_makan")
   defaultUangBbm    Float              @map("default_uang_bbm")
   bankName          String?            @map("bank_name")
   bankAccount       String?            @map("bank_account")
   npwp              String?
+  startDate         String?            @map("start_date")
   aktif             Boolean            @default(true)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   attendanceRecords AttendanceRecord[]
   payrollLines      PayrollLine[]
+  kwitansi          Kwitansi[]
 
   @@map("employees")
 }
@@ -157,7 +164,9 @@ model PayrollRun {
   approvedBy   String?       @map("approved_by")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?     @map("deleted_at")
   payrollLines PayrollLine[]
+  kwitansi     Kwitansi[]
   approver     User?         @relation("PayrollApprovedBy", fields: [approvedBy], references: [id])
   creator      User          @relation(fields: [createdBy], references: [id])
 
@@ -182,7 +191,9 @@ model PayrollLine {
   notes           String?
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
+  deletedAt       DateTime?              @map("deleted_at")
   components      PayrollLineComponent[]
+  kwitansi        Kwitansi[]
   employee        Employee               @relation(fields: [employeeId], references: [id])
   payrollRun      PayrollRun             @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
 
@@ -204,6 +215,39 @@ model PayrollLineComponent {
   payrollLine   PayrollLine  @relation(fields: [payrollLineId], references: [id], onDelete: Cascade)
 
   @@map("payroll_line_components")
+}
+
+model Kwitansi {
+  id              String    @id @default(cuid())
+  nomorKwitansi   String    @map("nomor_kwitansi")
+  tanggal         String
+  namaPenerima    String    @map("nama_penerima")
+  jumlahUang      Float     @map("jumlah_uang")
+  untukPembayaran String    @map("untuk_pembayaran")
+  namaPembayar    String    @map("nama_pembayar")
+  nomorRekening   String?   @map("nomor_rekening")
+  namaRekening    String?   @map("nama_rekening")
+  bankName        String?   @map("bank_name")
+  transferMethod  String?   @map("transfer_method")
+  tempat          String
+  tanggalKwitansi String    @map("tanggal_kwitansi")
+  signatureName   String    @map("signature_name")
+  signaturePosition String  @map("signature_position")
+  materai         String?
+  headerImage     String?   @map("header_image")
+  payrollRunId    String?   @map("payroll_run_id")
+  payrollLineId   String?   @map("payroll_line_id")
+  employeeId      String?   @map("employee_id")
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? @map("deleted_at")
+  creator         User      @relation(fields: [createdBy], references: [id])
+  payrollRun      PayrollRun? @relation(fields: [payrollRunId], references: [id])
+  payrollLine     PayrollLine? @relation(fields: [payrollLineId], references: [id])
+  employee        Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("kwitansi")
 }
 
 model ProductionReport {

@@ -63,6 +63,30 @@ export default function KwitansiPage() {
   const { toast } = useToast()
 
   const [showBankDetails, setShowBankDetails] = useState(false)
+  
+  // Load auto-kwitansi data from localStorage if available
+  useEffect(() => {
+    const autoKwitansiData = localStorage.getItem('autoKwitansiData')
+    if (autoKwitansiData) {
+      try {
+        const data = JSON.parse(autoKwitansiData)
+        setFormData(prev => ({
+          ...prev,
+          ...data
+        }))
+        
+        // Clear the data from localStorage after loading
+        localStorage.removeItem('autoKwitansiData')
+        
+        toast({
+          title: "Data Kwitansi Dimuat",
+          description: "Data kwitansi dari payroll telah dimuat otomatis"
+        })
+      } catch (error) {
+        console.error('Error parsing auto kwitansi data:', error)
+      }
+    }
+  }, [])
   const [formData, setFormData] = useState({
     nomorKwitansi: "KW-001/2025",
     tanggal: "2025-08-07",
@@ -1442,10 +1466,6 @@ export default function KwitansiPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-4 mt-8">
-          <Button onClick={() => openFullScreenPreview()} variant="outline" className="flex-1 h-12">
-            <Eye className="h-4 w-4 mr-2" />
-            Pratinjau Layar Penuh
-          </Button>
           {transferProofs.length > 0 && (
             <Button 
               onClick={() => window.open('/kwitansi/proofs', '_blank')} 

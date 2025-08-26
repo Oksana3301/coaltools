@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const where = {
-      ...(status && { status: status as 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' }),
+      ...(status && { status: status as 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED' }),
       ...(userId && { createdBy: userId })
     }
 
@@ -417,7 +417,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Hapus payroll run
+// DELETE - Hapus payroll run (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
     const prisma = getPrismaClient();
     if (!prisma) {
@@ -431,6 +431,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const force = searchParams.get('force') === 'true'
 
     if (!id) {
       return NextResponse.json(
@@ -442,10 +443,10 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Check if payroll can be deleted (only DRAFT status)
+    // Check if payroll exists and can be deleted
     const payrollRun = await prisma.payrollRun.findUnique({
       where: { id },
-      select: { status: true }
+      select: { status: true, deletedAt: true }
     })
 
     if (!payrollRun) {
@@ -458,25 +459,50 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (payrollRun.status !== 'DRAFT') {
+    // If already soft deleted, only allow hard delete
+    if (payrollRun.deletedAt && !force) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Hanya payroll dengan status DRAFT yang bisa dihapus'
+          error: 'Payroll sudah dihapus. Gunakan force=true untuk penghapusan permanen.'
         },
         { status: 400 }
       )
     }
 
-    // Delete payroll run (cascade will delete related records)
-    await prisma.payrollRun.delete({
-      where: { id }
-    })
+    // For hard delete, only allow DRAFT status
+    if (force && payrollRun.status !== 'DRAFT') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Hanya payroll dengan status DRAFT yang bisa dihapus permanen'
+        },
+        { status: 400 }
+      )
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Payroll berhasil dihapus'
-    })
+    if (force) {
+      // Hard delete - permanently remove from database
+      await prisma.payrollRun.delete({
+        where: { id }
+      })
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Payroll berhasil dihapus permanen'
+      })
+    } else {
+      // Soft delete - mark as deleted
+      await prisma.payrollRun.update({
+        where: { id },
+        data: { deletedAt: new Date() }
+      })
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Payroll berhasil dihapus (soft delete)'
+      })
+    }
   } catch (error) {
     console.error('Error deleting payroll run:', error)
     return NextResponse.json(

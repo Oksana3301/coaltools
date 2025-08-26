@@ -60,6 +60,12 @@ const navigation = [
         description: "Pengelolaan transaksi besar"
       },
       {
+        name: "Karyawan",
+        href: "/coal-tools-karyawan",
+        icon: Users,
+        description: "Manajemen data karyawan"
+      },
+      {
         name: "Kalkulator Gaji",
         href: "/coal-tools-kalkulatorgaji",
         icon: Calculator,

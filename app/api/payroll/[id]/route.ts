@@ -78,10 +78,10 @@ export async function GET(
 // PATCH - Update status payroll run
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { status, approvedBy, notes } = body
 
@@ -148,6 +148,16 @@ export async function PATCH(
       }
     })
 
+    // Auto-generate kwitansi when payroll is approved
+    if (status === 'APPROVED') {
+      try {
+        await generateKwitansiForPayroll(payrollRun)
+      } catch (kwitansiError) {
+        console.error('Error generating kwitansi:', kwitansiError)
+        // Don't fail the payroll approval if kwitansi generation fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: payrollRun,
@@ -162,5 +172,59 @@ export async function PATCH(
       },
       { status: 500 }
     )
+  }
+}
+
+// Function to generate kwitansi for approved payroll
+async function generateKwitansiForPayroll(payrollRun: any) {
+  const prisma = getPrismaClient()
+  if (!prisma) return
+
+  // Get current date for kwitansi
+  const currentDate = new Date()
+  const tanggalKwitansi = currentDate.toLocaleDateString('id-ID', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  })
+
+  // Generate kwitansi for each employee in the payroll
+  for (const payrollLine of payrollRun.payrollLines) {
+    const employee = payrollLine.employee
+    
+    // Generate unique kwitansi number
+    const kwitansiCount = await prisma.kwitansi.count({
+      where: {
+        payrollRunId: payrollRun.id,
+        employeeId: employee.id
+      }
+    })
+    
+    const nomorKwitansi = `KW-${payrollRun.id.slice(-6)}-${employee.id.slice(-4)}-${String(kwitansiCount + 1).padStart(3, '0')}`
+
+    // Create kwitansi record
+    await prisma.kwitansi.create({
+      data: {
+        nomorKwitansi,
+        tanggal: currentDate.toISOString().split('T')[0],
+        namaPenerima: employee.nama,
+        jumlahUang: payrollLine.neto,
+        untukPembayaran: `Gaji Karyawan ${employee.nama} untuk periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`,
+        namaPembayar: 'PT. GLOBAL LESTARI ALAM',
+        nomorRekening: employee.bankAccount || '',
+        namaRekening: employee.nama,
+        bankName: employee.bankName || 'BRI',
+        transferMethod: 'Transfer ke rekening',
+        tempat: 'Sawahlunto',
+        tanggalKwitansi,
+        signatureName: 'ATIKA DEWI SURYANI',
+        signaturePosition: 'Accounting',
+        materai: '',
+        payrollRunId: payrollRun.id,
+        payrollLineId: payrollLine.id,
+        employeeId: employee.id,
+        createdBy: payrollRun.createdBy
+      }
+    })
   }
 }

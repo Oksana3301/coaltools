@@ -5,14 +5,19 @@ import { z } from 'zod'
 // Schema untuk validasi input employee
 const employeeSchema = z.object({
   nama: z.string().min(1, 'Nama wajib diisi'),
+  nik: z.string().optional(),
   jabatan: z.string().min(1, 'Jabatan wajib diisi'),
   site: z.string().min(1, 'Site wajib diisi'),
+  tempatLahir: z.string().optional(),
+  tanggalLahir: z.string().optional(),
+  alamat: z.string().optional(),
   kontrakUpahHarian: z.number().min(0, 'Upah harian harus positif'),
   defaultUangMakan: z.number().min(0, 'Uang makan harus positif'),
   defaultUangBbm: z.number().min(0, 'Uang BBM harus positif'),
   bankName: z.string().optional(),
   bankAccount: z.string().optional(),
   npwp: z.string().optional(),
+  startDate: z.string().optional(),
   aktif: z.boolean().default(true)
 })
 
@@ -40,6 +45,7 @@ export async function GET(request: NextRequest) {
       ...(search && {
         OR: [
           { nama: { contains: search, mode: 'insensitive' as const } },
+          { nik: { contains: search, mode: 'insensitive' as const } },
           { jabatan: { contains: search, mode: 'insensitive' as const } },
           { site: { contains: search, mode: 'insensitive' as const } }
         ]
