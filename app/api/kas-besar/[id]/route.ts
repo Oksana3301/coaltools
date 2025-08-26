@@ -1,0 +1,123 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getPrismaClient } from '@/lib/db'
+import { z } from 'zod'
+
+const StatusUpdateSchema = z.object({
+  status: z.enum(['DRAFT', 'SUBMITTED', 'REVIEWED', 'APPROVED', 'ARCHIVED', 'REJECTED']),
+  approvalNotes: z.string().optional(),
+  approvedBy: z.string().optional()
+})
+
+// GET - Ambil data kas besar by ID
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const expense = await prisma.kasBesarExpense.findUnique({
+      where: { id: params.id },
+      include: {
+        creator: {
+          select: { id: true, name: true, email: true }
+        },
+        approver: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    })
+
+    if (!expense) {
+      return NextResponse.json(
+        { success: false, error: 'Data kas besar tidak ditemukan' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: expense
+    })
+  } catch (error) {
+    console.error('Error fetching kas besar:', error)
+    return NextResponse.json(
+      { success: false, error: 'Gagal mengambil data kas besar' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Update status kas besar (untuk approval workflow)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const body = await request.json()
+    const validatedData = StatusUpdateSchema.parse(body)
+
+    // Get old data for audit
+    const oldExpense = await prisma.kasBesarExpense.findUnique({
+      where: { id: params.id }
+    })
+
+    if (!oldExpense) {
+      return NextResponse.json(
+        { success: false, error: 'Data kas besar tidak ditemukan' },
+        { status: 404 }
+      )
+    }
+
+    // Update status
+    const expense = await prisma.kasBesarExpense.update({
+      where: { id: params.id },
+      data: {
+        status: validatedData.status,
+        approvalNotes: validatedData.approvalNotes,
+        approvedBy: validatedData.approvedBy
+      },
+      include: {
+        creator: {
+          select: { id: true, name: true, email: true }
+        },
+        approver: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    })
+
+    // Log audit
+    await prisma.auditLog.create({
+      data: {
+        action: validatedData.status === 'APPROVED' ? 'APPROVE' : 'UPDATE',
+        tableName: 'kas_besar_expenses',
+        recordId: params.id,
+        oldValues: oldExpense,
+        newValues: expense,
+        userId: validatedData.approvedBy || oldExpense.createdBy
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: expense,
+      message: `Status berhasil diubah menjadi ${validatedData.status}`
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Data tidak valid', 
+          details: error.errors 
+        },
+        { status: 400 }
+      )
+    }
+
+    console.error('Error updating status:', error)
+    return NextResponse.json(
+      { success: false, error: 'Gagal memperbarui status' },
+      { status: 500 }
+    )
+  }
+}

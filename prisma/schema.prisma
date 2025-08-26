@@ -1,0 +1,328 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String             @id @default(cuid())
+  name                 String
+  email                String             @unique
+  password             String
+  role                 String             @default("user")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  approvedTransactions KasBesarExpense[]  @relation("ApprovedBy")
+  kasBesarExpenses     KasBesarExpense[]
+  kasKecilExpenses     KasKecilExpense[]
+  login_activities     login_activities[]
+  approvedPayrolls     PayrollRun[]       @relation("PayrollApprovedBy")
+  payrollRuns          PayrollRun[]
+  approvedProductions  ProductionReport[] @relation("ProductionApprovedBy")
+  productionReports    ProductionReport[] @relation("ProductionCreatedBy")
+
+  @@map("users")
+}
+
+model KasBesarExpense {
+  id            String    @id @default(cuid())
+  hari          String
+  tanggal       String
+  bulan         String
+  tipeAktivitas String    @map("tipe_aktivitas")
+  barang        String
+  banyak        Float
+  satuan        String
+  hargaSatuan   Float     @map("harga_satuan")
+  total         Float
+  vendorNama    String    @map("vendor_nama")
+  vendorTelp    String?   @map("vendor_telp")
+  vendorEmail   String?   @map("vendor_email")
+  jenis         String    @default("kas_besar")
+  subJenis      String    @map("sub_jenis")
+  buktiUrl      String?   @map("bukti_url")
+  kontrakUrl    String?   @map("kontrak_url")
+  status        Status    @default(DRAFT)
+  notes         String?
+  approvalNotes String?   @map("approval_notes")
+  createdBy     String
+  approvedBy    String?   @map("approved_by")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? @map("deleted_at")
+  approver      User?     @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  creator       User      @relation(fields: [createdBy], references: [id])
+
+  @@map("kas_besar_expenses")
+}
+
+model KasKecilExpense {
+  id            String    @id @default(cuid())
+  hari          String
+  tanggal       String
+  bulan         String
+  tipeAktivitas String    @map("tipe_aktivitas")
+  barang        String
+  banyak        Float
+  satuan        String
+  hargaSatuan   Float     @map("harga_satuan")
+  total         Float
+  vendorNama    String    @map("vendor_nama")
+  vendorTelp    String?   @map("vendor_telp")
+  vendorEmail   String?   @map("vendor_email")
+  jenis         String    @default("kas_kecil")
+  subJenis      String    @map("sub_jenis")
+  buktiUrl      String?   @map("bukti_url")
+  status        Status    @default(DRAFT)
+  notes         String?
+  approvalNotes String?   @map("approval_notes")
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? @map("deleted_at")
+  creator       User      @relation(fields: [createdBy], references: [id])
+
+  @@map("kas_kecil_expenses")
+}
+
+model Employee {
+  id                String             @id @default(cuid())
+  nama              String
+  jabatan           String
+  site              String
+  kontrakUpahHarian Float              @map("kontrak_upah_harian")
+  defaultUangMakan  Float              @map("default_uang_makan")
+  defaultUangBbm    Float              @map("default_uang_bbm")
+  bankName          String?            @map("bank_name")
+  bankAccount       String?            @map("bank_account")
+  npwp              String?
+  aktif             Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  attendanceRecords AttendanceRecord[]
+  payrollLines      PayrollLine[]
+
+  @@map("employees")
+}
+
+model PayComponent {
+  id                    String                 @id @default(cuid())
+  nama                  String
+  tipe                  PayComponentType
+  taxable               Boolean                @default(false)
+  metode                PayComponentMethod
+  basis                 PayComponentBasis
+  rate                  Float?
+  nominal               Float?
+  capMin                Float?                 @map("cap_min")
+  capMax                Float?                 @map("cap_max")
+  order                 Int                    @default(0)
+  aktif                 Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  payrollLineComponents PayrollLineComponent[]
+
+  @@map("pay_components")
+}
+
+model AttendanceRecord {
+  id            String           @id @default(cuid())
+  employeeId    String           @map("employee_id")
+  tanggal       String
+  clockIn       String?          @map("clock_in")
+  clockOut      String?          @map("clock_out")
+  breakStart    String?          @map("break_start")
+  breakEnd      String?          @map("break_end")
+  totalHours    Float            @map("total_hours")
+  status        AttendanceStatus
+  overtimeHours Float            @default(0) @map("overtime_hours")
+  notes         String?
+  approvedBy    String?          @map("approved_by")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_records")
+}
+
+model PayrollRun {
+  id           String        @id @default(cuid())
+  periodeAwal  String        @map("periode_awal")
+  periodeAkhir String        @map("periode_akhir")
+  status       PayrollStatus @default(DRAFT)
+  createdBy    String        @map("created_by")
+  approvedBy   String?       @map("approved_by")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  payrollLines PayrollLine[]
+  approver     User?         @relation("PayrollApprovedBy", fields: [approvedBy], references: [id])
+  creator      User          @relation(fields: [createdBy], references: [id])
+
+  @@map("payroll_runs")
+}
+
+model PayrollLine {
+  id              String                 @id @default(cuid())
+  payrollRunId    String                 @map("payroll_run_id")
+  employeeId      String                 @map("employee_id")
+  employeeName    String                 @map("employee_name")
+  hariKerja       Int                    @map("hari_kerja")
+  upahHarian      Float                  @map("upah_harian")
+  uangMakanHarian Float                  @map("uang_makan_harian")
+  uangBbmHarian   Float                  @map("uang_bbm_harian")
+  bruto           Float
+  pajakRate       Float?                 @map("pajak_rate")
+  pajakNominal    Float?                 @map("pajak_nominal")
+  potonganLain    Float?                 @map("potongan_lain")
+  neto            Float
+  status          PayrollStatus          @default(DRAFT)
+  notes           String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  components      PayrollLineComponent[]
+  employee        Employee               @relation(fields: [employeeId], references: [id])
+  payrollRun      PayrollRun             @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+
+  @@map("payroll_lines")
+}
+
+model PayrollLineComponent {
+  id            String       @id @default(cuid())
+  payrollLineId String       @map("payroll_line_id")
+  componentId   String       @map("component_id")
+  componentName String       @map("component_name")
+  qty           Float?
+  rate          Float?
+  nominal       Float?
+  amount        Float
+  taxable       Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  payComponent  PayComponent @relation(fields: [componentId], references: [id])
+  payrollLine   PayrollLine  @relation(fields: [payrollLineId], references: [id], onDelete: Cascade)
+
+  @@map("payroll_line_components")
+}
+
+model ProductionReport {
+  id          String           @id @default(cuid())
+  tanggal     String
+  nopol       String
+  pembeliId   String?          @map("pembeli_id")
+  pembeliNama String           @map("pembeli_nama")
+  tujuan      String
+  grossTon    Float            @map("gross_ton")
+  tareTon     Float            @map("tare_ton")
+  nettoTon    Float            @map("netto_ton")
+  sourceFile  String?          @map("source_file")
+  notes       String?
+  status      ProductionStatus @default(DRAFT)
+  createdBy   String           @map("created_by")
+  approvedBy  String?          @map("approved_by")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?        @map("deleted_at")
+  approver    User?            @relation("ProductionApprovedBy", fields: [approvedBy], references: [id])
+  creator     User             @relation("ProductionCreatedBy", fields: [createdBy], references: [id])
+  buyer       Buyer?           @relation(fields: [pembeliId], references: [id])
+
+  @@map("production_reports")
+}
+
+model Buyer {
+  id                 String             @id @default(cuid())
+  nama               String
+  hargaPerTonDefault Float?             @map("harga_per_ton_default")
+  alamat             String?
+  telepon            String?
+  email              String?
+  npwp               String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  aktif              Boolean            @default(true)
+  productionReports  ProductionReport[]
+
+  @@map("buyers")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  tableName String   @map("table_name")
+  recordId  String   @map("record_id")
+  oldValues Json?    @map("old_values")
+  newValues Json?    @map("new_values")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model login_activities {
+  id         String      @id
+  user_id    String
+  email      String
+  ip_address String?
+  user_agent String?
+  status     LoginStatus @default(SUCCESS)
+  createdAt  DateTime    @default(now())
+  users      User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+enum Status {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  ARCHIVED
+  REJECTED
+}
+
+enum PayComponentType {
+  EARNING
+  DEDUCTION
+}
+
+enum PayComponentMethod {
+  FLAT
+  PER_HARI
+  PERSENTASE
+}
+
+enum PayComponentBasis {
+  UPAH_HARIAN
+  BRUTO
+  HARI_KERJA
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  SICK
+  LEAVE
+}
+
+enum PayrollStatus {
+  DRAFT
+  REVIEWED
+  APPROVED
+  PAID
+  ARCHIVED
+}
+
+enum ProductionStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  ARCHIVED
+}
+
+enum LoginStatus {
+  SUCCESS
+  FAILED
+  LOCKED
+}
