@@ -2,29 +2,30 @@ import * as functions from 'firebase-functions';
 import { parse } from 'url';
 import next from 'next';
 import * as dotenv from 'dotenv';
-import { testDatabaseConnection } from './db-test';
 
-// Load environment variables
+// Load environment variables from .env file
 dotenv.config();
 
-// Set environment variables for Supabase connection
-process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:MySecurePass123!@db.renoqjwuvdtesblmucax.supabase.co:5432/postgres";
-process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "kas-besar-secret-key-2024";
-process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL || "https://coaltools.web.app";
+// Set environment variables for Supabase connection with proper fallbacks
+const databaseUrl = process.env.DATABASE_URL || 
+  "postgresql://postgres:MySecurePass123!@db.renoqjwuvdtesblmucax.supabase.co:5432/postgres?sslmode=require";
 
-// Log database connection status for debugging
-console.log('Database URL configured:', process.env.DATABASE_URL ? 'Yes' : 'No');
-console.log('NextAuth Secret configured:', process.env.NEXTAUTH_SECRET ? 'Yes' : 'No');
-console.log('NextAuth URL configured:', process.env.NEXTAUTH_URL ? 'Yes' : 'No');
+const nextAuthSecret = process.env.NEXTAUTH_SECRET || 
+  "kas-besar-secret-key-2024";
 
-// Test database connection on function initialization
-testDatabaseConnection().then(result => {
-  if (result.success) {
-    console.log('🎉 Supabase database connection verified successfully!');
-  } else {
-    console.error('❌ Supabase database connection failed:', result.error);
-  }
-});
+const nextAuthUrl = process.env.NEXTAUTH_URL || 
+  "https://coaltools.web.app";
+
+// Set environment variables for Next.js
+process.env.DATABASE_URL = databaseUrl;
+process.env.NEXTAUTH_SECRET = nextAuthSecret;
+process.env.NEXTAUTH_URL = nextAuthUrl;
+
+// Log configuration status for debugging
+console.log('🔧 Firebase Function Configuration:');
+console.log('Database URL configured:', databaseUrl ? '✅ Yes' : '❌ No');
+console.log('NextAuth Secret configured:', nextAuthSecret ? '✅ Yes' : '❌ No');
+console.log('NextAuth URL configured:', nextAuthUrl ? '✅ Yes' : '❌ No');
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -36,13 +37,18 @@ const handle = app.getRequestHandler();
 
 export const nextjs = functions.https.onRequest(async (req, res) => {
   try {
-    await app.prepare();
+    // Log request for debugging
+    console.log(`🌐 Request: ${req.method} ${req.url}`);
     
+    // Parse the URL
     const parsedUrl = parse(req.url!, true);
+    
+    // Let Next.js handle the request
     await handle(req, res, parsedUrl);
-  } catch (err) {
-    console.error('Error occurred handling', req.url, err);
-    res.statusCode = 500;
-    res.end('internal server error');
+    
+    console.log(`✅ Request handled successfully: ${req.method} ${req.url}`);
+  } catch (error) {
+    console.error('❌ Error handling request:', error);
+    res.status(500).send('Internal Server Error');
   }
 });
