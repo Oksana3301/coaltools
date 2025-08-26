@@ -802,6 +802,9 @@ export default function InvoicePage() {
           </p>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Form */}
+          <div className="space-y-6">
             {/* Header Upload Card */}
             <Card className="border-2 border-green-200 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-200">
@@ -869,8 +872,6 @@ export default function InvoicePage() {
                 )}
               </CardContent>
             </Card>
-          {/* Form */}
-          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Detail Invoice</CardTitle>
