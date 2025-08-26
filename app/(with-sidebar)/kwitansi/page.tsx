@@ -79,7 +79,8 @@ export default function KwitansiPage() {
     bankName: "BRI",
     transferMethod: "Di Transfer ke rekening",
     signatureName: "ATIKA DEWI SURYANI",
-    signaturePosition: "Accounting"
+    signaturePosition: "Accounting",
+    materai: ""
   })
 
   const [headerImage, setHeaderImage] = useState<string | null>(null)
@@ -338,6 +339,13 @@ export default function KwitansiPage() {
             color: black;
             font-weight: 500;
           }
+          .amount-words-value {
+            font-size: 13px;
+            text-decoration: underline;
+            padding: 0 3px;
+            color: black;
+            font-weight: bold;
+          }
           .bottom-section {
             display: flex;
             justify-content: space-between;
@@ -349,8 +357,8 @@ export default function KwitansiPage() {
             padding: 12px 15px;
             font-weight: bold;
             font-size: 14px;
-            color: white;
-            background: black;
+            color: black;
+            background: white;
             min-width: 150px;
             text-align: center;
           }
@@ -360,8 +368,14 @@ export default function KwitansiPage() {
           }
           .place-date {
             font-size: 13px;
-            margin-bottom: 50px;
+            margin-bottom: 20px;
             color: #374151;
+          }
+          .materai-section {
+            font-size: 12px;
+            margin-bottom: 60px;
+            color: #374151;
+            min-height: 50px;
           }
           .signature-name {
             font-size: 13px;
@@ -419,7 +433,7 @@ export default function KwitansiPage() {
           
           <div class="amount-words">
             <span class="field-label">Uang sejumlah </span>
-            <span class="field-value"># ${getAmountInWords()}</span>
+            <span class="amount-words-value"># ${getAmountInWords()}</span>
           </div>
           
           <div class="payment-purpose">
@@ -443,6 +457,7 @@ export default function KwitansiPage() {
             
                           <div class="signature-section">
                 <div class="place-date">${formData.tempat}, ${formData.tanggalKwitansi}</div>
+                ${formData.materai ? `<div class="materai-section">Materai: ${formData.materai}</div>` : '<div class="materai-section"></div>'}
                 <div class="signature-line"></div>
                 <div class="signature-name">${formData.signatureName}</div>
                 <div class="signature-title">${formData.signaturePosition}</div>
@@ -488,7 +503,7 @@ export default function KwitansiPage() {
 
     toast({
       title: "Kwitansi berhasil dibuat",
-      description: `Kwitansi telah di-generate dengan nama: ${filename}`
+      description: `Kwitansi telah dibuat dengan nama: ${filename}`
     })
   }
 
@@ -681,6 +696,14 @@ export default function KwitansiPage() {
             font-weight: 500;
           }
           
+          .amount-words-value {
+            font-size: 13px;
+            text-decoration: underline;
+            padding: 0 3px;
+            color: black;
+            font-weight: bold;
+          }
+          
           .bottom-section {
             display: flex;
             justify-content: space-between;
@@ -691,13 +714,13 @@ export default function KwitansiPage() {
           
           .amount-box {
             border: 2px solid black;
+            min-width: 150px;
+            text-align: center;
             padding: 12px 15px;
             font-weight: bold;
             font-size: 14px;
-            color: white;
-            background: black;
-            min-width: 150px;
-            text-align: center;
+            color: black;
+            background: white;
           }
           
           .signature-section {
@@ -707,8 +730,15 @@ export default function KwitansiPage() {
           
           .place-date {
             font-size: 13px;
-            margin-bottom: 50px;
+            margin-bottom: 20px;
             color: #374151;
+          }
+          
+          .materai-section {
+            font-size: 12px;
+            margin-bottom: 60px;
+            color: #374151;
+            min-height: 50px;
           }
           
           .signature-name {
@@ -782,7 +812,7 @@ export default function KwitansiPage() {
       <body>
         <div class="controls">
           <button class="btn btn-close" onclick="window.close()">✕ Tutup</button>
-          <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
+          <button class="btn btn-print" onclick="window.print()">🖨️ Cetak</button>
         </div>
         
         <div class="kwitansi-container">
@@ -814,7 +844,7 @@ export default function KwitansiPage() {
             
             <div class="amount-words">
               <span class="field-label">Uang sejumlah </span>
-              <span class="field-value"># ${getAmountInWords()}</span>
+              <span class="amount-words-value"># ${getAmountInWords()}</span>
             </div>
             
             <div class="payment-purpose">
@@ -838,6 +868,7 @@ export default function KwitansiPage() {
               
               <div class="signature-section">
                 <div class="place-date">${formData.tempat}, ${formData.tanggalKwitansi}</div>
+                ${formData.materai ? `<div class="materai-section">Materai: ${formData.materai}</div>` : '<div class="materai-section"></div>'}
                 <div class="signature-line"></div>
                 <div class="signature-name">${formData.signatureName}</div>
                 <div class="signature-title">${formData.signaturePosition}</div>
@@ -877,8 +908,8 @@ export default function KwitansiPage() {
     previewWindow.document.title = filename
     
     toast({
-      title: "Preview Dibuka",
-      description: `Preview kwitansi telah dibuka di tab baru dengan nama: ${filename}`
+      title: "Pratinjau Dibuka",
+      description: `Pratinjau kwitansi telah dibuka di tab baru dengan nama: ${filename}`
     })
   }
 
@@ -888,7 +919,7 @@ export default function KwitansiPage() {
         
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <a href="/business-tools" className="hover:text-primary">Business Tools</a>
+          <a href="/business-tools" className="hover:text-primary">Alat Bisnis</a>
           <span>/</span>
           <span className="text-primary">Generator Kwitansi</span>
         </div>
@@ -921,7 +952,7 @@ export default function KwitansiPage() {
                   Header Generator
                 </CardTitle>
                 <CardDescription className="text-blue-600">
-                  Upload header image untuk kwitansi Anda
+                  Unggah gambar header untuk kwitansi Anda
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -932,8 +963,8 @@ export default function KwitansiPage() {
                         <Building2 className="h-8 w-8 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-lg font-medium text-gray-900">Upload Header Image</p>
-                        <p className="text-sm text-gray-500">PNG, JPG, SVG up to 2MB</p>
+                        <p className="text-lg font-medium text-gray-900">Unggah Gambar Header</p>
+                        <p className="text-sm text-gray-500">PNG, JPG, SVG maksimal 2MB</p>
                       </div>
                       <input
                         type="file"
@@ -954,7 +985,7 @@ export default function KwitansiPage() {
                   <div className="space-y-4">
                     <div className="border rounded-lg p-4 bg-gray-50">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-700">Header Preview:</span>
+                        <span className="text-sm font-medium text-gray-700">Pratinjau Header:</span>
                         <Button
                           onClick={removeHeader}
                           variant="outline"
@@ -962,7 +993,7 @@ export default function KwitansiPage() {
                           className="text-red-600 hover:text-red-700"
                         >
                           <X className="h-4 w-4 mr-1" />
-                          Remove
+                          Hapus
                         </Button>
                       </div>
                       <div className="w-full bg-white border rounded overflow-hidden" style={{ height: '103px' }}>
@@ -1065,7 +1096,7 @@ export default function KwitansiPage() {
                       onClick={() => setShowBankDetails(!showBankDetails)}
                       className="text-blue-600 hover:text-blue-700"
                     >
-                      {showBankDetails ? 'Hide Details' : 'Show Details'}
+                      {showBankDetails ? 'Sembunyikan Detail' : 'Tampilkan Detail'}
                     </Button>
                   </div>
                   
@@ -1074,15 +1105,15 @@ export default function KwitansiPage() {
                       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-200 pb-3">
                         <CardTitle className="flex items-center gap-2 text-sm text-blue-800">
                           <CreditCard className="h-4 w-4" />
-                          Bank Transfer Information
+                          Informasi Transfer Bank
                         </CardTitle>
                         <CardDescription className="text-blue-600 text-xs">
-                          Format: "[TRANSFER METHOD] Bank [BANK]_Nomor Rekening : [NOMOR] A/n [NAMA]"
+                          Format: "[METODE TRANSFER] Bank [BANK]_Nomor Rekening : [NOMOR] A/n [NAMA]"
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4 pt-4">
                         <div>
-                          <Label htmlFor="transferMethod" className="text-sm font-medium">Transfer Method / Wording</Label>
+                          <Label htmlFor="transferMethod" className="text-sm font-medium">Metode Transfer / Kata-kata</Label>
                           <Input
                             id="transferMethod"
                             value={formData.transferMethod}
@@ -1091,7 +1122,7 @@ export default function KwitansiPage() {
                             className="mt-1"
                           />
                           <div className="text-xs text-gray-500 mt-1">
-                            Examples: "Di Transfer ke rekening", "Dibayar melalui transfer", "Dikirim ke rekening", "Disetor ke"
+                            Contoh: "Di Transfer ke rekening", "Dibayar melalui transfer", "Dikirim ke rekening", "Disetor ke"
                           </div>
                         </div>
                         
@@ -1131,7 +1162,7 @@ export default function KwitansiPage() {
                         
                         {/* Preview of how it will appear */}
                         <div className="p-3 bg-gray-50 rounded-lg border">
-                          <Label className="text-xs font-medium text-gray-700 mb-2">Preview:</Label>
+                          <Label className="text-xs font-medium text-gray-700 mb-2">Pratinjau:</Label>
                           <div className="text-sm text-gray-800">
                             {formData.transferMethod || 'Di Transfer ke rekening'} Bank {formData.bankName || 'BRI'}_Nomor Rekening : {formData.nomorRekening || '0058-0100-4963-562'} A/n {formData.namaRekening || 'AZHAR LATIF'}
                           </div>
@@ -1164,14 +1195,14 @@ export default function KwitansiPage() {
 
                  {/* Signature Information */}
                  <div className="space-y-2">
-                   <Label className="text-sm font-medium">Signature Information</Label>
+                   <Label className="text-sm font-medium">Informasi Tanda Tangan</Label>
                    <div className="p-3 bg-gray-50 rounded-lg border">
                      <div className="text-xs text-gray-600 mb-2">
-                       Fill in the signature details that will appear at the bottom of the kwitansi
+                       Isi detail tanda tangan yang akan muncul di bagian bawah kwitansi
                      </div>
                      <div className="grid grid-cols-1 gap-2">
                        <div>
-                         <Label htmlFor="signatureName" className="text-xs">Name of Signature</Label>
+                         <Label htmlFor="signatureName" className="text-xs">Nama Tanda Tangan</Label>
                          <Input
                            id="signatureName"
                            value={formData.signatureName}
@@ -1180,11 +1211,11 @@ export default function KwitansiPage() {
                            className="h-8 text-xs"
                          />
                          <div className="text-xs text-gray-500 mt-1">
-                           Current: Atika Dewi Suryani
+                           Saat ini: Atika Dewi Suryani
                          </div>
                        </div>
                        <div>
-                         <Label htmlFor="signaturePosition" className="text-xs">Position of the Person</Label>
+                         <Label htmlFor="signaturePosition" className="text-xs">Jabatan Orang</Label>
                          <Input
                            id="signaturePosition"
                            value={formData.signaturePosition}
@@ -1193,7 +1224,20 @@ export default function KwitansiPage() {
                            className="h-8 text-xs"
                          />
                          <div className="text-xs text-gray-500 mt-1">
-                           Current: Accounting
+                           Saat ini: Accounting
+                         </div>
+                       </div>
+                       <div>
+                         <Label htmlFor="materai" className="text-xs">Materai (Opsional)</Label>
+                         <Input
+                           id="materai"
+                           value={formData.materai}
+                           onChange={(e) => handleInputChange('materai', e.target.value)}
+                           placeholder="Rp 10.000"
+                           className="h-8 text-xs"
+                         />
+                         <div className="text-xs text-gray-500 mt-1">
+                           Kosongkan jika tidak diperlukan materai
                          </div>
                        </div>
                      </div>
@@ -1205,11 +1249,11 @@ export default function KwitansiPage() {
                    <Label className="text-sm font-medium">Bukti Transfer & Nota</Label>
                    <div className="p-3 bg-gray-50 rounded-lg border">
                      <div className="text-xs text-gray-600 mb-2">
-                       Upload bukti transfer dan nota (maksimal 10 file)
+                       Unggah bukti transfer dan nota (maksimal 10 file)
                      </div>
                      <div className="space-y-3">
                        <div>
-                         <Label htmlFor="transfer-proofs" className="text-xs">Upload Bukti Transfer/Nota</Label>
+                         <Label htmlFor="transfer-proofs" className="text-xs">Unggah Bukti Transfer/Nota</Label>
                          <Input
                            id="transfer-proofs"
                            type="file"
@@ -1225,7 +1269,7 @@ export default function KwitansiPage() {
                        
                        {transferProofs.length > 0 && (
                          <div className="space-y-2">
-                           <Label className="text-xs">File yang diupload ({transferProofs.length}/10):</Label>
+                           <Label className="text-xs">File yang diunggah ({transferProofs.length}/10):</Label>
                            <div className="grid grid-cols-2 gap-2">
                              {transferProofs.map((proof, index) => (
                                <div key={index} className="relative border rounded p-2">
@@ -1284,7 +1328,7 @@ export default function KwitansiPage() {
                   Preview Kwitansi
                 </CardTitle>
                 <CardDescription className="text-gray-600">
-                  Tampilan kwitansi yang akan di-generate
+                  Tampilan kwitansi yang akan dibuat
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -1330,7 +1374,7 @@ export default function KwitansiPage() {
                     {/* Amount in Words */}
                     <div className="mb-4">
                       <span className="text-base">Uang sejumlah </span>
-                      <span className="text-base underline px-2">#{getAmountInWords()}</span>
+                      <span className="text-base underline px-2 font-bold text-black">#{getAmountInWords()}</span>
                     </div>
 
                     {/* Payment Purpose */}
@@ -1353,13 +1397,15 @@ export default function KwitansiPage() {
                     {/* Amount Box and Signature */}
                     <div className="flex justify-between items-end">
                       {/* Amount Box */}
-                      <div className="border-4 border-black p-3 bg-black text-white">
+                      <div className="border-4 border-black p-3 bg-white text-black">
                         <span className="font-bold text-lg">Rp. {formatCurrency(formData.jumlahUang)}</span>
                       </div>
 
                       {/* Place, Date, and Signature */}
                                              <div className="text-right">
                          <p className="text-sm mb-2">{formData.tempat}, {formData.tanggalKwitansi}</p>
+                         {formData.materai && <p className="text-xs mb-6">Materai: {formData.materai}</p>}
+                         {!formData.materai && <div className="mb-6"></div>}
                          <div className="border-b border-black w-32 mb-1"></div>
                          <p className="text-sm font-semibold">{formData.signatureName}</p>
                          <p className="text-xs">{formData.signaturePosition}</p>
@@ -1379,10 +1425,10 @@ export default function KwitansiPage() {
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <FileText className="h-4 w-4 text-green-600" />
               </div>
-              Generated Filename Preview
+              Pratinjau Nama File
             </CardTitle>
             <CardDescription className="text-green-600">
-              This is the filename that will be used when you download the kwitansi
+              Ini adalah nama file yang akan digunakan saat Anda mengunduh kwitansi
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1398,7 +1444,7 @@ export default function KwitansiPage() {
         <div className="flex gap-4 mt-8">
           <Button onClick={() => openFullScreenPreview()} variant="outline" className="flex-1 h-12">
             <Eye className="h-4 w-4 mr-2" />
-            Preview Layar Penuh
+            Pratinjau Layar Penuh
           </Button>
           {transferProofs.length > 0 && (
             <Button 
@@ -1412,7 +1458,7 @@ export default function KwitansiPage() {
           )}
           <Button onClick={() => generateKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
             <Download className="h-4 w-4 mr-2" />
-            Generate PDF
+            Buat PDF
           </Button>
         </div>
 
