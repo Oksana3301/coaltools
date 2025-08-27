@@ -7,22 +7,17 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Firebase Functions configuration for API routes
-  // Keep server-side rendering for API routes
-  output: 'standalone',
-  // Disable image optimization if not needed
+  // Vercel deployment configuration
   images: {
     unoptimized: true,
   },
-  // Ensure proper routing for Firebase
-  trailingSlash: false,
-  // Configure server external packages
+  // Configure server external packages for Prisma
   serverExternalPackages: ['@prisma/client'],
   webpack: (config) => {
     config.externals = [...(config.externals || []), '@prisma/client']
     return config
   },
-  // Environment variables for Supabase
+  // Environment variables for Supabase (loaded from Vercel env vars)
   env: {
     DATABASE_URL: process.env.DATABASE_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
