@@ -14,6 +14,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const expense = await prisma.kasBesarExpense.findUnique({
       where: { id: id },
@@ -53,6 +58,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const body = await request.json()
     const validatedData = StatusUpdateSchema.parse(body)

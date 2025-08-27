@@ -7,6 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const expense = await prisma.kasKecilExpense.findFirst({
       where: {
@@ -47,6 +52,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const body = await request.json()
     
@@ -102,6 +112,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
@@ -138,6 +153,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const body = await request.json()
     

@@ -7,6 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
 
     const payrollRun = await prisma.payrollRun.findUnique({
@@ -81,6 +86,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
+    }
+    
     const { id } = await params
     const body = await request.json()
     const { status, approvedBy, notes } = body
