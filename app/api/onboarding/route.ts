@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
-const prisma = getPrismaClient()
+// Force this route to be dynamic to prevent build-time execution
+export const dynamic = 'force-dynamic'
 
-if (!prisma) {
-  throw new Error('Database connection not available')
+// Don't initialize Prisma at module level to avoid build-time issues
+let prismaInstance: ReturnType<typeof getPrismaClient> | null = null
+
+function getPrisma() {
+  if (!prismaInstance) {
+    prismaInstance = getPrismaClient()
+  }
+  return prismaInstance
 }
 
 // Validation schemas
@@ -42,6 +49,16 @@ const OnboardingSchema = z.object({
 // GET - Check onboarding status
 export async function GET(request: NextRequest) {
   try {
+    const prisma = getPrisma()
+    
+    // Early return if database is not available (during build time)
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database not available during build' },
+        { status: 503 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
 
@@ -91,6 +108,16 @@ export async function GET(request: NextRequest) {
 // POST - Submit onboarding data
 export async function POST(request: NextRequest) {
   try {
+    const prisma = getPrisma()
+    
+    // Early return if database is not available (during build time)
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database not available during build' },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
     const { userId } = body
 
