@@ -318,11 +318,11 @@ export default function InvoicePage() {
         </div>
         
         <div class="content">
-          <div class="title">FAKTUR</div>
+          <div class="title">INVOICE</div>
           
           <div class="invoice-info">
             <div>
-              <p><strong>Nomor Faktur:</strong> ${invoiceNumber || 'INV-001'}</p>
+              <p><strong>Nomor Invoice:</strong> ${invoiceNumber || 'INV-001'}</p>
               <p><strong>Tanggal Dibuat:</strong> ${createdDate || new Date().toLocaleDateString()}</p>
               <p><strong>Tanggal Jatuh Tempo:</strong> ${dueDate || 'Tidak ditentukan'}</p>
             </div>
@@ -429,8 +429,8 @@ export default function InvoicePage() {
       setTimeout(() => printWindow.print(), 500)
       
       toast({
-        title: "Faktur berhasil dibuat",
-        description: `Faktur telah di-generate dengan nama: ${filename}`
+        title: "Invoice berhasil dibuat",
+        description: `Invoice telah di-generate dengan nama: ${filename}`
       })
     }
   }
@@ -772,7 +772,7 @@ export default function InvoicePage() {
     
     toast({
       title: "Preview Dibuka",
-      description: `Preview faktur telah dibuka di tab baru dengan nama: ${filename}`
+      description: `Preview invoice telah dibuka di tab baru dengan nama: ${filename}`
     })
   }
 
