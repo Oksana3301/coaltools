@@ -24,6 +24,7 @@ model User {
   approvedProductions  ProductionReport[] @relation("ProductionApprovedBy")
   productionReports    ProductionReport[] @relation("ProductionCreatedBy")
   kwitansi            Kwitansi[]
+  runsProfile          RunsProfile?
 
   @@map("users")
 }
@@ -369,4 +370,74 @@ enum LoginStatus {
   SUCCESS
   FAILED
   LOCKED
+}
+
+model RunsProfile {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique @map("user_id")
+  orgId                     String?  @map("org_id")
+  fullName                  String   @map("full_name")
+  jobTitle                  String   @map("job_title")
+  preferredLang             String   @map("preferred_lang") // id|en|both
+  preferredFormats          String[] @map("preferred_formats") // whatsapp, pdf, excel
+  reminderChannel           String   @map("reminder_channel") // email|whatsapp|none
+  signatureName             String   @map("signature_name")
+  hasCompletedOnboarding    Boolean  @default(false) @map("has_completed_onboarding")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardingAnswers         OnboardingAnswers?
+  personalBest              PersonalBest[]
+
+  @@map("runs_profile")
+}
+
+model OnboardingAnswers {
+  id                    String      @id @default(cuid())
+  orgId                 String?     @map("org_id")
+  userId                String      @unique @map("user_id")
+  language              String      // id|en|both
+  reportFormats         Json        @map("report_formats") // jsonb array
+  commonExpenses        Json        @map("common_expenses") // jsonb array
+  budgetAlerts          Boolean     @map("budget_alerts")
+  monthlyTargetMt       Float?      @map("monthly_target_mt")
+  showTargetVsActual    Boolean     @map("show_target_vs_actual")
+  payrollModes          Json        @map("payroll_modes") // jsonb array
+  payrollComponents     Json        @map("payroll_components") // jsonb array
+  inputDevices          Json        @map("input_devices") // jsonb array
+  reminderChannel       String      @map("reminder_channel")
+  sampleReportFileId    String?     @map("sample_report_file_id")
+  allowCustomNotes      Boolean     @map("allow_custom_notes")
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  runsProfile           RunsProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("onboarding_answers")
+}
+
+model PersonalBest {
+  id              String      @id @default(cuid())
+  orgId           String?     @map("org_id")
+  userId          String      @map("user_id")
+  title           String
+  notes           String?
+  sampleFileId    String?     @map("sample_file_id")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  runsProfile     RunsProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("personal_best")
+}
+
+model Files {
+  id          String   @id @default(cuid())
+  filename    String
+  storagePath String   @map("storage_path")
+  fileSize    Int      @map("file_size")
+  mimeType    String   @map("mime_type")
+  uploadedBy  String   @map("uploaded_by")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("files")
 }

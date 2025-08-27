@@ -1,9 +1,31 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Activity, CreditCard, DollarSign, Users } from "lucide-react"
+import { OnboardingWizard } from "@/components/coal-tools/onboarding-wizard"
+import { useOnboarding } from "@/hooks/use-onboarding"
 
 export default function DashboardPage() {
+  // Mock user ID - in a real app, this would come from authentication
+  const [userId] = useState("mock-user-id") // Replace with actual user ID from auth context
+  const { hasCompletedOnboarding, isLoading, markCompleted } = useOnboarding(userId)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && !hasCompletedOnboarding) {
+      setShowOnboarding(true)
+    }
+  }, [isLoading, hasCompletedOnboarding])
+
+  const handleOnboardingComplete = () => {
+    markCompleted()
+    setShowOnboarding(false)
+  }
+
+  const handleOnboardingClose = () => {
+    setShowOnboarding(false)
+  }
   return (
     <div className="space-y-8">
       <div>
@@ -87,6 +109,15 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Onboarding Wizard */}
+      {showOnboarding && (
+        <OnboardingWizard
+          userId={userId}
+          onComplete={handleOnboardingComplete}
+          onClose={handleOnboardingClose}
+        />
+      )}
     </div>
   )
 }
