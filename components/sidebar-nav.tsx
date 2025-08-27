@@ -72,6 +72,12 @@ const navigation = [
         description: "Kalkulator gaji karyawan"
       },
       {
+        name: "Onboarding Demo",
+        href: "/onboarding-demo",
+        icon: Settings,
+        description: "Demo wizard onboarding"
+      },
+      {
         name: "Laporan Produksi",
         href: "/coal-tools-laporanproduksi",
         icon: TrendingUp,

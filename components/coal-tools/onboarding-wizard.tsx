@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,7 +24,10 @@ import {
   CheckCircle,
   ArrowLeft,
   ArrowRight,
-  Upload
+  Upload,
+  Loader2,
+  X,
+  Plus
 } from "lucide-react"
 
 interface OnboardingData {
@@ -113,6 +117,7 @@ const INPUT_DEVICES = [
 export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const { toast } = useToast()
 
   const [data, setData] = useState<OnboardingData>({
@@ -143,38 +148,74 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
   // Validation for each step
-  const isStepValid = (step: number): boolean => {
+  const validateStep = (step: number): { isValid: boolean; errors: Record<string, string> } => {
+    const stepErrors: Record<string, string> = {}
+
     switch (step) {
       case 1:
-        return data.runs_profile.full_name.length >= 2 && data.runs_profile.job_title !== ''
+        if (data.runs_profile.full_name.length < 2) {
+          stepErrors.full_name = 'Nama lengkap minimal 2 karakter'
+        }
+        if (!data.runs_profile.job_title) {
+          stepErrors.job_title = 'Pilih jabatan Anda'
+        }
+        break
       case 2:
-        return data.runs_profile.preferred_formats.length >= 1
+        if (data.runs_profile.preferred_formats.length < 1) {
+          stepErrors.preferred_formats = 'Pilih minimal 1 format laporan'
+        }
+        break
       case 3:
-        return data.onboarding_answers.common_expenses.length >= 1
+        if (data.onboarding_answers.common_expenses.length < 1) {
+          stepErrors.common_expenses = 'Pilih minimal 1 komponen biaya'
+        }
+        break
       case 4:
-        return true // Optional step
+        if (data.onboarding_answers.monthly_target_mt !== undefined && data.onboarding_answers.monthly_target_mt <= 0) {
+          stepErrors.monthly_target_mt = 'Target harus lebih dari 0'
+        }
+        break
       case 5:
-        return data.onboarding_answers.payroll_modes.length >= 1 && data.onboarding_answers.payroll_components.length >= 1
+        if (data.onboarding_answers.payroll_modes.length < 1) {
+          stepErrors.payroll_modes = 'Pilih minimal 1 pola gaji'
+        }
+        if (data.onboarding_answers.payroll_components.length < 1) {
+          stepErrors.payroll_components = 'Pilih minimal 1 komponen payroll'
+        }
+        break
       case 6:
-        return data.onboarding_answers.input_devices.length >= 1
+        if (data.onboarding_answers.input_devices.length < 1) {
+          stepErrors.input_devices = 'Pilih minimal 1 media input'
+        }
+        break
       case 7:
-        return true // Optional step
       case 8:
-        return true // Review step
+        break
       default:
-        return false
+        break
     }
+
+    return { isValid: Object.keys(stepErrors).length === 0, errors: stepErrors }
+  }
+
+  const isStepValid = (step: number): boolean => {
+    return validateStep(step).isValid
   }
 
   const handleNext = () => {
-    if (isStepValid(currentStep) && currentStep < 8) {
+    const validation = validateStep(currentStep)
+    setErrors(validation.errors)
+    
+    if (validation.isValid && currentStep < 8) {
       setCurrentStep(currentStep + 1)
+      setErrors({}) // Clear errors when moving to next step
     }
   }
 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+      setErrors({}) // Clear errors when going back
     }
   }
 
@@ -279,29 +320,56 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="fullName">Nama Lengkap *</Label>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="text-sm font-medium">
+                Nama Lengkap <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="fullName"
                 value={data.runs_profile.full_name}
-                onChange={(e) => setData(prev => ({
-                  ...prev,
-                  runs_profile: { ...prev.runs_profile, full_name: e.target.value }
-                }))}
+                onChange={(e) => {
+                  setData(prev => ({
+                    ...prev,
+                    runs_profile: { ...prev.runs_profile, full_name: e.target.value }
+                  }))
+                  // Clear error when user starts typing
+                  if (errors.full_name) {
+                    setErrors(prev => ({ ...prev, full_name: '' }))
+                  }
+                }}
                 placeholder="Masukkan nama lengkap Anda"
+                className={cn(
+                  "transition-colors",
+                  errors.full_name && "border-destructive focus-visible:ring-destructive"
+                )}
               />
+              {errors.full_name && (
+                <p className="text-sm text-destructive">{errors.full_name}</p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="jobTitle">Jabatan *</Label>
+            
+            <div className="space-y-2">
+              <Label htmlFor="jobTitle" className="text-sm font-medium">
+                Jabatan <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={data.runs_profile.job_title}
-                onValueChange={(value) => setData(prev => ({
-                  ...prev,
-                  runs_profile: { ...prev.runs_profile, job_title: value }
-                }))}
+                onValueChange={(value) => {
+                  setData(prev => ({
+                    ...prev,
+                    runs_profile: { ...prev.runs_profile, job_title: value }
+                  }))
+                  // Clear error when user selects
+                  if (errors.job_title) {
+                    setErrors(prev => ({ ...prev, job_title: '' }))
+                  }
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger className={cn(
+                  "transition-colors",
+                  errors.job_title && "border-destructive focus:ring-destructive"
+                )}>
                   <SelectValue placeholder="Pilih jabatan" />
                 </SelectTrigger>
                 <SelectContent>
@@ -310,9 +378,15 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
                   ))}
                 </SelectContent>
               </Select>
+              {errors.job_title && (
+                <p className="text-sm text-destructive">{errors.job_title}</p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="signatureName">Nama Tanda Tangan (opsional)</Label>
+            
+            <div className="space-y-2">
+              <Label htmlFor="signatureName" className="text-sm font-medium">
+                Nama Tanda Tangan <span className="text-muted-foreground">(opsional)</span>
+              </Label>
               <Input
                 id="signatureName"
                 value={data.runs_profile.signature_name}
@@ -322,20 +396,23 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
                 }))}
                 placeholder="Default: sama dengan nama lengkap"
               />
+              <p className="text-xs text-muted-foreground">
+                Nama yang akan muncul sebagai tanda tangan pada laporan
+              </p>
             </div>
           </div>
         )
 
       case 2:
         return (
-          <div className="space-y-4">
-            <div>
-              <Label>Bahasa Utama Laporan</Label>
-              <div className="flex gap-2 mt-2">
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Bahasa Utama Laporan</Label>
+              <div className="flex flex-wrap gap-2">
                 {[
-                  { value: 'id', label: 'Indonesia' },
-                  { value: 'en', label: 'English' },
-                  { value: 'both', label: 'Keduanya' }
+                  { value: 'id', label: 'Indonesia', icon: '🇮🇩' },
+                  { value: 'en', label: 'English', icon: '🇺🇸' },
+                  { value: 'both', label: 'Keduanya', icon: '🌐' }
                 ].map(lang => (
                   <Button
                     key={lang.value}
@@ -344,21 +421,32 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
                       ...prev,
                       runs_profile: { ...prev.runs_profile, preferred_lang: lang.value }
                     }))}
+                    className="flex items-center gap-2"
                   >
+                    <span>{lang.icon}</span>
                     {lang.label}
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Pilih bahasa yang akan digunakan untuk laporan yang dihasilkan
+              </p>
             </div>
-            <div>
-              <Label>Format Laporan *</Label>
-              <div className="grid grid-cols-3 gap-2 mt-2">
+            
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">
+                Format Laporan <span className="text-destructive">*</span>
+              </Label>
+              <div className={cn(
+                "grid grid-cols-1 gap-3 p-4 rounded-lg border",
+                errors.preferred_formats && "border-destructive"
+              )}>
                 {[
-                  { value: 'whatsapp', label: 'WhatsApp (ringkasan)' },
-                  { value: 'pdf', label: 'PDF (resmi)' },
-                  { value: 'excel', label: 'Excel (detail)' }
+                  { value: 'whatsapp', label: 'WhatsApp', description: 'Ringkasan untuk chat', icon: '💬' },
+                  { value: 'pdf', label: 'PDF', description: 'Dokumen resmi', icon: '📄' },
+                  { value: 'excel', label: 'Excel', description: 'Data detail untuk analisis', icon: '📊' }
                 ].map(format => (
-                  <div key={format.value} className="flex items-center space-x-2">
+                  <div key={format.value} className="flex items-start space-x-3 p-2 rounded-md hover:bg-muted/50 transition-colors">
                     <Checkbox
                       id={format.value}
                       checked={data.runs_profile.preferred_formats.includes(format.value)}
@@ -380,12 +468,29 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
                             }
                           }))
                         }
+                        // Clear error when user makes selection
+                        if (errors.preferred_formats) {
+                          setErrors(prev => ({ ...prev, preferred_formats: '' }))
+                        }
                       }}
+                      className="mt-1"
                     />
-                    <Label htmlFor={format.value} className="text-sm">{format.label}</Label>
+                    <div className="flex-1 min-w-0">
+                      <Label htmlFor={format.value} className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                        <span>{format.icon}</span>
+                        {format.label}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">{format.description}</p>
+                    </div>
                   </div>
                 ))}
               </div>
+              {errors.preferred_formats && (
+                <p className="text-sm text-destructive">{errors.preferred_formats}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Anda dapat memilih beberapa format sekaligus
+              </p>
             </div>
           </div>
         )
@@ -670,57 +775,110 @@ export function OnboardingWizard({ userId, onComplete, onClose }: OnboardingWiza
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
+        <CardHeader className="flex-shrink-0 border-b">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                {React.createElement(STEPS[currentStep - 1].icon, { className: "h-6 w-6" })}
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                {React.createElement(STEPS[currentStep - 1].icon, { 
+                  className: "h-6 w-6 text-primary" 
+                })}
                 {STEPS[currentStep - 1].title}
               </CardTitle>
-              <CardDescription>
-                Langkah {currentStep} dari {STEPS.length}
+              <CardDescription className="mt-1">
+                Langkah {currentStep} dari {STEPS.length} • Atur preferensi laporan Anda
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Tutup</span>
+            </Button>
           </div>
-          <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
+          
+          <div className="space-y-2 mt-4">
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Progress</span>
+              <span>{Math.round((currentStep / STEPS.length) * 100)}%</span>
+            </div>
+            <Progress value={(currentStep / STEPS.length) * 100} className="w-full h-2" />
+          </div>
+
+          {/* Step indicators */}
+          <div className="flex items-center justify-between mt-4">
+            {STEPS.map((step, index) => (
+              <div key={step.id} className="flex flex-col items-center flex-1">
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors",
+                  index + 1 < currentStep ? "bg-primary text-primary-foreground" :
+                  index + 1 === currentStep ? "bg-primary text-primary-foreground" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {index + 1 < currentStep ? 
+                    <CheckCircle className="h-4 w-4" /> : 
+                    index + 1
+                  }
+                </div>
+                <span className="text-xs text-muted-foreground mt-1 text-center hidden sm:block">
+                  {step.title}
+                </span>
+              </div>
+            ))}
+          </div>
         </CardHeader>
 
-        <CardContent>
-          <div className="mb-6">
+        <CardContent className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-2xl mx-auto">
             {renderStep()}
           </div>
+        </CardContent>
 
-          <div className="flex justify-between">
+        <div className="flex-shrink-0 border-t p-6">
+          <div className="flex justify-between items-center max-w-2xl mx-auto">
             <Button
               variant="outline"
               onClick={handleBack}
               disabled={currentStep === 1}
+              className="flex items-center gap-2"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="h-4 w-4" />
               Kembali
             </Button>
+
+            <div className="text-sm text-muted-foreground">
+              {currentStep} / {STEPS.length}
+            </div>
 
             {currentStep === 8 ? (
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
+                className="flex items-center gap-2 min-w-[120px]"
               >
-                {isSubmitting ? "Menyimpan..." : "Selesai"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Selesai
+                  </>
+                )}
               </Button>
             ) : (
               <Button
                 onClick={handleNext}
                 disabled={!isStepValid(currentStep)}
+                className="flex items-center gap-2 min-w-[120px]"
               >
                 Lanjut
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             )}
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )
