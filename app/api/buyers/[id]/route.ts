@@ -6,10 +6,10 @@ export const dynamic = "force-static"
 // GET - Ambil buyer berdasarkan ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const prisma = getPrismaClient()
 
     const buyer = await prisma.buyer.findUnique({
@@ -45,10 +45,10 @@ export async function GET(
 // PUT - Update buyer
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const prisma = getPrismaClient()
 
@@ -77,10 +77,10 @@ export async function PUT(
 // DELETE - Hapus buyer (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
     const prisma = getPrismaClient()

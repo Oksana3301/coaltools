@@ -4,12 +4,13 @@ import { getPrismaClient } from '@/lib/db'
 // GET - Fetch single kas kecil expense
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const expense = await prisma.kasKecilExpense.findFirst({
       where: {
-        id: params.id,
+        id: id,
         deletedAt: null
       },
       include: {
@@ -43,14 +44,15 @@ export async function GET(
 // PUT - Update kas kecil expense
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     const expense = await prisma.kasKecilExpense.update({
       where: {
-        id: params.id,
+        id: id,
         deletedAt: null
       },
       data: {
@@ -97,21 +99,22 @@ export async function PUT(
 // DELETE - Soft delete kas kecil expense
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
     
     if (hardDelete) {
       // Hard delete - completely remove from database
       await prisma.kasKecilExpense.delete({
-        where: { id: params.id }
+        where: { id: id }
       })
     } else {
       // Soft delete - set deletedAt timestamp
       await prisma.kasKecilExpense.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { deletedAt: new Date() }
       })
     }
@@ -132,14 +135,15 @@ export async function DELETE(
 // PATCH - Restore soft deleted expense
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     if (body.action === 'restore') {
       const expense = await prisma.kasKecilExpense.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { deletedAt: null },
         include: {
           creator: {

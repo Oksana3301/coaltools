@@ -11,11 +11,12 @@ const StatusUpdateSchema = z.object({
 // GET - Ambil data kas besar by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const expense = await prisma.kasBesarExpense.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         creator: {
           select: { id: true, name: true, email: true }
@@ -49,15 +50,16 @@ export async function GET(
 // PATCH - Update status kas besar (untuk approval workflow)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const validatedData = StatusUpdateSchema.parse(body)
 
     // Get old data for audit
     const oldExpense = await prisma.kasBesarExpense.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     if (!oldExpense) {
@@ -69,7 +71,7 @@ export async function PATCH(
 
     // Update status
     const expense = await prisma.kasBesarExpense.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: validatedData.status,
         approvalNotes: validatedData.approvalNotes,
@@ -90,7 +92,7 @@ export async function PATCH(
       data: {
         action: validatedData.status === 'APPROVED' ? 'APPROVE' : 'UPDATE',
         tableName: 'kas_besar_expenses',
-        recordId: params.id,
+        recordId: id,
         oldValues: oldExpense,
         newValues: expense,
         userId: validatedData.approvedBy || oldExpense.createdBy
