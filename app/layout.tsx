@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Business Tools - Generator Kwitansi & Invoice",
   description: "Generator kwitansi Indonesia profesional dan dokumentasi sistem manajemen invoice yang komprehensif",
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

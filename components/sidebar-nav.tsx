@@ -82,6 +82,12 @@ const navigation = [
         href: "/coal-tools-laporanproduksi",
         icon: TrendingUp,
         description: "Tracking produksi batu bara"
+      },
+      {
+        name: "Admin Status & Delete Test",
+        href: "/admin-status-test",
+        icon: Settings,
+        description: "Test status and delete button functionality"
       }
     ]
   },

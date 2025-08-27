@@ -52,6 +52,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Ensure user exists for demo purposes
+    await prisma.user.upsert({
+      where: { id: userId },
+      create: {
+        id: userId,
+        email: `${userId}@example.com`,
+        name: 'Demo User',
+        password: 'demo-password', // Demo password for onboarding flow
+      },
+      update: {},
+    })
+
     const runsProfile = await prisma.runsProfile.findUnique({
       where: { userId },
       include: {
@@ -94,6 +106,20 @@ export async function POST(request: NextRequest) {
 
     // Use transaction to ensure data consistency
     const result = await prisma.$transaction(async (tx) => {
+      // First, ensure the user exists (create if not exists for demo purposes)
+      await tx.user.upsert({
+        where: { id: userId },
+        create: {
+          id: userId,
+          email: `${userId}@example.com`,
+          name: validatedData.runs_profile.full_name,
+          password: 'demo-password', // Demo password for onboarding flow
+        },
+        update: {
+          name: validatedData.runs_profile.full_name,
+        },
+      })
+
       // Upsert runs_profile
       const runsProfile = await tx.runsProfile.upsert({
         where: { userId },
