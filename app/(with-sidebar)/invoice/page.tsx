@@ -398,21 +398,57 @@ export default function InvoicePage() {
         
         ${base64Files.length > 0 ? `
           <div style="margin-top: 30px; page-break-before: always;">
-            <div style="padding: 0 20px;">
-              <div style="text-align: center; font-size: 20px; font-weight: bold; text-decoration: underline; margin-bottom: 20px; color: black;">
+            <div style="padding: 15mm;">
+              <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; margin-bottom: 30px; color: black;">
                 BUKTI TRANSFER & NOTA
               </div>
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px;">
-                ${base64Files.map((proof, index) => `
-                  <div style="border: 1px solid #ddd; padding: 10px; text-align: center;">
-                    <div style="font-weight: bold; margin-bottom: 10px; color: #333;">
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; margin-top: 20px;">
+                ${base64Files.slice(0, 4).map((proof, index) => `
+                  <div style="border: 2px solid #333; padding: 15px; text-align: center; background-color: #fafafa; border-radius: 8px; min-height: 350px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="font-weight: bold; margin-bottom: 15px; color: #333; font-size: 16px; text-transform: uppercase;">
                       ${proof.title || `Bukti Transfer ${index + 1}`}
                     </div>
-                    <img src="${proof.base64}" alt="Bukti Transfer ${index + 1}" style="max-width: 100%; height: auto; max-height: 300px; object-fit: contain;" />
-                    ${proof.keterangan ? `<div style="margin-top: 10px; font-size: 12px; color: #666;">${proof.keterangan}</div>` : ''}
+                    <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                      <img src="${proof.base64}" alt="Bukti Transfer ${index + 1}" style="max-width: 100%; max-height: 280px; object-fit: contain; border: 1px solid #ccc; background-color: white; border-radius: 4px;" />
+                    </div>
+                    ${proof.keterangan ? `<div style="margin-top: 12px; font-size: 14px; color: #555; font-style: italic;">${proof.keterangan}</div>` : ''}
                   </div>
                 `).join('')}
               </div>
+              ${base64Files.length > 4 ? `
+                <div style="page-break-before: always; padding-top: 30px;">
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px;">
+                    ${base64Files.slice(4, 8).map((proof, index) => `
+                      <div style="border: 2px solid #333; padding: 15px; text-align: center; background-color: #fafafa; border-radius: 8px; min-height: 350px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div style="font-weight: bold; margin-bottom: 15px; color: #333; font-size: 16px; text-transform: uppercase;">
+                          ${proof.title || `Bukti Transfer ${index + 5}`}
+                        </div>
+                        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                          <img src="${proof.base64}" alt="Bukti Transfer ${index + 5}" style="max-width: 100%; max-height: 280px; object-fit: contain; border: 1px solid #ccc; background-color: white; border-radius: 4px;" />
+                        </div>
+                        ${proof.keterangan ? `<div style="margin-top: 12px; font-size: 14px; color: #555; font-style: italic;">${proof.keterangan}</div>` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              ${base64Files.length > 8 ? `
+                <div style="page-break-before: always; padding-top: 30px;">
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px;">
+                    ${base64Files.slice(8, 10).map((proof, index) => `
+                      <div style="border: 2px solid #333; padding: 15px; text-align: center; background-color: #fafafa; border-radius: 8px; min-height: 350px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div style="font-weight: bold; margin-bottom: 15px; color: #333; font-size: 16px; text-transform: uppercase;">
+                          ${proof.title || `Bukti Transfer ${index + 9}`}
+                        </div>
+                        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                          <img src="${proof.base64}" alt="Bukti Transfer ${index + 9}" style="max-width: 100%; max-height: 280px; object-fit: contain; border: 1px solid #ccc; background-color: white; border-radius: 4px;" />
+                        </div>
+                        ${proof.keterangan ? `<div style="margin-top: 12px; font-size: 14px; color: #555; font-style: italic;">${proof.keterangan}</div>` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </div>
           </div>
         ` : ''}
