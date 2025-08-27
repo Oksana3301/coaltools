@@ -7,9 +7,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Firebase Functions configuration
-  // Use standard build for Firebase Functions
-  // output: 'export', // Commented out - using Firebase Functions instead
+  // Firebase Functions configuration for API routes
+  // Keep server-side rendering for API routes
+  output: 'standalone',
   // Disable image optimization if not needed
   images: {
     unoptimized: true,
@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
   webpack: (config) => {
     config.externals = [...(config.externals || []), '@prisma/client']
     return config
+  },
+  // Environment variables for Supabase
+  env: {
+    DATABASE_URL: process.env.DATABASE_URL,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
 };
 
