@@ -1,0 +1,19 @@
+---
+description: reportgenerator
+alwaysApply: false
+---
+When the user logs in, select their org_id via memberships and scope all queries with it.
+
+On file upload to Supabase Storage, insert a row into files with org_id, uploaded_by, storage_path.
+
+When your AI importer finishes parsing the Excel/PDF, save:
+
+Raw JSON → ai_runs.output_json
+
+Tidy Bahasa Indonesia summary → ai_runs.output_summary
+
+Also write normalized rows to cashouts / production_reports / payroll_items.
+
+Respect onboarding_answers to decide output language (default id), formats (WhatsApp/PDF/Excel), and whether to include target vs actual.
+
+If you want, I can also generate example INSERT scripts to mirror the July PDFs you uploaded directly into cashouts, production_reports, and payroll_items.
