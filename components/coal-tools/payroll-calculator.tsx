@@ -310,14 +310,7 @@ export function PayrollCalculator() {
   const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
     if (checked) {
       // Check if we're already at the limit of 100 employees
-      if (selectedEmployees.length >= 100) {
-        toast({
-          title: "Batas maksimum tercapai",
-          description: "Maksimal 100 karyawan per periode payroll",
-          variant: "destructive"
-        })
-        return
-      }
+      // Removed employee limit - no maximum restriction
       
       const employee = employees.find(emp => emp.id === employeeId)
       if (employee) {
@@ -639,105 +632,318 @@ export function PayrollCalculator() {
   }
 
   // Generate PDF report
-  const generatePDFReport = () => {
-    if (!currentPayrollRun) return
+  // Generate comprehensive PDF reports with both laporan and kwitansi
+  const generatePayrollReports = async (type: 'both' | 'laporan' | 'kwitansi' = 'both') => {
+    if (!currentPayrollRun || selectedEmployees.length === 0) {
+      toast({
+        title: "Error",
+        description: "Tidak ada data payroll untuk digenerate",
+        variant: "destructive"
+      })
+      return
+    }
 
-    const htmlContent = `
+    try {
+      const summary = getPayrollSummary()
+      const calculations = summary.calculations
+
+      // Generate Laporan Payroll
+      if (type === 'both' || type === 'laporan') {
+        const laporanContent = generateLaporanHTML(currentPayrollRun, calculations, summary)
+        await generatePDF(laporanContent, `Laporan_Payroll_${currentPayrollRun.periodeAwal}_${currentPayrollRun.periodeAkhir}.pdf`)
+      }
+
+      // Generate Kwitansi for each employee
+      if (type === 'both' || type === 'kwitansi') {
+        await generateKwitansiPDFs(currentPayrollRun, calculations)
+      }
+
+      toast({
+        title: "Success",
+        description: `${type === 'both' ? 'Laporan dan Kwitansi' : type === 'laporan' ? 'Laporan' : 'Kwitansi'} berhasil digenerate`,
+        variant: "default"
+      })
+    } catch (error) {
+      toast({
+        title: "Error", 
+        description: "Gagal generate PDF",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const generateLaporanHTML = (payrollRun: PayrollRun, calculations: any[], summary: any) => {
+    const totalBruto = calculations.reduce((sum, calc) => sum + calc!.bruto, 0)
+    const totalDeductions = calculations.reduce((sum, calc) => sum + calc!.totalDeductions, 0)
+    const totalNeto = calculations.reduce((sum, calc) => sum + calc!.neto, 0)
+
+    return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Laporan Payroll - ${currentPayrollRun.periodeAwal} - ${currentPayrollRun.periodeAkhir}</title>
+        <title>Laporan Payroll - ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</title>
         <style>
-          @page { size: A4 portrait; margin: 20mm; }
-          body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 12px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-          .subtitle { font-size: 16px; color: #666; }
-          .period-info { margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background: #f2f2f2; font-weight: bold; }
-          .total-row { font-weight: bold; background: #f9f9f9; }
-          .kwitansi-section { page-break-before: always; margin-top: 30px; }
-          .kwitansi-title { font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 20px; }
+          @page { size: A4 portrait; margin: 15mm; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 11px; }
+          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+          .subtitle { font-size: 14px; color: #666; margin-bottom: 10px; }
+          .period-info { margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 5px; }
+          .summary-cards { display: flex; justify-content: space-between; margin-bottom: 15px; }
+          .summary-card { flex: 1; margin: 0 5px; padding: 10px; border: 1px solid #ddd; text-align: center; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 10px; }
+          th, td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+          th { background: #f2f2f2; font-weight: bold; font-size: 9px; }
+          .total-row { font-weight: bold; background: #e8f5e8; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .footer { margin-top: 30px; text-align: right; }
+          .signature-area { margin-top: 50px; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="title">LAPORAN PAYROLL</div>
+          <div class="title">LAPORAN PAYROLL KARYAWAN</div>
           <div class="subtitle">PT. GLOBAL LESTARI ALAM</div>
+          <div style="font-size: 12px;">Periode: ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</div>
         </div>
         
         <div class="period-info">
-          <strong>Periode:</strong> ${currentPayrollRun.periodeAwal} - ${currentPayrollRun.periodeAkhir}<br>
-          <strong>Status:</strong> ${currentPayrollRun.status}<br>
-          <strong>Total Karyawan:</strong> ${currentPayrollRun.payrollLines?.length || 0}
+          <strong>Status:</strong> ${payrollRun.status} | 
+          <strong>Total Karyawan:</strong> ${calculations.length} orang | 
+          <strong>Dibuat:</strong> ${new Date().toLocaleDateString('id-ID')}
+        </div>
+
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div style="font-weight: bold; color: #4CAF50;">TOTAL BRUTO</div>
+            <div style="font-size: 14px; font-weight: bold;">${formatCurrency(totalBruto)}</div>
+          </div>
+          <div class="summary-card">
+            <div style="font-weight: bold; color: #F44336;">TOTAL POTONGAN</div>
+            <div style="font-size: 14px; font-weight: bold;">${formatCurrency(totalDeductions)}</div>
+          </div>
+          <div class="summary-card">
+            <div style="font-weight: bold; color: #2196F3;">TOTAL NETO</div>
+            <div style="font-size: 14px; font-weight: bold;">${formatCurrency(totalNeto)}</div>
+          </div>
         </div>
         
         <table>
           <thead>
             <tr>
-              <th>No</th>
-              <th>Nama Karyawan</th>
-              <th>Jabatan</th>
-              <th>Hari Kerja</th>
-              <th>Bruto</th>
-              <th>Pajak</th>
-              <th>Neto</th>
+              <th width="5%">No</th>
+              <th width="25%">Nama Karyawan</th>
+              <th width="8%">Hari Kerja</th>
+              <th width="12%">Upah Dasar</th>
+              <th width="10%">Tunjangan</th>
+              <th width="10%">Lembur</th>
+              <th width="12%">Total Bruto</th>
+              <th width="8%">Pajak</th>
+              <th width="10%">Total Neto</th>
             </tr>
           </thead>
           <tbody>
-            ${currentPayrollRun.payrollLines?.map((line, index) => `
+            ${calculations.map((calc, index) => `
               <tr>
-                <td>${index + 1}</td>
-                <td>${line.employeeName}</td>
-                <td>${line.employee?.jabatan || '-'}</td>
-                <td>${line.hariKerja}</td>
-                <td>Rp ${line.bruto.toLocaleString()}</td>
-                <td>Rp ${(line.pajakNominal || 0).toLocaleString()}</td>
-                <td>Rp ${line.neto.toLocaleString()}</td>
+                <td class="text-center">${index + 1}</td>
+                <td>${calc!.employee.nama}</td>
+                <td class="text-center">${calc!.hariKerja}</td>
+                <td class="text-right">${formatCurrency(calc!.baseUpah)}</td>
+                <td class="text-right">${formatCurrency(calc!.uangMakan + calc!.uangBbm)}</td>
+                <td class="text-right">${formatCurrency(calc!.overtimeAmount)}</td>
+                <td class="text-right">${formatCurrency(calc!.bruto)}</td>
+                <td class="text-right">${formatCurrency(calc!.pajakNominal)}</td>
+                <td class="text-right"><strong>${formatCurrency(calc!.neto)}</strong></td>
               </tr>
             `).join('')}
             <tr class="total-row">
-              <td colspan="4">TOTAL</td>
-              <td>Rp ${(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + line.bruto, 0) || 0).toLocaleString()}</td>
-              <td>Rp ${(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + (line.pajakNominal || 0), 0) || 0).toLocaleString()}</td>
-              <td>Rp ${(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + line.neto, 0) || 0).toLocaleString()}</td>
+              <td colspan="6" class="text-center"><strong>TOTAL KESELURUHAN</strong></td>
+              <td class="text-right"><strong>${formatCurrency(totalBruto)}</strong></td>
+              <td class="text-right"><strong>${formatCurrency(totalDeductions)}</strong></td>
+              <td class="text-right"><strong>${formatCurrency(totalNeto)}</strong></td>
             </tr>
           </tbody>
         </table>
         
-        ${currentPayrollRun.status === 'APPROVED' ? `
-          <div class="kwitansi-section">
-            <div class="kwitansi-title">KWITANSI OTOMATIS</div>
-            <p>Kwitansi telah dibuat otomatis untuk setiap karyawan dengan detail sebagai berikut:</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>No</th>
-                  <th>Nama Karyawan</th>
-                  <th>Nomor Kwitansi</th>
-                  <th>Jumlah</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${currentPayrollRun.payrollLines?.map((line, index) => `
-                  <tr>
-                    <td>${index + 1}</td>
-                    <td>${line.employeeName}</td>
-                    <td>KW-${currentPayrollRun.id?.slice(-6)}-${line.employeeId?.slice(-4)}-${String(index + 1).padStart(3, '0')}</td>
-                    <td>Rp ${line.neto.toLocaleString()}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+        <div class="footer">
+          <div class="signature-area">
+            <p>Sawahlunto, ${new Date().toLocaleDateString('id-ID')}</p>
+            <br><br><br>
+            <p><strong>ATIKA DEWI SURYANI</strong><br>Manager Keuangan</p>
           </div>
-        ` : ''}
+        </div>
       </body>
       </html>
     `
+  }
 
-    generatePDF(htmlContent, `Laporan_Payroll_${currentPayrollRun.periodeAwal}_${currentPayrollRun.periodeAkhir}.pdf`)
+  const generateKwitansiPDFs = async (payrollRun: PayrollRun, calculations: any[]) => {
+    for (const calc of calculations) {
+      const kwitansiContent = generateKwitansiHTML(payrollRun, calc!)
+      await generatePDF(kwitansiContent, `Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`)
+    }
+  }
+
+  const generateKwitansiHTML = (payrollRun: PayrollRun, calculation: any) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Kwitansi Gaji - ${calculation.employee.nama}</title>
+        <style>
+          @page { size: A4 portrait; margin: 20mm; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 12px; }
+          .kwitansi-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .kwitansi-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+          .kwitansi-info { margin-bottom: 20px; }
+          .kwitansi-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .kwitansi-table th, .kwitansi-table td { border: 1px solid #333; padding: 8px; }
+          .kwitansi-table th { background: #f0f0f0; font-weight: bold; }
+          .earnings { background: #e8f5e8; }
+          .deductions { background: #ffe8e8; }
+          .total-section { background: #e8e8e8; font-weight: bold; }
+          .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
+          .signature-box { width: 200px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="kwitansi-header">
+          <div class="kwitansi-title">KWITANSI PEMBAYARAN GAJI</div>
+          <div style="font-size: 14px;">PT. GLOBAL LESTARI ALAM</div>
+        </div>
+
+        <div class="kwitansi-info">
+          <table style="width: 100%; margin-bottom: 15px;">
+            <tr>
+              <td width="20%"><strong>Nama Karyawan</strong></td>
+              <td width="30%">: ${calculation.employee.nama}</td>
+              <td width="20%"><strong>Periode</strong></td>
+              <td width="30%">: ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</td>
+            </tr>
+            <tr>
+              <td><strong>Jabatan</strong></td>
+              <td>: ${calculation.employee.jabatan || '-'}</td>
+              <td><strong>Hari Kerja</strong></td>
+              <td>: ${calculation.hariKerja} hari</td>
+            </tr>
+            <tr>
+              <td><strong>Site</strong></td>
+              <td>: ${calculation.employee.site || '-'}</td>
+              <td><strong>Tanggal</strong></td>
+              <td>: ${new Date().toLocaleDateString('id-ID')}</td>
+            </tr>
+          </table>
+        </div>
+
+        <table class="kwitansi-table">
+              <thead>
+                <tr>
+              <th width="60%">KETERANGAN</th>
+              <th width="20%">JUMLAH</th>
+              <th width="20%">TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+            <!-- PENDAPATAN -->
+            <tr class="earnings">
+              <td colspan="3"><strong>PENDAPATAN</strong></td>
+            </tr>
+            <tr>
+              <td>Upah Dasar (${calculation.employee.kontrakUpahHarian ? formatCurrency(calculation.employee.kontrakUpahHarian) : 'N/A'} x ${calculation.hariKerja} hari)</td>
+              <td>${calculation.hariKerja}</td>
+              <td style="text-align: right">${formatCurrency(calculation.baseUpah)}</td>
+                  </tr>
+            <tr>
+              <td>Uang Makan</td>
+              <td>${calculation.hariKerja}</td>
+              <td style="text-align: right">${formatCurrency(calculation.uangMakan)}</td>
+            </tr>
+            <tr>
+              <td>Uang BBM</td>
+              <td>${calculation.hariKerja}</td>
+              <td style="text-align: right">${formatCurrency(calculation.uangBbm)}</td>
+            </tr>
+            ${calculation.overtimeAmount > 0 ? `
+              <tr>
+                <td>Lembur</td>
+                <td>-</td>
+                <td style="text-align: right">${formatCurrency(calculation.overtimeAmount)}</td>
+              </tr>
+            ` : ''}
+            ${calculation.components
+              .filter((comp: any) => comp.tipe === 'EARNING' && comp.amount > 0)
+              .map((comp: any) => `
+                <tr>
+                  <td>${comp.nama}</td>
+                  <td>-</td>
+                  <td style="text-align: right">${formatCurrency(comp.amount)}</td>
+                </tr>
+              `).join('')
+            }
+            
+            <!-- POTONGAN -->
+            <tr class="deductions">
+              <td colspan="3"><strong>POTONGAN</strong></td>
+            </tr>
+            <tr>
+              <td>Pajak (2%)</td>
+              <td>-</td>
+              <td style="text-align: right">${formatCurrency(calculation.pajakNominal)}</td>
+            </tr>
+            ${calculation.cashbon > 0 ? `
+              <tr>
+                <td>Cashbon</td>
+                <td>-</td>
+                <td style="text-align: right">${formatCurrency(calculation.cashbon)}</td>
+              </tr>
+            ` : ''}
+            ${calculation.components
+              .filter((comp: any) => comp.tipe === 'DEDUCTION' && comp.amount > 0)
+              .map((comp: any) => `
+                <tr>
+                  <td>${comp.nama}</td>
+                  <td>-</td>
+                  <td style="text-align: right">${formatCurrency(comp.amount)}</td>
+                </tr>
+              `).join('')
+            }
+
+            <!-- TOTAL -->
+            <tr class="total-section">
+              <td><strong>TOTAL BRUTO</strong></td>
+              <td>-</td>
+              <td style="text-align: right"><strong>${formatCurrency(calculation.bruto)}</strong></td>
+            </tr>
+            <tr class="total-section">
+              <td><strong>TOTAL POTONGAN</strong></td>
+              <td>-</td>
+              <td style="text-align: right"><strong>${formatCurrency(calculation.totalDeductions)}</strong></td>
+            </tr>
+            <tr class="total-section" style="font-size: 14px;">
+              <td><strong>GAJI BERSIH</strong></td>
+              <td>-</td>
+              <td style="text-align: right"><strong>${formatCurrency(calculation.neto)}</strong></td>
+            </tr>
+              </tbody>
+            </table>
+
+        <div class="signature-section">
+          <div class="signature-box">
+            <p>Yang Menerima,</p>
+            <br><br><br>
+            <p><strong>${calculation.employee.nama}</strong></p>
+          </div>
+          <div class="signature-box">
+            <p>Sawahlunto, ${new Date().toLocaleDateString('id-ID')}</p>
+            <p>Yang Memberikan,</p>
+            <br><br>
+            <p><strong>ATIKA DEWI SURYANI</strong><br>Manager Keuangan</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
   }
 
   const getStatusBadge = (status: PayrollRun['status']) => {
@@ -1476,19 +1682,19 @@ export function PayrollCalculator() {
                     </div>
 
                     {/* Period Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h4 className="font-medium mb-3">Ringkasan Periode</h4>
-                        <div className="space-y-2 text-sm">
-                          <div><strong>Periode:</strong> {payrollPeriod.periodeAwal} - {payrollPeriod.periodeAkhir}</div>
-                          <div><strong>Karyawan:</strong> {selectedEmployees.length} orang</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-3">Ringkasan Periode</h4>
+                  <div className="space-y-2 text-sm">
+                    <div><strong>Periode:</strong> {payrollPeriod.periodeAwal} - {payrollPeriod.periodeAkhir}</div>
+                    <div><strong>Karyawan:</strong> {selectedEmployees.length} orang</div>
                           <div><strong>Komponen Standar:</strong> {standardComponents.length} item</div>
                           <div><strong>Komponen Tambahan:</strong> {additionalComponents.length} item</div>
                           <div><strong>Komponen Custom:</strong> {customPayComponents.filter(c => c.nama).length} item</div>
-                        </div>
-                      </div>
-                      
-                      <div>
+                  </div>
+                </div>
+                
+                <div>
                         <h4 className="font-medium mb-3">Komponen yang Digunakan</h4>
                         <div className="space-y-2 text-sm">
                           {[...standardComponents, ...additionalComponents, ...customPayComponents.filter(c => c.nama)]
@@ -1503,12 +1709,12 @@ export function PayrollCalculator() {
                                 <Badge variant={comp.tipe === 'EARNING' ? 'default' : 'destructive'}>
                                   {comp.tipe === 'EARNING' ? 'Pendapatan' : 'Potongan'}
                                 </Badge>
-                              </div>
+                        </div>
                             ))
                           }
-                        </div>
-                      </div>
-                    </div>
+                  </div>
+                </div>
+              </div>
                   </div>
                 )
               })()}
@@ -1598,10 +1804,24 @@ export function PayrollCalculator() {
                     Setujui & Buat Kwitansi
                   </Button>
                 )}
-                <Button variant="outline" onClick={generatePDFReport}>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => generatePayrollReports('laporan')}>
                   <Download className="h-4 w-4 mr-2" />
-                  Download PDF
+                    Laporan PDF
+                  </Button>
+                  <Button variant="outline" onClick={() => generatePayrollReports('kwitansi')}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Kwitansi PDF
                 </Button>
+                  <Button 
+                    variant="default" 
+                    onClick={() => generatePayrollReports('both')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Laporan + Kwitansi
+                  </Button>
+                </div>
                 <Button 
                   variant="outline" 
                   onClick={() => setCurrentPayrollRun(null)}

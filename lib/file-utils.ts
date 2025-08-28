@@ -117,52 +117,82 @@ export const exportToCSV = (data: Record<string, unknown>[], filename: string) =
   }
 }
 
-// PDF generation utilities
+// PDF generation utilities - Enhanced version with proper printing
 export const generatePDF = async (content: string, filename: string) => {
   try {
-    // Using html2pdf library (would need to install)
-    // For now, we'll create a simple HTML version
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return false
+    // Create a temporary iframe for printing
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = 'none'
     
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${filename}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .content { line-height: 1.6; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
+    document.body.appendChild(iframe)
+    
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+    if (!iframeDoc) {
+      document.body.removeChild(iframe)
+      return false
+    }
+    
+    // Write the complete HTML content
+    iframeDoc.open()
+    iframeDoc.write(content)
+    iframeDoc.close()
+    
+    // Wait for content to load, then print
+    iframe.onload = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus()
+          iframe.contentWindow?.print()
+          
+          // Clean up after a delay
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe)
             }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>${filename.replace('.pdf', '')}</h1>
-            <p>Generated on ${new Date().toLocaleDateString('id-ID')}</p>
-          </div>
-          <div class="content">
-            ${content}
-          </div>
-          <div class="no-print" style="margin-top: 30px;">
-            <button onclick="window.print()">Print PDF</button>
-            <button onclick="window.close()">Close</button>
-          </div>
-        </body>
-      </html>
-    `)
+          }, 1000)
+        } catch (printError) {
+          console.error('Print failed:', printError)
+          // Fallback: open in new window
+          const printWindow = window.open('', '_blank')
+          if (printWindow) {
+            printWindow.document.write(content)
+            printWindow.document.close()
+            setTimeout(() => {
+              printWindow.print()
+            }, 500)
+          }
+          
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
+        }
+      }, 100)
+    }
     
-    printWindow.document.close()
     return true
   } catch (error) {
     console.error('PDF generation failed:', error)
+    
+    // Ultimate fallback: open in new window with print dialog
+    try {
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(content)
+        printWindow.document.close()
+        setTimeout(() => {
+          printWindow.print()
+        }, 500)
+        return true
+      }
+    } catch (fallbackError) {
+      console.error('Fallback PDF generation also failed:', fallbackError)
+    }
+    
     return false
   }
 }
