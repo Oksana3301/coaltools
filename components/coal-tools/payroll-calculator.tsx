@@ -375,6 +375,141 @@ export function PayrollCalculator() {
     setCustomPayComponents(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Real-time calculation functions
+  const calculateComponentAmount = (
+    component: PayComponent | PayComponentForm, 
+    employee: Employee, 
+    hariKerja: number,
+    bruto: number = 0
+  ): number => {
+    let amount = 0
+    
+    switch (component.metode) {
+      case 'FLAT':
+        amount = Number(component.nominal) || 0
+        break
+      case 'PER_HARI':
+        amount = (Number(component.rate) || 0) * hariKerja
+        break
+      case 'PERSENTASE':
+        const basis = component.basis === 'UPAH_HARIAN' 
+          ? employee.kontrakUpahHarian * hariKerja
+          : component.basis === 'HARI_KERJA'
+          ? hariKerja
+          : bruto
+        amount = basis * ((Number(component.rate) || 0) / 100)
+        break
+    }
+    
+    // Apply caps
+    if (component.capMin && amount < Number(component.capMin)) {
+      amount = Number(component.capMin)
+    }
+    if (component.capMax && amount > Number(component.capMax)) {
+      amount = Number(component.capMax)
+    }
+    
+    return Math.round(amount)
+  }
+
+  const calculateEmployeePayroll = (employeePayroll: EmployeePayrollForm) => {
+    const employee = employees.find(emp => emp.id === employeePayroll.employeeId)
+    if (!employee) return null
+
+    const hariKerja = employeePayroll.hariKerja
+    const baseUpah = employee.kontrakUpahHarian * hariKerja
+    const uangMakan = employee.defaultUangMakan * hariKerja
+    const uangBbm = employee.defaultUangBbm * hariKerja
+    
+    let bruto = baseUpah + uangMakan + uangBbm
+    let totalEarnings = 0
+    let totalDeductions = 0
+    let taxableAmount = baseUpah // Base taxable amount
+
+    // Calculate earnings from selected components
+    const selectedComponents = [
+      ...standardComponents.filter(comp => 
+        employeePayroll.selectedStandardComponents.includes(comp.id)
+      ),
+      ...additionalComponents.filter(comp => 
+        employeePayroll.selectedAdditionalComponents.includes(comp.id)
+      ),
+      ...customPayComponents.filter(comp => comp.nama) // Only custom components with names
+    ]
+
+    selectedComponents.forEach(comp => {
+      const amount = calculateComponentAmount(comp, employee, hariKerja, bruto)
+      
+      if (comp.tipe === 'EARNING') {
+        totalEarnings += amount
+        if (comp.taxable) {
+          taxableAmount += amount
+        }
+      } else {
+        totalDeductions += amount
+      }
+    })
+
+    // Add overtime if any
+    const overtimeAmount = employeePayroll.overtimeHours * employeePayroll.overtimeRate
+    totalEarnings += overtimeAmount
+    taxableAmount += overtimeAmount
+
+    // Update bruto with earnings
+    bruto += totalEarnings
+
+    // Calculate tax (2% of taxable amount)
+    const pajakRate = 2
+    const pajakNominal = taxableAmount * (pajakRate / 100)
+    totalDeductions += pajakNominal
+
+    // Add cashbon to deductions
+    totalDeductions += employeePayroll.cashbon
+
+    // Calculate net
+    const neto = bruto - totalDeductions
+
+    return {
+      employee,
+      hariKerja,
+      baseUpah,
+      uangMakan,
+      uangBbm,
+      overtimeAmount,
+      totalEarnings,
+      bruto,
+      totalDeductions,
+      pajakNominal,
+      taxableAmount,
+      cashbon: employeePayroll.cashbon,
+      neto,
+      components: selectedComponents.map(comp => ({
+        ...comp,
+        amount: calculateComponentAmount(comp, employee, hariKerja, bruto)
+      }))
+    }
+  }
+
+  const getPayrollSummary = () => {
+    const calculations = selectedEmployees
+      .map(emp => calculateEmployeePayroll(emp))
+      .filter(calc => calc !== null)
+
+    const totalBruto = calculations.reduce((sum, calc) => sum + calc!.bruto, 0)
+    const totalDeductions = calculations.reduce((sum, calc) => sum + calc!.totalDeductions, 0)
+    const totalNeto = calculations.reduce((sum, calc) => sum + calc!.neto, 0)
+    const totalTax = calculations.reduce((sum, calc) => sum + calc!.pajakNominal, 0)
+
+    return {
+      employeeCount: calculations.length,
+      totalBruto,
+      totalDeductions,
+      totalNeto,
+      totalTax,
+      calculations
+    }
+  }
+
   // Step 5: Calculate Payroll
   const calculatePayroll = () => {
     if (selectedEmployees.length === 0) {
@@ -1000,6 +1135,67 @@ export function PayrollCalculator() {
                                 </div>
                               )}
                             </div>
+                            
+                            {/* Real-time Calculation Preview */}
+                            {selectedData && (() => {
+                              const calculation = calculateEmployeePayroll(selectedData)
+                              return calculation ? (
+                                <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-2">
+                                  <Label className="text-xs font-semibold text-green-700">Kalkulasi Real-time</Label>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <span className="text-gray-600">Upah Dasar:</span>
+                                      <span className="ml-2 font-semibold">{formatCurrency(calculation.baseUpah)}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600">Uang Makan:</span>
+                                      <span className="ml-2 font-semibold">{formatCurrency(calculation.uangMakan)}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600">Uang BBM:</span>
+                                      <span className="ml-2 font-semibold">{formatCurrency(calculation.uangBbm)}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600">Overtime:</span>
+                                      <span className="ml-2 font-semibold">{formatCurrency(calculation.overtimeAmount)}</span>
+                                    </div>
+                                    {calculation.components
+                                      .filter(comp => comp.amount > 0)
+                                      .map((comp, idx) => (
+                                        <div key={idx}>
+                                          <span className={`text-${comp.tipe === 'EARNING' ? 'green' : 'red'}-600`}>
+                                            {comp.nama}:
+                                          </span>
+                                          <span className="ml-2 font-semibold">
+                                            {comp.tipe === 'DEDUCTION' ? '-' : ''}{formatCurrency(comp.amount)}
+                                          </span>
+                                        </div>
+                                      ))
+                                    }
+                                    <div className="col-span-2 border-t pt-2">
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Bruto:</span>
+                                        <span className="font-semibold">{formatCurrency(calculation.bruto)}</span>
+                                      </div>
+                                      <div className="flex justify-between text-red-600">
+                                        <span>Pajak (2%):</span>
+                                        <span className="font-semibold">-{formatCurrency(calculation.pajakNominal)}</span>
+                                      </div>
+                                      {calculation.cashbon > 0 && (
+                                        <div className="flex justify-between text-red-600">
+                                          <span>Cashbon:</span>
+                                          <span className="font-semibold">-{formatCurrency(calculation.cashbon)}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between text-lg font-bold text-green-700 border-t pt-1">
+                                        <span>NETO:</span>
+                                        <span>{formatCurrency(calculation.neto)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null
+                            })()}
                           </div>
                         )}
                       </CardContent>
@@ -1163,32 +1359,159 @@ export function PayrollCalculator() {
                 Review data dan hitung payroll
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-3">Ringkasan Periode</h4>
-                  <div className="space-y-2 text-sm">
-                    <div><strong>Periode:</strong> {payrollPeriod.periodeAwal} - {payrollPeriod.periodeAkhir}</div>
-                    <div><strong>Karyawan:</strong> {selectedEmployees.length} orang</div>
-                    <div><strong>Komponen Tambahan:</strong> {customPayComponents.length} item</div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-3">Daftar Karyawan</h4>
-                  <div className="space-y-2">
-                    {selectedEmployees.map((emp) => {
-                      const employee = employees.find(e => e.id === emp.employeeId)
-                      return (
-                        <div key={emp.employeeId} className="flex justify-between text-sm">
-                          <span>{employee?.nama}</span>
-                          <span>{emp.hariKerja} hari</span>
+            <CardContent className="space-y-6">
+              {/* Payroll Summary */}
+              {(() => {
+                const summary = getPayrollSummary()
+                return (
+                  <div className="space-y-6">
+                    {/* Overall Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-4 bg-blue-50 rounded-lg text-center">
+                        <div className="text-2xl font-bold text-blue-700">{summary.employeeCount}</div>
+                        <div className="text-sm text-blue-600">Karyawan</div>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded-lg text-center">
+                        <div className="text-lg font-bold text-green-700">{formatCurrency(summary.totalBruto)}</div>
+                        <div className="text-sm text-green-600">Total Bruto</div>
+                      </div>
+                      <div className="p-4 bg-red-50 rounded-lg text-center">
+                        <div className="text-lg font-bold text-red-700">{formatCurrency(summary.totalDeductions)}</div>
+                        <div className="text-sm text-red-600">Total Potongan</div>
+                      </div>
+                      <div className="p-4 bg-emerald-50 rounded-lg text-center">
+                        <div className="text-lg font-bold text-emerald-700">{formatCurrency(summary.totalNeto)}</div>
+                        <div className="text-sm text-emerald-600">Total Neto</div>
+                      </div>
+                    </div>
+
+                    {/* Detailed Employee Calculations */}
+                    <div>
+                      <h4 className="font-medium mb-3">Detail Perhitungan Per Karyawan</h4>
+                      <div className="space-y-4">
+                        {summary.calculations.map((calc, index) => (
+                          <div key={index} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-center mb-3">
+                              <h5 className="font-semibold">{calc!.employee.nama}</h5>
+                              <Badge variant="outline">{calc!.hariKerja} hari kerja</Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              {/* Earnings */}
+                              <div className="space-y-1">
+                                <div className="font-medium text-green-700">PENDAPATAN</div>
+                                <div className="flex justify-between">
+                                  <span>Upah Dasar:</span>
+                                  <span>{formatCurrency(calc!.baseUpah)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Uang Makan:</span>
+                                  <span>{formatCurrency(calc!.uangMakan)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Uang BBM:</span>
+                                  <span>{formatCurrency(calc!.uangBbm)}</span>
+                                </div>
+                                {calc!.overtimeAmount > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Overtime:</span>
+                                    <span>{formatCurrency(calc!.overtimeAmount)}</span>
+                                  </div>
+                                )}
+                                {calc!.components
+                                  .filter(comp => comp.tipe === 'EARNING' && comp.amount > 0)
+                                  .map((comp, idx) => (
+                                    <div key={idx} className="flex justify-between">
+                                      <span>{comp.nama}:</span>
+                                      <span>{formatCurrency(comp.amount)}</span>
+                                    </div>
+                                  ))
+                                }
+                              </div>
+
+                              {/* Deductions */}
+                              <div className="space-y-1">
+                                <div className="font-medium text-red-700">POTONGAN</div>
+                                <div className="flex justify-between">
+                                  <span>Pajak (2%):</span>
+                                  <span>{formatCurrency(calc!.pajakNominal)}</span>
+                                </div>
+                                {calc!.cashbon > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Cashbon:</span>
+                                    <span>{formatCurrency(calc!.cashbon)}</span>
+                                  </div>
+                                )}
+                                {calc!.components
+                                  .filter(comp => comp.tipe === 'DEDUCTION' && comp.amount > 0)
+                                  .map((comp, idx) => (
+                                    <div key={idx} className="flex justify-between">
+                                      <span>{comp.nama}:</span>
+                                      <span>{formatCurrency(comp.amount)}</span>
+                                    </div>
+                                  ))
+                                }
+                              </div>
+
+                              {/* Summary */}
+                              <div className="md:col-span-2 space-y-1">
+                                <div className="font-medium text-gray-700">RINGKASAN</div>
+                                <div className="flex justify-between">
+                                  <span>Total Bruto:</span>
+                                  <span className="font-semibold">{formatCurrency(calc!.bruto)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Total Potongan:</span>
+                                  <span className="font-semibold text-red-600">-{formatCurrency(calc!.totalDeductions)}</span>
+                                </div>
+                                <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                                  <span>GAJI BERSIH:</span>
+                                  <span className="text-green-700">{formatCurrency(calc!.neto)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Period Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium mb-3">Ringkasan Periode</h4>
+                        <div className="space-y-2 text-sm">
+                          <div><strong>Periode:</strong> {payrollPeriod.periodeAwal} - {payrollPeriod.periodeAkhir}</div>
+                          <div><strong>Karyawan:</strong> {selectedEmployees.length} orang</div>
+                          <div><strong>Komponen Standar:</strong> {standardComponents.length} item</div>
+                          <div><strong>Komponen Tambahan:</strong> {additionalComponents.length} item</div>
+                          <div><strong>Komponen Custom:</strong> {customPayComponents.filter(c => c.nama).length} item</div>
                         </div>
-                      )
-                    })}
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-medium mb-3">Komponen yang Digunakan</h4>
+                        <div className="space-y-2 text-sm">
+                          {[...standardComponents, ...additionalComponents, ...customPayComponents.filter(c => c.nama)]
+                            .filter(comp => selectedEmployees.some(emp => 
+                              emp.selectedStandardComponents.includes(comp.id!) || 
+                              emp.selectedAdditionalComponents.includes(comp.id!) || 
+                              customPayComponents.includes(comp as PayComponentForm)
+                            ))
+                            .map((comp, idx) => (
+                              <div key={idx} className="flex justify-between">
+                                <span>{comp.nama}</span>
+                                <Badge variant={comp.tipe === 'EARNING' ? 'default' : 'destructive'}>
+                                  {comp.tipe === 'EARNING' ? 'Pendapatan' : 'Potongan'}
+                                </Badge>
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                )
+              })()}
               
               <div className="flex justify-between">
                 <Button variant="outline" onClick={prevStep}>
