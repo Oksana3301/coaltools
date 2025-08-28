@@ -49,17 +49,6 @@ export async function GET(request: NextRequest) {
         where,
         skip,
         take: limit,
-        include: {
-          creator: {
-            select: { id: true, name: true, email: true }
-          },
-          approver: {
-            select: { id: true, name: true, email: true }
-          },
-          buyer: {
-            select: { id: true, nama: true, hargaPerTonDefault: true }
-          }
-        },
         orderBy: { createdAt: 'desc' }
       }),
       prisma.productionReport.count({ where })
@@ -106,14 +95,6 @@ export async function POST(request: NextRequest) {
       data: {
         ...validatedData,
         nettoTon: validatedData.grossTon - validatedData.tareTon // Ensure netto is calculated correctly
-      },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        buyer: {
-          select: { id: true, nama: true, hargaPerTonDefault: true }
-        }
       }
     })
 

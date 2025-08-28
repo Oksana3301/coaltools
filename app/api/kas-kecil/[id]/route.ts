@@ -17,15 +17,6 @@ export async function GET(
       where: {
         id: id,
         deletedAt: null
-      },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
       }
     })
     
@@ -84,15 +75,6 @@ export async function PUT(
         status: body.status,
         notes: body.notes,
         approvalNotes: body.approvalNotes
-      },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
       }
     })
     

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Toaster, toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { Button } from "@/components/ui/button"
 import {
@@ -31,6 +31,7 @@ const formSchema = z.object({
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Initialize form with validation schema
   const form = useForm<z.infer<typeof formSchema>>({
@@ -50,8 +51,9 @@ export default function AuthPage() {
       
       if (result.success) {
         toast.success("Login successful!")
-        // Redirect to dashboard
-        router.push('/coal-tools-kaskecil')
+        // Redirect to original page or default dashboard
+        const redirectTo = searchParams?.get('redirect') || '/coal-tools-kaskecil'
+        router.push(redirectTo)
       } else {
         toast.error(result.error || "Login failed")
       }

@@ -97,7 +97,7 @@ export function SidebarNav() {
   const pathname = usePathname()
 
   return (
-    <div className="flex flex-col space-y-2">
+    <div className="flex flex-col space-y-2 px-3">
       {navigation.map((item) => {
         const isActive = pathname === item.href || 
           (item.children && item.children.some(child => pathname === child.href))
@@ -108,14 +108,14 @@ export function SidebarNav() {
               <Button
                 variant={isActive ? "default" : "ghost"}
                 className={cn(
-                  "w-full justify-start gap-3 h-12",
-                  isActive && "bg-primary text-primary-foreground"
+                  "w-full justify-start gap-3 h-12 text-left",
+                  isActive && "bg-primary text-primary-foreground shadow-sm"
                 )}
               >
-                <item.icon className="h-5 w-5" />
-                <div className="flex flex-col items-start">
-                  <span className="font-medium">{item.name}</span>
-                  <span className="text-xs opacity-70">{item.description}</span>
+                <item.icon className="h-5 w-5 shrink-0" />
+                <div className="flex flex-col items-start min-w-0 flex-1">
+                  <span className="font-medium truncate">{item.name}</span>
+                  <span className="text-xs opacity-70 truncate w-full">{item.description}</span>
                 </div>
               </Button>
             </Link>
@@ -132,11 +132,11 @@ export function SidebarNav() {
                         size="sm"
                         className={cn(
                           "w-full justify-start gap-2 h-10 text-sm",
-                          isChildActive && "bg-secondary text-secondary-foreground"
+                          isChildActive && "bg-secondary text-secondary-foreground shadow-sm"
                         )}
                       >
-                        <child.icon className="h-4 w-4" />
-                        <span>{child.name}</span>
+                        <child.icon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{child.name}</span>
                       </Button>
                     </Link>
                   )

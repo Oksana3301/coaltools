@@ -15,43 +15,7 @@ export async function GET(
     const { id } = await params
 
     const payrollRun = await prisma.payrollRun.findUnique({
-      where: { id },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        },
-        payrollLines: {
-          include: {
-            employee: {
-              select: { 
-                id: true, 
-                nama: true, 
-                jabatan: true, 
-                site: true,
-                bankName: true,
-                bankAccount: true,
-                npwp: true
-              }
-            },
-            components: {
-              include: {
-                payComponent: {
-                  select: {
-                    id: true,
-                    nama: true,
-                    tipe: true,
-                    taxable: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: { employeeName: 'asc' }
-        }
-      }
+      where: { id }
     })
 
     if (!payrollRun) {
@@ -139,22 +103,6 @@ export async function PATCH(
         ...(notes && { 
           // You might want to add a notes field to the schema
         })
-      },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        },
-        payrollLines: {
-          include: {
-            employee: {
-              select: { id: true, nama: true, jabatan: true, site: true }
-            },
-            components: true
-          }
-        }
       }
     })
 

@@ -287,7 +287,10 @@ export function ExpenseManagement() {
         }
       })
 
-      setExpenses(prev => [...prev, ...importedExpenses])
+      // Import expenses using the API
+      for (const expense of importedExpenses) {
+        await createExpense(expense)
+      }
       
       toast({
         title: "Import berhasil",
@@ -390,10 +393,14 @@ export function ExpenseManagement() {
 
   // Bulk operations
   const handleSelectAll = () => {
-    if (selectedExpenses.size === filteredExpenses.length) {
+    if (selectedExpenses.size === filteredExpenses.length && filteredExpenses.length > 0) {
       setSelectedExpenses(new Set())
     } else {
       setSelectedExpenses(new Set(filteredExpenses.map(exp => exp.id)))
+    }
+    // Force show bulk actions if items are selected
+    if (filteredExpenses.length > 0) {
+      setShowBulkActions(selectedExpenses.size === 0)
     }
   }
 
@@ -405,31 +412,63 @@ export function ExpenseManagement() {
       newSelected.add(id)
     }
     setSelectedExpenses(newSelected)
+    // Update bulk actions visibility
+    setShowBulkActions(newSelected.size > 0)
   }
 
-  const handleBulkStatusUpdate = (newStatus: Expense['status']) => {
-    const updatedExpenses = expenses.map(expense => 
-      selectedExpenses.has(expense.id) 
-        ? { ...expense, status: newStatus }
-        : expense
-    )
-    setExpenses(updatedExpenses)
-    setSelectedExpenses(new Set())
-    toast({
-      title: "Status updated",
-      description: `${selectedExpenses.size} expenses updated to ${newStatus}`
-    })
+  const handleBulkStatusUpdate = async (newStatus: Expense['status']) => {
+    const selectedIds = Array.from(selectedExpenses)
+    let successCount = 0
+    
+    for (const id of selectedIds) {
+      const result = await updateExpenseStatus(id, newStatus)
+      if (result) {
+        successCount++
+      }
+    }
+    
+    if (successCount > 0) {
+      setSelectedExpenses(new Set())
+      setShowBulkActions(false)
+      toast({
+        title: "Status updated",
+        description: `${successCount} expenses updated to ${newStatus}`
+      })
+    } else {
+      toast({
+        title: "Update failed",
+        description: "Failed to update expense status",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleBulkDelete = () => {
-    const remainingExpenses = expenses.filter(expense => !selectedExpenses.has(expense.id))
-    setExpenses(remainingExpenses)
-    setSelectedExpenses(new Set())
-    setIsDeleteDialogOpen(false)
-    toast({
-      title: "Expenses deleted",
-      description: `${selectedExpenses.size} expenses have been deleted`
-    })
+  const handleBulkDelete = async () => {
+    const selectedIds = Array.from(selectedExpenses)
+    let successCount = 0
+    
+    for (const id of selectedIds) {
+      const result = await softDeleteExpense(id)
+      if (result) {
+        successCount++
+      }
+    }
+    
+    if (successCount > 0) {
+      setSelectedExpenses(new Set())
+      setShowBulkActions(false)
+      setIsDeleteDialogOpen(false)
+      toast({
+        title: "Expenses deleted",
+        description: `${successCount} expenses have been deleted`
+      })
+    } else {
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete expenses",
+        variant: "destructive"
+      })
+    }
   }
 
   const resetForm = () => {
@@ -497,23 +536,25 @@ export function ExpenseManagement() {
     })
   }
 
-  const saveInlineEdit = (expenseId: string) => {
+  const saveInlineEdit = async (expenseId: string) => {
     const expense = expenses.find(e => e.id === expenseId)
     if (expense && editingField && inlineEditValues[expenseId]) {
       // Save version before updating
       saveExpenseVersion(expense)
       
-      const updatedExpenses = expenses.map(e => 
-        e.id === expenseId 
-          ? { ...e, [editingField.field]: inlineEditValues[expenseId][editingField.field] }
-          : e
-      )
-      setExpenses(updatedExpenses)
+      // Update via API
+      const updatedExpense = { 
+        ...expense, 
+        [editingField.field]: inlineEditValues[expenseId][editingField.field] 
+      }
+      const result = await updateExpense(updatedExpense)
       
-      toast({
-        title: "Field updated",
-        description: `${editingField.field} has been updated successfully`
-      })
+      if (result) {
+        toast({
+          title: "Field updated",
+          description: `${editingField.field} has been updated successfully`
+        })
+      }
     }
     
     setInlineEditId(null)
@@ -631,19 +672,21 @@ export function ExpenseManagement() {
     setApprovalReason('')
   }
 
-  const handleDuplicateExpense = (expense: Expense) => {
-    const duplicatedExpense: Expense = {
+  const handleDuplicateExpense = async (expense: Expense) => {
+    const duplicatedExpense = {
       ...expense,
-      id: `expense_${Date.now()}`,
-      created_at: new Date().toISOString(),
-      status: 'draft'
+      status: 'DRAFT' as const,
+      bukti_url: '', // Clear file attachment for new entry
+      notes: expense.notes ? `Copy of: ${expense.notes}` : 'Duplicated entry'
     }
-    setExpenses([...expenses, duplicatedExpense])
     
-    toast({
-      title: "Expense duplicated",
-      description: "A copy of the expense has been created"
-    })
+    const result = await createExpense(duplicatedExpense)
+    if (result) {
+      toast({
+        title: "Expense duplicated",
+        description: "A copy of the expense has been created"
+      })
+    }
   }
 
   const handleBulkEdit = () => {
@@ -653,22 +696,32 @@ export function ExpenseManagement() {
     }
   }
 
-  const applyBulkEdit = (field: string, value: any) => {
-    const updatedExpenses = expenses.map(expense => {
-      if (selectedExpenses.has(expense.id)) {
-        saveExpenseVersion(expense)
-        return { ...expense, [field]: value }
-      }
-      return expense
-    })
-    setExpenses(updatedExpenses)
-    setSelectedExpenses(new Set())
-    setBulkEditMode(false)
+  const applyBulkEdit = async (field: string, value: any) => {
+    const selectedIds = Array.from(selectedExpenses)
+    let successCount = 0
     
-    toast({
-      title: "Bulk edit applied",
-      description: `${selectedExpenses.size} expenses updated`
-    })
+    for (const id of selectedIds) {
+      const expense = expenses.find(e => e.id === id)
+      if (expense) {
+        saveExpenseVersion(expense)
+        const updatedExpense = { ...expense, [field]: value }
+        const result = await updateExpense(updatedExpense)
+        if (result) {
+          successCount++
+        }
+      }
+    }
+    
+    if (successCount > 0) {
+      setSelectedExpenses(new Set())
+      setBulkEditMode(false)
+      setShowBulkActions(false)
+      
+      toast({
+        title: "Bulk edit applied",
+        description: `${successCount} expenses updated`
+      })
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -1991,6 +2044,42 @@ export function ExpenseManagement() {
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {isDeleteDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Confirm Bulk Delete
+              </CardTitle>
+              <CardDescription>
+                Are you sure you want to delete {selectedExpenses.size} selected expenses? This action can be undone later.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  className="flex-1"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedExpenses.size} Items
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

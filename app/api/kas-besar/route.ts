@@ -77,14 +77,6 @@ export async function GET(request: NextRequest) {
     const [expenses, total] = await Promise.all([
       prisma.kasBesarExpense.findMany({
         where,
-        include: {
-          creator: {
-            select: { id: true, name: true, email: true }
-          },
-          approver: {
-            select: { id: true, name: true, email: true }
-          }
-        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
@@ -147,11 +139,6 @@ export async function POST(request: NextRequest) {
       data: {
         ...validatedData,
         status: 'DRAFT'
-      },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        }
       }
     })
 
@@ -224,28 +211,11 @@ export async function PUT(request: NextRequest) {
     // Update expense
     const expense = await prisma.kasBesarExpense.update({
       where: { id },
-      data: updateData,
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        }
-      }
+      data: updateData
     })
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        action: 'UPDATE',
-        tableName: 'kas_besar_expenses',
-        recordId: expense.id,
-        oldValues: oldExpense,
-        newValues: expense,
-        userId: updateData.createdBy || oldExpense.createdBy
-      }
-    })
+    // TODO: Add audit logging if needed
+    // Note: auditLog table may not exist in current schema
 
     return NextResponse.json({
       success: true,

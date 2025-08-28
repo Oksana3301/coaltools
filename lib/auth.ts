@@ -9,27 +9,56 @@ export interface User {
   updatedAt: string
 }
 
-export const AUTH_STORAGE_KEY = 'user'
+export interface UserSession {
+  user: User
+  loginTime: number
+  lastActivity: number
+}
 
-// Get current user from localStorage
+export const AUTH_STORAGE_KEY = 'user'
+export const SESSION_TIMEOUT = 8 * 60 * 60 * 1000 // 8 hours in milliseconds
+
+// Get current user from localStorage with session validation
 export function getCurrentUser(): User | null {
   if (typeof window === 'undefined') return null
   
   try {
-    const userData = localStorage.getItem(AUTH_STORAGE_KEY)
-    return userData ? JSON.parse(userData) : null
+    const sessionData = localStorage.getItem(AUTH_STORAGE_KEY)
+    if (!sessionData) return null
+    
+    const session: UserSession = JSON.parse(sessionData)
+    const now = Date.now()
+    
+    // Check if session has expired
+    if (now - session.lastActivity > SESSION_TIMEOUT) {
+      removeCurrentUser()
+      return null
+    }
+    
+    // Update last activity
+    session.lastActivity = now
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+    
+    return session.user
   } catch (error) {
     console.error('Error parsing user data:', error)
+    removeCurrentUser()
     return null
   }
 }
 
-// Set current user in localStorage
+// Set current user in localStorage with session data
 export function setCurrentUser(user: User): void {
   if (typeof window === 'undefined') return
   
   try {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user))
+    const now = Date.now()
+    const session: UserSession = {
+      user,
+      loginTime: now,
+      lastActivity: now
+    }
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
   } catch (error) {
     console.error('Error saving user data:', error)
   }
@@ -67,6 +96,42 @@ export function isApprover(): boolean {
   return hasRole('approver') || hasRole('admin')
 }
 
+// Get session info
+export function getSessionInfo(): { loginTime: Date | null; timeRemaining: number } {
+  if (typeof window === 'undefined') return { loginTime: null, timeRemaining: 0 }
+  
+  try {
+    const sessionData = localStorage.getItem(AUTH_STORAGE_KEY)
+    if (!sessionData) return { loginTime: null, timeRemaining: 0 }
+    
+    const session: UserSession = JSON.parse(sessionData)
+    const now = Date.now()
+    const timeRemaining = Math.max(0, SESSION_TIMEOUT - (now - session.lastActivity))
+    
+    return {
+      loginTime: new Date(session.loginTime),
+      timeRemaining
+    }
+  } catch (error) {
+    console.error('Error getting session info:', error)
+    return { loginTime: null, timeRemaining: 0 }
+  }
+}
+
+// Format time remaining in human readable format
+export function formatTimeRemaining(milliseconds: number): string {
+  const hours = Math.floor(milliseconds / (1000 * 60 * 60))
+  const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60))
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  } else if (minutes > 0) {
+    return `${minutes}m`
+  } else {
+    return 'Less than 1 minute'
+  }
+}
+
 // Login function
 export async function login(email: string, password: string): Promise<{ success: boolean; data?: User; error?: string }> {
   try {
@@ -93,8 +158,31 @@ export async function login(email: string, password: string): Promise<{ success:
 }
 
 // Logout function
-export function logout(): void {
+export async function logout(): Promise<void> {
+  const user = getCurrentUser()
+  
+  // Call logout API if user data is available
+  if (user) {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userId: user.id, 
+          email: user.email 
+        }),
+      })
+    } catch (error) {
+      // Don't prevent logout if API call fails
+      console.warn('Logout API call failed:', error)
+    }
+  }
+  
+  // Always clear local storage
   removeCurrentUser()
+  
   // Redirect to login page
   if (typeof window !== 'undefined') {
     window.location.href = '/auth'

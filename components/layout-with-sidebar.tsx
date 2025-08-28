@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { DatabaseStatus } from "@/components/ui/database-status"
 import { Menu, X, User, LogOut } from "lucide-react"
 import Link from "next/link"
-import { getCurrentUser, logout } from "@/lib/auth"
+import { getCurrentUser, logout, getSessionInfo, formatTimeRemaining } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -25,14 +26,71 @@ interface LayoutWithSidebarProps {
 export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [sessionInfo, setSessionInfo] = useState({ loginTime: null, timeRemaining: 0 })
+  const { toast } = useToast()
 
   useEffect(() => {
-    const currentUser = getCurrentUser()
-    setUser(currentUser)
+    try {
+      const currentUser = getCurrentUser()
+      setUser(currentUser)
+      
+      if (currentUser) {
+        const session = getSessionInfo()
+        setSessionInfo(session)
+        
+        // Update session info every minute
+        const interval = setInterval(() => {
+          try {
+            const updatedSession = getSessionInfo()
+            setSessionInfo(updatedSession)
+            
+            // Auto logout if session expired
+            if (updatedSession.timeRemaining <= 0) {
+              handleLogout()
+            }
+          } catch (error) {
+            console.error('Session update error:', error)
+          }
+        }, 60000) // Check every minute
+        
+        return () => clearInterval(interval)
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error)
+      setUser(null)
+      setSessionInfo({ loginTime: null, timeRemaining: 0 })
+    }
   }, [])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      toast({
+        title: "Logging out...",
+        description: "Please wait while we log you out safely."
+      })
+      
+      await logout()
+      
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out safely."
+      })
+    } catch (error) {
+      console.error('Logout error:', error)
+      
+      toast({
+        title: "Logout Error",
+        description: "There was an issue logging out. Redirecting anyway.",
+        variant: "destructive"
+      })
+      
+      // Force logout anyway
+      window.location.href = '/auth'
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   const getRoleBadge = (role: string) => {
@@ -51,8 +109,8 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -86,12 +144,21 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{user.name}</p>
                       <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                      {sessionInfo.timeRemaining > 0 && (
+                        <p className="text-xs leading-none text-blue-600">
+                          Session: {formatTimeRemaining(sessionInfo.timeRemaining)}
+                        </p>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
+                  <DropdownMenuItem 
+                    onClick={handleLogout} 
+                    className="text-red-600"
+                    disabled={isLoggingOut}
+                  >
+                    <LogOut className={`h-4 w-4 mr-2 ${isLoggingOut ? 'animate-spin' : ''}`} />
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -110,13 +177,18 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
       <div className="flex">
         {/* Sidebar */}
         <aside className={`
-          fixed inset-y-0 left-0 z-40 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out
+          fixed inset-y-0 left-0 z-40 w-64 bg-background border-r border-border shadow-sm transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
           md:translate-x-0 md:static md:inset-0
         `}>
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto py-4">
               <SidebarNav />
+            </div>
+            <div className="p-3 border-t border-border">
+              <div className="text-xs text-muted-foreground text-center">
+                Business Tools v2.0
+              </div>
             </div>
           </div>
         </aside>

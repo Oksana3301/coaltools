@@ -39,16 +39,7 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       skip: offset,
-      take: limit,
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
+      take: limit
     })
     
     // Get total count
@@ -127,15 +118,6 @@ export async function POST(request: NextRequest) {
         status: body.status || 'DRAFT',
         notes: body.notes,
         createdBy: body.createdBy
-      },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
       }
     })
     

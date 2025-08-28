@@ -43,22 +43,6 @@ export async function GET(request: NextRequest) {
         where,
         skip,
         take: limit,
-        include: {
-          creator: {
-            select: { id: true, name: true, email: true }
-          },
-          approver: {
-            select: { id: true, name: true, email: true }
-          },
-          payrollLines: {
-            include: {
-              employee: {
-                select: { id: true, nama: true, jabatan: true, site: true }
-              },
-              components: true
-            }
-          }
-        },
         orderBy: { createdAt: 'desc' }
       }),
       prisma.payrollRun.count({ where })
@@ -279,20 +263,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch the complete payroll run with relations
     const completePayrollRun = await prisma.payrollRun.findUnique({
-      where: { id: payrollRun.id },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        payrollLines: {
-          include: {
-            employee: {
-              select: { id: true, nama: true, jabatan: true, site: true }
-            },
-            components: true
-          }
-        }
-      }
+      where: { id: payrollRun.id }
     })
 
     return NextResponse.json({
@@ -381,23 +352,7 @@ export async function PUT(request: NextRequest) {
 
     // Fetch complete data
     const completePayrollRun = await prisma.payrollRun.findUnique({
-      where: { id },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        },
-        payrollLines: {
-          include: {
-            employee: {
-              select: { id: true, nama: true, jabatan: true, site: true }
-            },
-            components: true
-          }
-        }
-      }
+      where: { id }
     })
 
     return NextResponse.json({

@@ -79,6 +79,8 @@ interface EmployeePayrollForm {
   overtimeRate: number
   cashbon: number
   notes: string
+  selectedStandardComponents: string[]
+  selectedAdditionalComponents: string[]
 }
 
 interface PayComponentForm {
@@ -92,6 +94,12 @@ interface PayComponentForm {
   capMin?: number
   capMax?: number
   order: number
+  isStandard?: boolean
+}
+
+interface ComponentSelection {
+  standard: PayComponent[]
+  additional: PayComponent[]
 }
 
 export function PayrollCalculator() {
@@ -101,6 +109,8 @@ export function PayrollCalculator() {
   const [currentStep, setCurrentStep] = useState(1)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [payComponents, setPayComponents] = useState<PayComponent[]>([])
+  const [standardComponents, setStandardComponents] = useState<PayComponent[]>([])
+  const [additionalComponents, setAdditionalComponents] = useState<PayComponent[]>([])
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([])
   const [loading, setLoading] = useState(false)
   
@@ -114,6 +124,11 @@ export function PayrollCalculator() {
   const [selectedEmployees, setSelectedEmployees] = useState<EmployeePayrollForm[]>([])
   const [customPayComponents, setCustomPayComponents] = useState<PayComponentForm[]>([])
   const [currentPayrollRun, setCurrentPayrollRun] = useState<PayrollRun | null>(null)
+  
+  // Component management states
+  const [componentType, setComponentType] = useState<'standard' | 'additional'>('standard')
+  const [showComponentDialog, setShowComponentDialog] = useState(false)
+  const [editingComponent, setEditingComponent] = useState<PayComponent | null>(null)
   
   // UI states
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false)
@@ -136,7 +151,17 @@ export function PayrollCalculator() {
       ])
 
       if (employeesRes.success) setEmployees(employeesRes.data || [])
-      if (payComponentsRes.success) setPayComponents(payComponentsRes.data || [])
+      if (payComponentsRes.success) {
+        const allComponents = payComponentsRes.data || []
+        setPayComponents(allComponents)
+        
+        // Pisahkan komponen berdasarkan order (0-99 = standard, 100+ = additional)
+        const standard = allComponents.filter(comp => comp.order < 100)
+        const additional = allComponents.filter(comp => comp.order >= 100)
+        
+        setStandardComponents(standard)
+        setAdditionalComponents(additional)
+      }
       if (payrollRunsRes.success) setPayrollRuns(payrollRunsRes.data || [])
     } catch (error) {
       console.error('Error loading initial data:', error)
@@ -147,14 +172,127 @@ export function PayrollCalculator() {
 
   // Step navigation
   const nextStep = () => {
-    if (currentStep < 5) setCurrentStep(currentStep + 1)
+    if (currentStep < 6) setCurrentStep(currentStep + 1)
   }
 
   const prevStep = () => {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
   }
 
-  // Step 1: Payroll Period
+  // Component management functions
+  const handleCreateComponent = async (componentData: PayComponentForm) => {
+    try {
+      setLoading(true)
+      
+      // Set order based on component type (standard: 0-99, additional: 100+)
+      const order = componentType === 'standard' 
+        ? Math.max(...standardComponents.map(c => c.order), -1) + 1
+        : Math.max(...additionalComponents.map(c => c.order), 99) + 1
+
+      const response = await apiService.createPayComponent({
+        ...componentData,
+        order
+      })
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: `Komponen ${componentType === 'standard' ? 'standar' : 'tambahan'} berhasil ditambahkan`
+        })
+        
+        // Refresh data
+        await loadInitialData()
+        setShowComponentDialog(false)
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal menambahkan komponen",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error creating component:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menambahkan komponen",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateComponent = async (componentId: string, componentData: Partial<PayComponentForm>) => {
+    try {
+      setLoading(true)
+      
+      const response = await apiService.updatePayComponent(componentId, componentData)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: "Komponen berhasil diupdate"
+        })
+        
+        // Refresh data
+        await loadInitialData()
+        setShowComponentDialog(false)
+        setEditingComponent(null)
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal mengupdate komponen",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error updating component:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat mengupdate komponen",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteComponent = async (componentId: string) => {
+    try {
+      setLoading(true)
+      
+      const response = await apiService.deletePayComponent(componentId)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: "Komponen berhasil dihapus"
+        })
+        
+        // Refresh data
+        await loadInitialData()
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal menghapus komponen",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting component:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menghapus komponen",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Step 1: Component Management - handled by dialog
+  
+  // Step 2: Payroll Period
   const handlePeriodSubmit = () => {
     if (!payrollPeriod.periodeAwal || !payrollPeriod.periodeAkhir) {
       toast({
@@ -167,7 +305,7 @@ export function PayrollCalculator() {
     nextStep()
   }
 
-  // Step 2: Select Employees
+  // Step 3: Select Employees
   const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
     if (checked) {
       // Check if we're already at the limit of 100 employees
@@ -188,7 +326,9 @@ export function PayrollCalculator() {
           overtimeHours: 0,
           overtimeRate: employee.kontrakUpahHarian * 1.5,
           cashbon: 0,
-          notes: ''
+          notes: '',
+          selectedStandardComponents: [],
+          selectedAdditionalComponents: []
         }])
       }
     } else {
@@ -206,7 +346,7 @@ export function PayrollCalculator() {
     )
   }
 
-  // Step 3: Pay Components
+  // Step 4: Pay Components
   const addCustomPayComponent = () => {
     setCustomPayComponents(prev => [...prev, {
       nama: '',
@@ -234,7 +374,7 @@ export function PayrollCalculator() {
     setCustomPayComponents(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Step 4: Calculate Payroll
+  // Step 5: Calculate Payroll
   const calculatePayroll = () => {
     if (selectedEmployees.length === 0) {
       toast({
@@ -247,7 +387,7 @@ export function PayrollCalculator() {
     nextStep()
   }
 
-  // Step 5: Generate Payroll
+  // Step 6: Generate Payroll
   const generatePayroll = async () => {
     setLoading(true)
     try {
@@ -516,13 +656,174 @@ export function PayrollCalculator() {
 
       {/* Step Content */}
       <div className="max-w-4xl mx-auto">
-        {/* Step 1: Payroll Period */}
+        {/* Step 1: Component Management */}
         {currentStep === 1 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Manajemen Komponen Gaji
+              </CardTitle>
+              <CardDescription>
+                Kelola komponen gaji standar dan tambahan sebelum membuat payroll
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Tabs value={componentType} onValueChange={(value) => setComponentType(value as 'standard' | 'additional')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="standard">Komponen Standar</TabsTrigger>
+                  <TabsTrigger value="additional">Komponen Tambahan</TabsTrigger>
+                </TabsList>
+                
+                {/* Standard Components Tab */}
+                <TabsContent value="standard" className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Komponen Gaji Standar</h3>
+                    <Button 
+                      onClick={() => {
+                        setComponentType('standard')
+                        setEditingComponent(null)
+                        setShowComponentDialog(true)
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Tambah Komponen Standar
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {standardComponents.map((component) => (
+                      <Card key={component.id} className="border-2">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-base">{component.nama}</CardTitle>
+                              <div className="flex gap-2 mt-1">
+                                <Badge variant={component.tipe === 'EARNING' ? 'default' : 'destructive'}>
+                                  {component.tipe === 'EARNING' ? 'Pendapatan' : 'Potongan'}
+                                </Badge>
+                                <Badge variant="outline">{component.metode}</Badge>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingComponent(component)
+                                  setComponentType('standard')
+                                  setShowComponentDialog(true)
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteComponent(component.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="text-sm text-gray-600">
+                            {component.rate && <p>Rate: {component.rate}%</p>}
+                            {component.nominal && <p>Nominal: {formatCurrency(component.nominal)}</p>}
+                            <p>Basis: {component.basis}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+                
+                {/* Additional Components Tab */}
+                <TabsContent value="additional" className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Komponen Gaji Tambahan</h3>
+                    <Button 
+                      onClick={() => {
+                        setComponentType('additional')
+                        setEditingComponent(null)
+                        setShowComponentDialog(true)
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Tambah Komponen Tambahan
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {additionalComponents.map((component) => (
+                      <Card key={component.id} className="border-2">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-base">{component.nama}</CardTitle>
+                              <div className="flex gap-2 mt-1">
+                                <Badge variant={component.tipe === 'EARNING' ? 'default' : 'destructive'}>
+                                  {component.tipe === 'EARNING' ? 'Pendapatan' : 'Potongan'}
+                                </Badge>
+                                <Badge variant="outline">{component.metode}</Badge>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingComponent(component)
+                                  setComponentType('additional')
+                                  setShowComponentDialog(true)
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteComponent(component.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="text-sm text-gray-600">
+                            {component.rate && <p>Rate: {component.rate}%</p>}
+                            {component.nominal && <p>Nominal: {formatCurrency(component.nominal)}</p>}
+                            <p>Basis: {component.basis}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+              
+              <div className="flex justify-between">
+                <div></div>
+                <Button onClick={nextStep} className="flex items-center gap-2">
+                  Lanjut ke Periode Payroll
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 2: Payroll Period */}
+        {currentStep === 2 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Langkah 1: Periode Payroll
+                Langkah 2: Periode Payroll
               </CardTitle>
               <CardDescription>
                 Tentukan periode payroll yang akan dibuat
@@ -569,13 +870,13 @@ export function PayrollCalculator() {
           </Card>
         )}
 
-        {/* Step 2: Select Employees */}
-        {currentStep === 2 && (
+        {/* Step 3: Select Employees */}
+        {currentStep === 3 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Langkah 2: Pilih Karyawan
+                Langkah 3: Pilih Karyawan
               </CardTitle>
               <CardDescription>
                 Pilih karyawan dan atur detail penggajian
@@ -635,6 +936,69 @@ export function PayrollCalculator() {
                                 placeholder="0"
                               />
                             </div>
+                            
+                            {/* Component Selection */}
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold">Komponen Gaji</Label>
+                              
+                              {/* Standard Components */}
+                              {standardComponents.length > 0 && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-blue-600">Komponen Standar</Label>
+                                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                                    {standardComponents.map((comp) => (
+                                      <div key={comp.id} className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          id={`std-${employee.id}-${comp.id}`}
+                                          checked={selectedData.selectedStandardComponents?.includes(comp.id) || false}
+                                          onChange={(e) => {
+                                            const currentSelected = selectedData.selectedStandardComponents || []
+                                            const newSelected = e.target.checked
+                                              ? [...currentSelected, comp.id]
+                                              : currentSelected.filter(id => id !== comp.id)
+                                            employee.id && updateEmployeePayroll(employee.id, 'selectedStandardComponents', newSelected)
+                                          }}
+                                          className="h-3 w-3 text-blue-600 rounded"
+                                        />
+                                        <Label htmlFor={`std-${employee.id}-${comp.id}`} className="text-xs cursor-pointer">
+                                          {comp.nama}
+                                        </Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Additional Components */}
+                              {additionalComponents.length > 0 && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-orange-600">Komponen Tambahan</Label>
+                                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                                    {additionalComponents.map((comp) => (
+                                      <div key={comp.id} className="flex items-center space-x-2">
+                                        <input
+                                          type="checkbox"
+                                          id={`add-${employee.id}-${comp.id}`}
+                                          checked={selectedData.selectedAdditionalComponents?.includes(comp.id) || false}
+                                          onChange={(e) => {
+                                            const currentSelected = selectedData.selectedAdditionalComponents || []
+                                            const newSelected = e.target.checked
+                                              ? [...currentSelected, comp.id]
+                                              : currentSelected.filter(id => id !== comp.id)
+                                            employee.id && updateEmployeePayroll(employee.id, 'selectedAdditionalComponents', newSelected)
+                                          }}
+                                          className="h-3 w-3 text-orange-600 rounded"
+                                        />
+                                        <Label htmlFor={`add-${employee.id}-${comp.id}`} className="text-xs cursor-pointer">
+                                          {comp.nama}
+                                        </Label>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </CardContent>
@@ -657,13 +1021,13 @@ export function PayrollCalculator() {
           </Card>
         )}
 
-        {/* Step 3: Pay Components */}
-        {currentStep === 3 && (
+        {/* Step 4: Pay Components */}
+        {currentStep === 4 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
-                Langkah 3: Komponen Gaji
+                Langkah 4: Komponen Gaji
               </CardTitle>
               <CardDescription>
                 Atur komponen tambahan untuk perhitungan gaji
@@ -786,13 +1150,13 @@ export function PayrollCalculator() {
           </Card>
         )}
 
-        {/* Step 4: Calculate Payroll */}
-        {currentStep === 4 && (
+        {/* Step 5: Calculate Payroll */}
+        {currentStep === 5 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calculator className="h-5 w-5" />
-                Langkah 4: Hitung Payroll
+                Langkah 5: Hitung Payroll
               </CardTitle>
               <CardDescription>
                 Review data dan hitung payroll
@@ -839,13 +1203,13 @@ export function PayrollCalculator() {
           </Card>
         )}
 
-        {/* Step 5: Generate Payroll */}
-        {currentStep === 5 && (
+        {/* Step 6: Generate Payroll */}
+        {currentStep === 6 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Langkah 5: Generate Payroll
+                Langkah 6: Generate Payroll
               </CardTitle>
               <CardDescription>
                 Buat payroll dan laporan
@@ -1072,6 +1436,238 @@ export function PayrollCalculator() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Component Management Dialog */}
+      <ComponentDialog 
+        open={showComponentDialog}
+        onOpenChange={setShowComponentDialog}
+        componentType={componentType}
+        editingComponent={editingComponent}
+        onSave={editingComponent ? 
+          (data) => handleUpdateComponent(editingComponent.id, data) : 
+          handleCreateComponent
+        }
+        onCancel={() => {
+          setShowComponentDialog(false)
+          setEditingComponent(null)
+        }}
+      />
     </div>
+  )
+}
+
+// Component Dialog for creating/editing pay components
+interface ComponentDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  componentType: 'standard' | 'additional'
+  editingComponent: PayComponent | null
+  onSave: (data: PayComponentForm) => void
+  onCancel: () => void
+}
+
+function ComponentDialog({ 
+  open, 
+  onOpenChange, 
+  componentType, 
+  editingComponent, 
+  onSave, 
+  onCancel 
+}: ComponentDialogProps) {
+  const [formData, setFormData] = useState<PayComponentForm>({
+    nama: '',
+    tipe: 'EARNING',
+    taxable: false,
+    metode: 'FLAT',
+    basis: 'UPAH_HARIAN',
+    rate: undefined,
+    nominal: undefined,
+    capMin: undefined,
+    capMax: undefined,
+    order: 0
+  })
+
+  useEffect(() => {
+    if (editingComponent) {
+      setFormData({
+        nama: editingComponent.nama,
+        tipe: editingComponent.tipe as 'EARNING' | 'DEDUCTION',
+        taxable: editingComponent.taxable,
+        metode: editingComponent.metode as 'FLAT' | 'PER_HARI' | 'PERSENTASE',
+        basis: editingComponent.basis as 'UPAH_HARIAN' | 'BRUTO' | 'HARI_KERJA',
+        rate: editingComponent.rate || undefined,
+        nominal: editingComponent.nominal || undefined,
+        capMin: editingComponent.capMin || undefined,
+        capMax: editingComponent.capMax || undefined,
+        order: editingComponent.order
+      })
+    } else {
+      setFormData({
+        nama: '',
+        tipe: 'EARNING',
+        taxable: false,
+        metode: 'FLAT',
+        basis: 'UPAH_HARIAN',
+        rate: undefined,
+        nominal: undefined,
+        capMin: undefined,
+        capMax: undefined,
+        order: 0
+      })
+    }
+  }, [editingComponent, open])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.nama.trim()) {
+      return
+    }
+
+    // Validation based on method
+    if (formData.metode === 'FLAT' && !formData.nominal) {
+      return
+    }
+
+    if (['PER_HARI', 'PERSENTASE'].includes(formData.metode) && !formData.rate) {
+      return
+    }
+
+    onSave(formData)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {editingComponent ? 'Edit' : 'Tambah'} Komponen {componentType === 'standard' ? 'Standar' : 'Tambahan'}
+          </DialogTitle>
+          <DialogDescription>
+            {editingComponent ? 'Update' : 'Buat'} komponen gaji {componentType === 'standard' ? 'standar' : 'tambahan'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="nama">Nama Komponen</Label>
+            <Input
+              id="nama"
+              value={formData.nama}
+              onChange={(e) => setFormData(prev => ({ ...prev, nama: e.target.value }))}
+              placeholder="Contoh: Tunjangan Transport"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="tipe">Tipe</Label>
+              <Select 
+                value={formData.tipe} 
+                onValueChange={(value: 'EARNING' | 'DEDUCTION') => 
+                  setFormData(prev => ({ ...prev, tipe: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EARNING">Pendapatan</SelectItem>
+                  <SelectItem value="DEDUCTION">Potongan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="metode">Metode</Label>
+              <Select 
+                value={formData.metode} 
+                onValueChange={(value: 'FLAT' | 'PER_HARI' | 'PERSENTASE') => 
+                  setFormData(prev => ({ ...prev, metode: value, rate: undefined, nominal: undefined }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FLAT">Nominal Tetap</SelectItem>
+                  <SelectItem value="PER_HARI">Per Hari</SelectItem>
+                  <SelectItem value="PERSENTASE">Persentase</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="basis">Basis Perhitungan</Label>
+            <Select 
+              value={formData.basis} 
+              onValueChange={(value: 'UPAH_HARIAN' | 'BRUTO' | 'HARI_KERJA') => 
+                setFormData(prev => ({ ...prev, basis: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="UPAH_HARIAN">Upah Harian</SelectItem>
+                <SelectItem value="BRUTO">Gaji Bruto</SelectItem>
+                <SelectItem value="HARI_KERJA">Hari Kerja</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.metode === 'FLAT' && (
+            <div>
+              <Label htmlFor="nominal">Nominal (Rp)</Label>
+              <Input
+                id="nominal"
+                type="number"
+                value={formData.nominal || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, nominal: parseFloat(e.target.value) || undefined }))}
+                placeholder="50000"
+                required
+              />
+            </div>
+          )}
+
+          {['PER_HARI', 'PERSENTASE'].includes(formData.metode) && (
+            <div>
+              <Label htmlFor="rate">Rate (%)</Label>
+              <Input
+                id="rate"
+                type="number"
+                step="0.01"
+                value={formData.rate || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, rate: parseFloat(e.target.value) || undefined }))}
+                placeholder="10"
+                required
+              />
+            </div>
+          )}
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="taxable"
+              checked={formData.taxable}
+              onChange={(e) => setFormData(prev => ({ ...prev, taxable: e.target.checked }))}
+              className="rounded"
+            />
+            <Label htmlFor="taxable">Kena Pajak</Label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Batal
+            </Button>
+            <Button type="submit">
+              {editingComponent ? 'Update' : 'Simpan'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

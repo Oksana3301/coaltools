@@ -116,9 +116,6 @@ export async function POST(request: NextRequest) {
     const kwitansi = await prisma.kwitansi.create({
       data: validatedData,
       include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
         payrollRun: {
           select: { id: true, periodeAwal: true, periodeAkhir: true, status: true }
         },
