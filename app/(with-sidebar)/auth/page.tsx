@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -28,7 +28,7 @@ const formSchema = z.object({
   password: z.string().min(1, "Password is required"),
 })
 
-export default function AuthPage() {
+function AuthForm() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -159,5 +159,13 @@ export default function AuthPage() {
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto max-w-md px-4 sm:px-6 lg:px-8 py-10">Loading...</div>}>
+      <AuthForm />
+    </Suspense>
   )
 }
