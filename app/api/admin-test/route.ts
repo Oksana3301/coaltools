@@ -583,6 +583,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
   const results: TestResult[] = []
   let createdPayrollId: string | null = null
   let createdUserId: string | null = null
+  let createdEmployeeIds: string[] = []
 
   try {
     // First create a test user for the foreign key constraint
@@ -596,16 +597,42 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     })
     createdUserId = testUser.id
 
-    // CREATE Payroll Test
-    const payrollData = {
-      periodeAwal: '2025-01-01',
-      periodeAkhir: '2025-01-31',
-      status: 'DRAFT',
-      createdBy: createdUserId
+    // Create test employees (required for payroll)
+    const testData = generateTestData()
+    for (let i = 0; i < 2; i++) {
+      const employee = await prisma.employee.create({
+        data: {
+          nama: `${testData.employee.nama} ${i + 1}`,
+          nik: `${testData.employee.nik}${i}`,
+          jabatan: testData.employee.jabatan,
+          site: testData.employee.site,
+          kontrakUpahHarian: testData.employee.kontrakUpahHarian,
+          defaultUangMakan: testData.employee.defaultUangMakan,
+          defaultUangBbm: testData.employee.defaultUangBbm,
+          aktif: true // Make sure they are active
+        }
+      })
+      createdEmployeeIds.push(employee.id)
     }
 
+    // CREATE Payroll Test
+    // First check that we have active employees
+    const activeEmployees = await prisma.employee.findMany({
+      where: { aktif: true }
+    })
+
+    if (activeEmployees.length === 0) {
+      throw new Error('No active employees found for payroll creation')
+    }
+
+    // Create payroll run directly
     const createdPayroll = await prisma.payrollRun.create({
-      data: payrollData
+      data: {
+        periodeAwal: '2025-01-01',
+        periodeAkhir: '2025-01-31',
+        status: 'DRAFT',
+        createdBy: createdUserId
+      }
     })
     createdPayrollId = createdPayroll.id
     
@@ -658,6 +685,28 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
       timestamp: new Date().toISOString()
     })
 
+    // Clean up test employees after successful test
+    for (const employeeId of createdEmployeeIds) {
+      try {
+        await prisma.employee.delete({
+          where: { id: employeeId }
+        })
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+    }
+
+    // Clean up test user after successful test
+    if (createdUserId) {
+      try {
+        await prisma.user.delete({
+          where: { id: createdUserId }
+        })
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+    }
+
   } catch (error: any) {
     results.push({
       module: 'Payroll',
@@ -672,6 +721,24 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     if (createdPayrollId) {
       try {
         await prisma.payrollRun.delete({ where: { id: createdPayrollId } })
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+    }
+
+    // Clean up test employees on error
+    for (const employeeId of createdEmployeeIds) {
+      try {
+        await prisma.employee.delete({ where: { id: employeeId } })
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+    }
+
+    // Clean up test user on error
+    if (createdUserId) {
+      try {
+        await prisma.user.delete({ where: { id: createdUserId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
