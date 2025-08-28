@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Receipt, Download, Save, Plus, Trash2, FileText, Eye, Image, Building2, Calendar, User, DollarSign, CreditCard, MapPin, Phone, Mail, X, Maximize } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
+import { Receipt, Download, Save, Plus, Trash2, FileText, Eye, Image, Building2, Calendar, User, DollarSign, CreditCard, MapPin, Phone, Mail, X, Maximize, Upload, ImageIcon } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 
 export default function InvoicePage() {
@@ -21,6 +23,7 @@ export default function InvoicePage() {
   const [notes, setNotes] = useState('')
   const [termsAndConditions, setTermsAndConditions] = useState('')
   const [transferProofs, setTransferProofs] = useState<Array<{ file: File; keterangan: string; title: string }>>([])
+  const [buktiNotaImages, setBuktiNotaImages] = useState<Array<{ file: File; name: string; preview: string }>>([])
   const [showBankDetails, setShowBankDetails] = useState(false)
   const [bankDetails, setBankDetails] = useState({
     bankName: 'BRI',
@@ -116,6 +119,50 @@ export default function InvoicePage() {
     }
     
     saveFilesToStorage()
+  }
+
+  const handleBuktiNotaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const validFiles = files.filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/gif', 'image/webp']
+      return validTypes.includes(file.type)
+    })
+    
+    if (buktiNotaImages.length + validFiles.length > 4) {
+      toast({
+        title: "Error",
+        description: "Maksimal 4 gambar per halaman",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    validFiles.forEach(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File terlalu besar",
+          description: `File ${file.name} melebihi batas 5MB`,
+          variant: "destructive"
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setBuktiNotaImages(prev => [...prev, {
+          file: file,
+          name: file.name,
+          preview: e.target?.result as string
+        }])
+      }
+      reader.readAsDataURL(file)
+    })
+
+    event.target.value = ''
+  }
+
+  const removeBuktiNotaImage = (index: number) => {
+    setBuktiNotaImages(prev => prev.filter((_, i) => i !== index))
   }
 
   const removeTransferProof = (index: number) => {
@@ -838,7 +885,20 @@ export default function InvoicePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Tabs defaultValue="invoice" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="invoice" className="flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Invoice Generator
+            </TabsTrigger>
+            <TabsTrigger value="bukti-nota" className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              BUKTI NOTA DAN TRANSAKSI
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="invoice" className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Form */}
           <div className="space-y-6">
             {/* Header Upload Card */}
@@ -1291,7 +1351,213 @@ export default function InvoicePage() {
               </CardContent>
             </Card>
           </div>
-        </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="bukti-nota" className="space-y-8">
+            <div className="max-w-6xl mx-auto">
+              {/* BUKTI NOTA DAN TRANSAKSI Header */}
+              <Card className="border-2 border-purple-200 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b-2 border-purple-200">
+                  <CardTitle className="flex items-center gap-3 text-xl text-purple-800">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <ImageIcon className="h-5 w-5 text-purple-600" />
+                    </div>
+                    BUKTI NOTA DAN TRANSAKSI
+                  </CardTitle>
+                  <CardDescription className="text-purple-600">
+                    Upload bukti nota dan transaksi (maksimal 4 gambar per halaman)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 p-6">
+                  {/* Upload Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="bukti-nota-upload" className="text-base font-medium">
+                        Upload Gambar Bukti Nota dan Transaksi
+                      </Label>
+                      <Input
+                        id="bukti-nota-upload"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleBuktiNotaUpload}
+                        className="mt-2"
+                        disabled={buktiNotaImages.length >= 4}
+                      />
+                      <p className="text-sm text-gray-500 mt-2">
+                        Format yang didukung: JPG, JPEG, PNG, SVG, GIF, WEBP (maksimal 4 gambar, 5MB per file)
+                      </p>
+                      <p className="text-sm text-purple-600 mt-1">
+                        {buktiNotaImages.length}/4 gambar terupload
+                      </p>
+                    </div>
+
+                    {buktiNotaImages.length < 4 && (
+                      <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center bg-purple-50">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Upload className="h-8 w-8 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-purple-800 mb-2">
+                              Upload Bukti Nota dan Transaksi
+                            </h3>
+                            <p className="text-purple-600 mb-4">
+                              Klik tombol di atas untuk mengunggah gambar atau seret file ke sini
+                            </p>
+                            <p className="text-sm text-purple-500">
+                              Gambar akan ditampilkan dalam format grid 2x2
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Images Display Grid */}
+                  {buktiNotaImages.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-800">
+                          Gambar Terupload ({buktiNotaImages.length}/4)
+                        </h3>
+                        {buktiNotaImages.length === 4 && (
+                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                            Halaman Penuh
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Grid Display (2x2) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {buktiNotaImages.map((image, index) => (
+                          <Card key={index} className="border-2 border-gray-200 hover:border-purple-300 transition-colors">
+                            <CardContent className="p-4">
+                              <div className="space-y-3">
+                                {/* Image Preview */}
+                                <div className="relative group">
+                                  <div className="aspect-square w-full border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                    <img
+                                      src={image.preview}
+                                      alt={`Bukti Nota ${index + 1}`}
+                                      className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                                      onClick={() => {
+                                        // Open image in fullscreen
+                                        const newWindow = window.open('', '_blank')
+                                        if (newWindow) {
+                                          newWindow.document.write(`
+                                            <html>
+                                              <head><title>${image.name}</title></head>
+                                              <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#000;">
+                                                <img src="${image.preview}" style="max-width:100%; max-height:100%; object-fit:contain;" />
+                                              </body>
+                                            </html>
+                                          `)
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  {/* Remove Button */}
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="absolute top-2 right-2 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => removeBuktiNotaImage(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                
+                                {/* File Name */}
+                                <div className="space-y-1">
+                                  <Label className="text-sm font-medium text-gray-700">
+                                    Nama File:
+                                  </Label>
+                                  <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border break-all">
+                                    {image.name}
+                                  </p>
+                                </div>
+                                
+                                {/* Image Info */}
+                                <div className="text-xs text-gray-500 flex justify-between">
+                                  <span>Gambar {index + 1}</span>
+                                  <span>{(image.file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-4 pt-4 border-t">
+                        <Button 
+                          onClick={() => setBuktiNotaImages([])}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Hapus Semua
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            // Generate PDF or print view
+                            const printContent = `
+                              <div style="text-align: center; margin-bottom: 30px;">
+                                <h2 style="font-size: 24px; font-weight: bold; text-decoration: underline;">
+                                  BUKTI NOTA DAN TRANSAKSI
+                                </h2>
+                              </div>
+                              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                                ${buktiNotaImages.map((image, index) => `
+                                  <div style="border: 1px solid #ddd; padding: 15px; text-align: center;">
+                                    <img src="${image.preview}" style="max-width: 100%; height: 300px; object-fit: contain; margin-bottom: 10px;" />
+                                    <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">
+                                      Gambar ${index + 1}
+                                    </div>
+                                    <div style="font-size: 12px; color: #666; word-break: break-all;">
+                                      ${image.name}
+                                    </div>
+                                  </div>
+                                `).join('')}
+                              </div>
+                            `
+                            
+                            const printWindow = window.open('', '_blank')
+                            if (printWindow) {
+                              printWindow.document.write(`
+                                <html>
+                                  <head>
+                                    <title>BUKTI NOTA DAN TRANSAKSI</title>
+                                    <style>
+                                      @page { size: A4; margin: 20mm; }
+                                      body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+                                    </style>
+                                  </head>
+                                  <body>
+                                    ${printContent}
+                                  </body>
+                                </html>
+                              `)
+                              printWindow.document.close()
+                              setTimeout(() => printWindow.print(), 500)
+                            }
+                          }}
+                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                          disabled={buktiNotaImages.length === 0}
+                        >
+                          <Download className="h-4 w-4" />
+                          Cetak / Download PDF
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
