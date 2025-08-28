@@ -59,6 +59,10 @@ export function setCurrentUser(user: User): void {
       lastActivity: now
     }
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+    
+    // Also set a cookie for middleware authentication
+    const expires = new Date(now + SESSION_TIMEOUT)
+    document.cookie = `auth-session=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
   } catch (error) {
     console.error('Error saving user data:', error)
   }
@@ -70,6 +74,9 @@ export function removeCurrentUser(): void {
   
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
+    
+    // Also remove the auth cookie
+    document.cookie = `auth-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`
   } catch (error) {
     console.error('Error removing user data:', error)
   }

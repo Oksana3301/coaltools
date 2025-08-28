@@ -9,8 +9,7 @@
     "NODE_ENV": "production"
   },
   "functions": {
-    "app/api/**/*.ts": {
-      "runtime": "nodejs18.x",
+    "app/api/**": {
       "maxDuration": 30
     }
   },

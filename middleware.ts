@@ -49,16 +49,17 @@ export function middleware(request: NextRequest) {
   )
 
   if (isProtectedRoute) {
-    // Check for both cookie and localStorage-based auth
-    const authCookie = request.cookies.get('user')
-    const sessionCookie = request.cookies.get('auth-session')
+    // Since we're using localStorage-based auth (client-side only),
+    // we need to let the client-side handle authentication
+    // The middleware will redirect unauthenticated users, but authenticated users
+    // with localStorage data will be handled by client-side routing
     
-    // If no auth indicators and it's a protected route, redirect to login
-    // Temporarily disable middleware for development - let client-side handle auth
-    // TODO: Implement proper cookie-based auth for production
-    const isDevelopment = process.env.NODE_ENV === 'development'
+    // Check for auth cookie (set by client-side after login)
+    const authCookie = request.cookies.get('auth-session')
     
-    if (!isDevelopment && !authCookie && !sessionCookie) {
+    // Only redirect if there's no auth cookie at all
+    // This allows client-side auth to work while still protecting routes
+    if (!authCookie) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/auth'
       redirectUrl.searchParams.set('redirect', pathname)

@@ -15,25 +15,25 @@ async function seedUsers() {
         name: 'Admin User',
         email: 'admin@example.com',
         password: 'Admin123!',
-        role: 'admin'
+        role: 'ADMIN'
       },
       {
         name: 'Manager User', 
         email: 'manager@example.com',
         password: 'Manager123!',
-        role: 'approver'
+        role: 'MANAGER'
       },
       {
         name: 'Staff User',
         email: 'staff@example.com', 
         password: 'Staff123!',
-        role: 'user'
+        role: 'STAFF'
       },
       {
         name: 'Demo User',
         email: 'demo@example.com',
         password: 'Demo123!',
-        role: 'admin'
+        role: 'ADMIN'
       }
     ];
 
