@@ -579,6 +579,117 @@ async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
   return results
 }
 
+async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
+  const results: TestResult[] = []
+  let createdPayrollId: string | null = null
+  let createdUserId: string | null = null
+
+  try {
+    // First create a test user for the foreign key constraint
+    const testUser = await prisma.user.create({
+      data: {
+        name: `Test User ${Date.now()}`,
+        email: `test${Date.now()}@example.com`,
+        password: 'test123',
+        role: 'STAFF'
+      }
+    })
+    createdUserId = testUser.id
+
+    // CREATE Payroll Test
+    const payrollData = {
+      periodeAwal: '2025-01-01',
+      periodeAkhir: '2025-01-31',
+      status: 'DRAFT',
+      createdBy: createdUserId
+    }
+
+    const createdPayroll = await prisma.payrollRun.create({
+      data: payrollData
+    })
+    createdPayrollId = createdPayroll.id
+    
+    results.push({
+      module: 'Payroll',
+      operation: 'CREATE',
+      status: 'success',
+      message: 'Payroll run created successfully',
+      details: { id: createdPayroll.id, periode: `${createdPayroll.periodeAwal} - ${createdPayroll.periodeAkhir}` },
+      timestamp: new Date().toISOString()
+    })
+
+    // READ Payroll Test
+    const foundPayroll = await prisma.payrollRun.findUnique({
+      where: { id: createdPayrollId }
+    })
+    results.push({
+      module: 'Payroll',
+      operation: 'READ',
+      status: foundPayroll ? 'success' : 'error',
+      message: foundPayroll ? 'Payroll run found successfully' : 'Payroll run not found',
+      details: foundPayroll ? { id: foundPayroll.id } : null,
+      timestamp: new Date().toISOString()
+    })
+
+    // UPDATE Payroll Test
+    const updatedPayroll = await prisma.payrollRun.update({
+      where: { id: createdPayrollId },
+      data: { status: 'SUBMITTED' }
+    })
+    results.push({
+      module: 'Payroll',
+      operation: 'UPDATE',
+      status: 'success',
+      message: 'Payroll run updated successfully',
+      details: { id: updatedPayroll.id, status: updatedPayroll.status },
+      timestamp: new Date().toISOString()
+    })
+
+    // DELETE Payroll Test
+    await prisma.payrollRun.delete({
+      where: { id: createdPayrollId }
+    })
+    results.push({
+      module: 'Payroll',
+      operation: 'DELETE',
+      status: 'success',
+      message: 'Payroll run deleted successfully',
+      details: { id: createdPayrollId },
+      timestamp: new Date().toISOString()
+    })
+
+  } catch (error: any) {
+    results.push({
+      module: 'Payroll',
+      operation: 'CRUD_ERROR',
+      status: 'error',
+      message: error.message || 'Unknown error occurred',
+      details: error,
+      timestamp: new Date().toISOString()
+    })
+
+    // Cleanup if needed
+    if (createdPayrollId) {
+      try {
+        await prisma.payrollRun.delete({ where: { id: createdPayrollId } })
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  // Cleanup test user
+  if (createdUserId) {
+    try {
+      await prisma.user.delete({ where: { id: createdUserId } })
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+  }
+
+  return results
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { testType } = await request.json()
@@ -612,6 +723,9 @@ export async function POST(request: NextRequest) {
       case 'pay-components':
         results = await testPayComponentsCRUD(prisma)
         break
+      case 'payroll':
+        results = await testPayrollCRUD(prisma)
+        break
       case 'all':
         const allTests = await Promise.all([
           testKasKecilCRUD(prisma),
@@ -642,6 +756,19 @@ export async function POST(request: NextRequest) {
             operation: 'SCHEMA_ERROR',
             status: 'error' as const,
             message: 'Table schema mismatch - run Supabase SQL script to fix',
+            timestamp: new Date().toISOString()
+          }])
+        }
+        
+        try {
+          const payrollTests = await testPayrollCRUD(prisma)
+          allTests.push(payrollTests)
+        } catch (error) {
+          allTests.push([{
+            module: 'Payroll',
+            operation: 'SCHEMA_ERROR',
+            status: 'error' as const,
+            message: 'Payroll test failed - check payroll schema and dependencies',
             timestamp: new Date().toISOString()
           }])
         }

@@ -75,13 +75,13 @@ export async function PATCH(
       )
     }
 
-    // Validate status transition rules
+    // Validate status transition rules (using database enum values)
     const validTransitions: Record<string, string[]> = {
-      'DRAFT': ['REVIEWED', 'ARCHIVED'],
-      'REVIEWED': ['APPROVED', 'DRAFT', 'ARCHIVED'],
-      'APPROVED': ['PAID', 'ARCHIVED'],
-      'PAID': ['ARCHIVED'], // Allow archiving paid payrolls
-      'ARCHIVED': [] // Final status
+      'DRAFT': ['SUBMITTED', 'REJECTED', 'APPROVED'],
+      'SUBMITTED': ['APPROVED', 'REJECTED', 'DRAFT'],
+      'APPROVED': ['PAID'],
+      'PAID': [],
+      'REJECTED': ['DRAFT']
     }
 
     const allowedNext = validTransitions[currentPayroll.status] || []
@@ -126,7 +126,9 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengupdate status payroll'
+        error: 'Gagal mengupdate status payroll',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     )

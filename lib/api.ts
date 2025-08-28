@@ -503,7 +503,7 @@ class ApiService {
   // Update payroll run status
   async updatePayrollRunStatus(
     id: string, 
-    status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED',
+    status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID' | 'REJECTED',
     approvedBy?: string,
     notes?: string
   ): Promise<ApiResponse<PayrollRun>> {

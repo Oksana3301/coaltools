@@ -372,10 +372,10 @@ export default function AdminStatusTestPage() {
         const payrollId = payrollCreated.data.id
         
         await testStatusUpdate(`/payroll/${payrollId}`, 'PATCH', 
-          { status: 'REVIEWED', approvedBy: adminUserId }, 'Payroll: DRAFT → REVIEWED')
+          { status: 'SUBMITTED', approvedBy: adminUserId }, 'Payroll: DRAFT → SUBMITTED')
         
         await testStatusUpdate(`/payroll/${payrollId}`, 'PATCH', 
-          { status: 'APPROVED', approvedBy: adminUserId }, 'Payroll: REVIEWED → APPROVED (+ Auto Kwitansi)')
+          { status: 'APPROVED', approvedBy: adminUserId }, 'Payroll: SUBMITTED → APPROVED (+ Auto Kwitansi)')
       }
 
       // Test 4: Test Delete Operations

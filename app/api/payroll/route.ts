@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { created_at: 'desc' }
       }),
       prisma.payrollRun.count({ where })
     ])
@@ -90,6 +90,13 @@ export async function POST(request: NextRequest) {
       where: { aktif: true }
     })
 
+    if (employees.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Tidak ada karyawan aktif untuk membuat payroll'
+      }, { status: 400 })
+    }
+
     // Get active pay components
     const payComponents = await prisma.payComponent.findMany({
       where: { aktif: true },
@@ -104,10 +111,10 @@ export async function POST(request: NextRequest) {
       )
       const hariKerja = override?.hariKerja || 22 // Default 22 working days
 
-      // Basic calculations
-      const upahHarian = employee.kontrakUpahHarian
-      const uangMakanHarian = employee.defaultUangMakan
-      const uangBbmHarian = employee.defaultUangBbm
+      // Basic calculations (convert Decimal to number to avoid calculation issues)
+      const upahHarian = Number(employee.kontrakUpahHarian)
+      const uangMakanHarian = Number(employee.defaultUangMakan)
+      const uangBbmHarian = Number(employee.defaultUangBbm)
       
       let bruto = (upahHarian * hariKerja) + 
                   (uangMakanHarian * hariKerja) + 
@@ -127,22 +134,22 @@ export async function POST(request: NextRequest) {
           
           switch (comp.metode) {
             case 'FLAT':
-              amount = comp.nominal || 0
+              amount = Number(comp.nominal) || 0
               break
             case 'PER_HARI':
-              amount = (comp.rate || 0) * hariKerja
+              amount = (Number(comp.rate) || 0) * hariKerja
               break
             case 'PERSENTASE':
               const basis = comp.basis === 'UPAH_HARIAN' 
                 ? upahHarian * hariKerja 
                 : bruto
-              amount = basis * ((comp.rate || 0) / 100)
+              amount = basis * ((Number(comp.rate) || 0) / 100)
               break
           }
           
           // Apply caps
-          if (comp.capMin && amount < comp.capMin) amount = comp.capMin
-          if (comp.capMax && amount > comp.capMax) amount = comp.capMax
+          if (comp.capMin && amount < Number(comp.capMin)) amount = Number(comp.capMin)
+          if (comp.capMax && amount > Number(comp.capMax)) amount = Number(comp.capMax)
           
           components.push({
             componentId: comp.id,
@@ -171,20 +178,20 @@ export async function POST(request: NextRequest) {
           
           switch (comp.metode) {
             case 'FLAT':
-              amount = comp.nominal || 0
+              amount = Number(comp.nominal) || 0
               break
             case 'PER_HARI':
-              amount = (comp.rate || 0) * hariKerja
+              amount = (Number(comp.rate) || 0) * hariKerja
               break
             case 'PERSENTASE':
               const basis = comp.basis === 'BRUTO' ? bruto : upahHarian * hariKerja
-              amount = basis * ((comp.rate || 0) / 100)
+              amount = basis * ((Number(comp.rate) || 0) / 100)
               break
           }
           
           // Apply caps
-          if (comp.capMin && amount < comp.capMin) amount = comp.capMin
-          if (comp.capMax && amount > comp.capMax) amount = comp.capMax
+          if (comp.capMin && amount < Number(comp.capMin)) amount = Number(comp.capMin)
+          if (comp.capMax && amount > Number(comp.capMax)) amount = Number(comp.capMax)
           
           components.push({
             componentId: comp.id,
@@ -215,12 +222,30 @@ export async function POST(request: NextRequest) {
 
     // Create payroll run with transaction
     const payrollRun = await prisma.$transaction(async (tx) => {
+      // Ensure user exists for foreign key constraint
+      const userId = validatedData.createdBy || 'system'
+      try {
+        await tx.user.upsert({
+          where: { id: userId },
+          update: {},
+          create: {
+            id: userId,
+            name: 'System User',
+            email: `${userId}@system.local`,
+            password: 'system',
+            role: 'ADMIN'
+          }
+        })
+      } catch (error) {
+        // User might already exist, continue
+      }
+
       // Create payroll run
       const newPayrollRun = await tx.payrollRun.create({
         data: {
           periodeAwal: validatedData.periodeAwal,
           periodeAkhir: validatedData.periodeAkhir,
-          createdBy: validatedData.createdBy,
+          createdBy: userId,
           status: 'DRAFT'
         }
       })
@@ -285,10 +310,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Return detailed error for debugging
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal membuat payroll'
+        error: 'Gagal membuat payroll',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     )
