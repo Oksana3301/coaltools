@@ -667,7 +667,7 @@ export default function AdminStatusTestPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button 
-                    onClick={() => window.open('/coal-tools-laporanproduksi', '_blank')}
+                    onClick={() => window.open('/onboarding-demo', '_blank')}
                     className="h-20 text-left flex flex-col items-start justify-center"
                   >
                     <div className="font-semibold">🚀 Open CoalLens Dashboard</div>
@@ -746,16 +746,23 @@ export default function AdminStatusTestPage() {
                     <p className="text-sm text-green-700 dark:text-green-300">
                       The CoalLens Core12 dashboard has been successfully implemented based on coalensreport.md specifications. 
                       All 7 dashboard tabs are functional with charts, KPIs, and export capabilities. 
-                      The dashboard is now live at <code className="bg-white dark:bg-gray-800 px-1 rounded">/coal-tools-laporanproduksi</code>
+                      The dashboard is now live at <code className="bg-white dark:bg-gray-800 px-1 rounded">/onboarding-demo</code> and 
+                      production reporting has been restored to <code className="bg-white dark:bg-gray-800 px-1 rounded">/coal-tools-laporanproduksi</code>
                     </p>
                   </div>
 
                   <div className="mt-4 flex gap-2">
                     <Button 
-                      onClick={() => window.open('/coal-tools-laporanproduksi', '_blank')}
+                      onClick={() => window.open('/onboarding-demo', '_blank')}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
-                      🚀 Launch Dashboard
+                      🚀 Launch CoalLens Dashboard
+                    </Button>
+                    <Button 
+                      onClick={() => window.open('/coal-tools-laporanproduksi', '_blank')}
+                      className="bg-orange-600 hover:bg-orange-700"
+                    >
+                      📊 Production Reports
                     </Button>
                     <Button 
                       variant="outline"

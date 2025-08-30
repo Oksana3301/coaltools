@@ -1,192 +1,167 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { OnboardingWizard } from "@/components/coal-tools/onboarding-wizard"
-import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CalendarDays, Factory, DollarSign, TrendingUp, AlertTriangle } from "lucide-react"
+import { apiService } from "@/lib/api"
+import { DashboardSummaryResponse, PeriodFilter } from "@/lib/dashboard-types"
 import { useToast } from "@/hooks/use-toast"
-import { Settings, User, Zap } from "lucide-react"
 
-export default function OnboardingDemoPage() {
-  const [showOnboarding, setShowOnboarding] = useState(false)
+export default function CoalLensDashboardPage() {
   const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [summaryData, setSummaryData] = useState<DashboardSummaryResponse | null>(null)
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>({ period: '2025-08', site: 'ALL' }) // Default filters
 
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false)
-    toast({
-      title: "🎉 Onboarding Selesai!",
-      description: "Preferensi Anda telah tersimpan dan siap digunakan untuk generate laporan.",
-    })
-  }
-
-  const handleOnboardingClose = () => {
-    setShowOnboarding(false)
-    toast({
-      title: "Onboarding Dibatalkan",
-      description: "Anda dapat menjalankan onboarding kapan saja dari menu pengaturan.",
-      variant: "destructive"
-    })
-  }
+  useEffect(() => {
+    const fetchSummary = async () => {
+      setLoading(true)
+      try {
+        const response = await apiService.getDashboardSummary(periodFilter)
+        if (response.success && response.data) {
+          setSummaryData(response.data)
+        } else {
+          toast({
+            title: "Error",
+            description: response.error || "Failed to load dashboard summary",
+            variant: "destructive"
+          })
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load dashboard summary",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSummary()
+  }, [periodFilter, toast])
 
   return (
-    <div className="container mx-auto max-w-4xl py-8 space-y-8">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight">
-          Coal Mining Report Generator
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Sistem onboarding untuk mengatur preferensi laporan batubara Anda dengan mudah dan cepat
-        </p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Personalisasi
-            </CardTitle>
-            <CardDescription>
-              Atur profil, jabatan, dan preferensi bahasa laporan
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Badge variant="outline">8 Langkah Mudah</Badge>
-              <Badge variant="outline">Validasi Real-time</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" />
-              Konfigurasi
-            </CardTitle>
-            <CardDescription>
-              Tentukan format output, komponen biaya, dan struktur gaji
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Badge variant="outline">Multiple Format</Badge>
-              <Badge variant="outline">Komponen Custom</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-primary" />
-              Otomatis
-            </CardTitle>
-            <CardDescription>
-              Upload template terbaik dan atur reminder otomatis
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Badge variant="outline">Upload Template</Badge>
-              <Badge variant="outline">Smart Reminder</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="text-center">
-        <CardHeader>
-          <CardTitle>Siap untuk Memulai?</CardTitle>
-          <CardDescription>
-            Jalankan onboarding wizard untuk mengatur preferensi laporan Anda
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button 
-            size="lg" 
-            onClick={() => setShowOnboarding(true)}
-            className="w-full sm:w-auto"
-          >
-            Mulai Onboarding
-          </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            Proses ini membutuhkan waktu sekitar 3-5 menit
-          </p>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Fitur Onboarding</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-primary rounded-full"></span>
-                Progress bar dan step indicators
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-primary rounded-full"></span>
-                Validasi form real-time
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-primary rounded-full"></span>
-                Error handling yang informatif
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-primary rounded-full"></span>
-                Responsive design untuk semua device
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-primary rounded-full"></span>
-                Auto-save dan recovery data
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Langkah-Langkah</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs font-medium">1</span>
-                Profil & Peran
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs font-medium">2</span>
-                Bahasa & Format
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs font-medium">3</span>
-                Cashout & Biaya
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs font-medium">4</span>
-                Produksi Batubara
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs font-medium">...</span>
-                Dan 4 langkah lainnya
-              </li>
-            </ol>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Onboarding Wizard */}
-      {showOnboarding && (
-        <OnboardingWizard
-          userId="demo-user-123"
-          onComplete={handleOnboardingComplete}
-          onClose={handleOnboardingClose}
-        />
-      )}
-    </div>
+    <DashboardShell
+      title="CoalLens Dashboard"
+      description="Comprehensive analytics for coal mining operations."
+      periodFilter={periodFilter}
+      onPeriodFilterChange={setPeriodFilter}
+      loading={loading}
+    >
+      <Tabs defaultValue="executive" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="executive">Executive</TabsTrigger>
+          <TabsTrigger value="unit-economics">Unit Economics</TabsTrigger>
+          <TabsTrigger value="costs">Costs</TabsTrigger>
+          <TabsTrigger value="working-capital">Working Capital</TabsTrigger>
+          <TabsTrigger value="cash-pnl">Cash & P&L</TabsTrigger>
+        </TabsList>
+        <TabsContent value="executive" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Executive Summary</CardTitle>
+              <CardDescription>Key performance indicators and top alerts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading executive data...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Example KPI Cards */}
+                  <Card className="p-4">
+                    <h4 className="text-sm font-medium">Realized Price/ton</h4>
+                    <p className="text-2xl font-bold mt-1">Rp {summaryData?.kpi.realizedPricePerTon?.toLocaleString('id-ID') || '0'}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <h4 className="text-sm font-medium">Cash Margin/ton</h4>
+                    <p className="text-2xl font-bold mt-1">Rp {summaryData?.kpi.cashMarginPerTon?.toLocaleString('id-ID') || '0'}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <h4 className="text-sm font-medium">Total TON</h4>
+                    <p className="text-2xl font-bold mt-1">{summaryData?.kpi.saleableTons?.toLocaleString('id-ID') || '0'} MT</p>
+                  </Card>
+                  <h3 className="col-span-full text-lg font-semibold mt-4">Top Alerts</h3>
+                  {summaryData?.alerts && summaryData.alerts.length > 0 ? (
+                    <div className="col-span-full space-y-2">
+                      {summaryData.alerts.map(alert => (
+                        <div key={alert.id} className="flex items-center gap-2 p-3 border rounded-md">
+                          <AlertTriangle className={`h-5 w-5 ${alert.severity === 'high' ? 'text-red-500' : alert.severity === 'med' ? 'text-yellow-500' : 'text-blue-500'}`} />
+                          <p className="text-sm">{alert.message}</p>
+                          <span className="ml-auto text-xs text-muted-foreground">{new Date(alert.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="col-span-full text-sm text-muted-foreground">No active alerts.</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="unit-economics" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Unit Economics</CardTitle>
+              <CardDescription>Per-ton analysis of production to revenue.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading unit economics data...</div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Unit Economics content will go here. Data: {JSON.stringify(summaryData?.kpi)}</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="costs" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Costs</CardTitle>
+              <CardDescription>Detailed breakdown of operational costs.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading costs data...</div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Costs content will go here.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="working-capital" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Working Capital</CardTitle>
+              <CardDescription>Analysis of working capital metrics.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading working capital data...</div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Working Capital content will go here.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="cash-pnl" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Cash & P&L</CardTitle>
+              <CardDescription>Cash flow and profit & loss statements.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading cash & P&L data...</div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Cash & P&L content will go here.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </DashboardShell>
   )
 }
