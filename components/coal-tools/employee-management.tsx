@@ -110,6 +110,8 @@ export function EmployeeManagement() {
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(defaultEmployeeForm)
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ id: string; name: string } | null>(null)
   const [deletingEmployee, setDeletingEmployee] = useState<string | null>(null)
+  const [customJabatan, setCustomJabatan] = useState('')
+  const [customBank, setCustomBank] = useState('')
 
   useEffect(() => {
     loadEmployees()
@@ -118,7 +120,7 @@ export function EmployeeManagement() {
   const loadEmployees = async () => {
     setLoading(true)
     try {
-      const response = await apiService.getEmployees()
+      const response = await apiService.getEmployees({ limit: 100 })
       if (response.success) {
         setEmployees(response.data || [])
       }
@@ -166,9 +168,14 @@ export function EmployeeManagement() {
         startDate: employee.startDate || '',
         aktif: employee.aktif
       })
+      // Set custom values if they're not in predefined options
+      setCustomJabatan(JABATAN_OPTIONS.includes(employee.jabatan) ? '' : employee.jabatan)
+      setCustomBank(BANK_OPTIONS.includes(employee.bankName || '') ? '' : employee.bankName || '')
     } else {
       setEditingEmployee(null)
       setEmployeeForm(defaultEmployeeForm)
+      setCustomJabatan('')
+      setCustomBank('')
     }
     setIsEmployeeFormOpen(true)
   }
@@ -177,6 +184,8 @@ export function EmployeeManagement() {
     setIsEmployeeFormOpen(false)
     setEditingEmployee(null)
     setEmployeeForm(defaultEmployeeForm)
+    setCustomJabatan('')
+    setCustomBank('')
   }
 
   const updateEmployeeForm = (field: keyof EmployeeForm, value: any) => {
@@ -596,16 +605,43 @@ export function EmployeeManagement() {
                 </div>
                 <div>
                   <Label htmlFor="jabatan">Jabatan *</Label>
-                  <Select value={employeeForm.jabatan} onValueChange={(value) => updateEmployeeForm('jabatan', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih jabatan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {JABATAN_OPTIONS.map(jabatan => (
-                        <SelectItem key={jabatan} value={jabatan}>{jabatan}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Select 
+                      value={JABATAN_OPTIONS.includes(employeeForm.jabatan) ? employeeForm.jabatan : 'custom'} 
+                      onValueChange={(value) => {
+                        if (value === 'custom') {
+                          setCustomJabatan(employeeForm.jabatan)
+                          updateEmployeeForm('jabatan', '')
+                        } else {
+                          setCustomJabatan('')
+                          updateEmployeeForm('jabatan', value)
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih jabatan atau pilih 'Custom'" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {JABATAN_OPTIONS.map(jabatan => (
+                          <SelectItem key={jabatan} value={jabatan}>{jabatan}</SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom (Jabatan Lain)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(customJabatan || (!JABATAN_OPTIONS.includes(employeeForm.jabatan) && employeeForm.jabatan)) && (
+                      <Input
+                        placeholder="Masukkan jabatan custom"
+                        value={customJabatan || employeeForm.jabatan}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          if (customJabatan !== '') {
+                            setCustomJabatan(value)
+                          }
+                          updateEmployeeForm('jabatan', value)
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="site">Site *</Label>
@@ -694,16 +730,43 @@ export function EmployeeManagement() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="bankName">Bank</Label>
-                  <Select value={employeeForm.bankName} onValueChange={(value) => updateEmployeeForm('bankName', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BANK_OPTIONS.map(bank => (
-                        <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Select 
+                      value={BANK_OPTIONS.includes(employeeForm.bankName) ? employeeForm.bankName : 'custom'} 
+                      onValueChange={(value) => {
+                        if (value === 'custom') {
+                          setCustomBank(employeeForm.bankName)
+                          updateEmployeeForm('bankName', '')
+                        } else {
+                          setCustomBank('')
+                          updateEmployeeForm('bankName', value)
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih bank atau pilih 'Custom'" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BANK_OPTIONS.map(bank => (
+                          <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom (Bank Lain)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(customBank || (!BANK_OPTIONS.includes(employeeForm.bankName) && employeeForm.bankName)) && (
+                      <Input
+                        placeholder="Masukkan nama bank custom"
+                        value={customBank || employeeForm.bankName}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          if (customBank !== '') {
+                            setCustomBank(value)
+                          }
+                          updateEmployeeForm('bankName', value)
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="bankAccount">Nomor Rekening</Label>
