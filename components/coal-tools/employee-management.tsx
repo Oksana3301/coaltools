@@ -275,18 +275,26 @@ export function EmployeeManagement() {
   const deleteEmployee = async (id: string) => {
     setDeletingEmployee(id)
     try {
+      console.log('Deleting employee with ID:', id)
       const response = await apiService.deleteEmployee(id)
+      console.log('Delete response:', response)
+      
       if (response.success) {
         toast({
-          title: "Karyawan dihapus",
-          description: "Karyawan berhasil dihapus"
+          title: "✅ Karyawan Berhasil Dihapus",
+          description: "Data karyawan telah dinonaktifkan dari sistem",
+          variant: "default"
         })
-        loadEmployees()
+        // Reload employee list to reflect changes
+        await loadEmployees()
+      } else {
+        throw new Error(response.error || 'Unknown error')
       }
     } catch (error: any) {
+      console.error('Delete employee error:', error)
       toast({
-        title: "Error",
-        description: error.message || "Gagal menghapus karyawan",
+        title: "❌ Gagal Menghapus Karyawan",
+        description: error.message || "Terjadi kesalahan saat menghapus karyawan",
         variant: "destructive"
       })
     } finally {
@@ -548,12 +556,18 @@ export function EmployeeManagement() {
                           name: employee.nama
                         })}
                         disabled={deletingEmployee === employee.id}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                       >
                         {deletingEmployee === employee.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            Menghapus...
+                          </>
                         ) : (
-                          <Trash2 className="h-4 w-4" />
+                          <>
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Hapus
+                          </>
                         )}
                       </Button>
                     </div>
@@ -836,15 +850,27 @@ export function EmployeeManagement() {
       <Dialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Konfirmasi Hapus</DialogTitle>
-            <DialogDescription>
-              Apakah Anda yakin ingin menghapus karyawan <strong>{showDeleteDialog?.name}</strong>?
-              <br />
-              <span className="text-red-600">Tindakan ini tidak dapat dibatalkan.</span>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Konfirmasi Hapus Karyawan
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p>
+                Apakah Anda yakin ingin menghapus karyawan <strong>{showDeleteDialog?.name}</strong>?
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
+                <p className="text-yellow-800">
+                  ℹ️ <strong>Catatan:</strong> Karyawan akan dinonaktifkan (soft delete) sehingga data masih tersimpan namun tidak akan muncul dalam daftar aktif.
+                </p>
+              </div>
+              <p className="text-red-600 font-medium">
+                ⚠️ Pastikan keputusan Anda sebelum melanjutkan.
+              </p>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowDeleteDialog(null)}>
+              <X className="h-4 w-4 mr-1" />
               Batal
             </Button>
             <Button 
@@ -854,8 +880,19 @@ export function EmployeeManagement() {
                   deleteEmployee(showDeleteDialog.id)
                 }
               }}
+              disabled={!!deletingEmployee}
             >
-              Hapus
+              {deletingEmployee ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Ya, Hapus Karyawan
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
