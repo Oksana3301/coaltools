@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,6 +80,7 @@ export default function KwitansiPage() {
   
   // Load auto-kwitansi data from localStorage if available
   useEffect(() => {
+    try {
     const autoKwitansiData = localStorage.getItem('autoKwitansiData')
     if (autoKwitansiData) {
       try {
@@ -99,16 +100,19 @@ export default function KwitansiPage() {
       } catch (error) {
         console.error('Error parsing auto kwitansi data:', error)
       }
+      }
+      
+      // Load saved kwitansi data
+      loadSavedKwitansi()
+    } catch (error) {
+      console.error('Error in useEffect:', error)
     }
-    
-    // Load saved kwitansi data
-    loadSavedKwitansi()
   }, [])
 
   // Load data when search or date filter changes
   useEffect(() => {
     loadSavedKwitansi()
-  }, [searchTerm, dateFilter])
+  }, [loadSavedKwitansi])
   const [formData, setFormData] = useState({
     nomorKwitansi: "KW-001/2025",
     tanggal: "2025-08-07",
@@ -622,11 +626,12 @@ export default function KwitansiPage() {
   }
 
   // Load saved kwitansi data
-  const loadSavedKwitansi = async () => {
+  const loadSavedKwitansi = useCallback(async () => {
     setLoading(true)
     try {
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
+        setLoading(false)
         return
       }
 
@@ -646,7 +651,7 @@ export default function KwitansiPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchTerm, dateFilter])
 
   // Edit kwitansi
   const handleEditKwitansi = (kwitansi: any) => {

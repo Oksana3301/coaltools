@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,13 +31,17 @@ export default function InvoicePage() {
 
   // Load saved invoices data on component mount
   useEffect(() => {
-    loadSavedInvoices()
+    try {
+      loadSavedInvoices()
+    } catch (error) {
+      console.error('Error in useEffect:', error)
+    }
   }, [])
 
   // Load data when search or date filter changes
   useEffect(() => {
     loadSavedInvoices()
-  }, [searchTerm, dateFilter])
+  }, [loadSavedInvoices])
   const [dueDate, setDueDate] = useState('')
   const [applicantName, setApplicantName] = useState('PT. GLOBAL LESTARI ALAM')
   const [recipientName, setRecipientName] = useState('')
@@ -619,11 +623,12 @@ export default function InvoicePage() {
   }
 
   // Load saved invoices data
-  const loadSavedInvoices = async () => {
+  const loadSavedInvoices = useCallback(async () => {
     setLoading(true)
     try {
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
+        setLoading(false)
         return
       }
 
@@ -643,7 +648,7 @@ export default function InvoicePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchTerm, dateFilter])
 
   // Edit invoice
   const handleEditInvoice = (invoice: any) => {
