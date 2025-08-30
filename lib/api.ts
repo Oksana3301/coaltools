@@ -444,9 +444,9 @@ class ApiService {
     })
   }
 
-  // Delete pay component (soft delete)
+  // Delete pay component (soft delete by default, hard delete with force=true)
   async deletePayComponent(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
-    return this.fetchApi<null>(`/pay-components?id=${id}&hardDelete=${hardDelete}`, {
+    return this.fetchApi<null>(`/pay-components?id=${id}&force=${hardDelete}`, {
       method: 'DELETE'
     })
   }

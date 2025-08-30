@@ -258,16 +258,18 @@ export function PayrollCalculator() {
     }
   }
 
-  const handleDeleteComponent = async (componentId: string) => {
+    const handleDeleteComponent = async (componentId: string, hardDelete: boolean = false) => {
     try {
       setLoading(true)
       
-      const response = await apiService.deletePayComponent(componentId)
-
+      const response = await apiService.deletePayComponent(componentId, hardDelete)
+      
       if (response.success) {
         toast({
           title: "Berhasil",
-          description: "Komponen berhasil dihapus"
+          description: hardDelete 
+            ? "Komponen berhasil dihapus permanen"
+            : "Komponen berhasil dinonaktifkan"
         })
         
         // Refresh data
@@ -1063,7 +1065,11 @@ export function PayrollCalculator() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeleteComponent(component.id)}
+                                onClick={() => setShowDeleteDialog({
+                                  type: 'payComponent',
+                                  id: component.id!,
+                                  name: component.nama
+                                })}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1128,7 +1134,11 @@ export function PayrollCalculator() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeleteComponent(component.id)}
+                                onClick={() => setShowDeleteDialog({
+                                  type: 'payComponent',
+                                  id: component.id!,
+                                  name: component.nama
+                                })}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1951,6 +1961,12 @@ export function PayrollCalculator() {
             <DialogTitle>Konfirmasi Hapus</DialogTitle>
             <DialogDescription>
               Apakah Anda yakin ingin menghapus {showDeleteDialog?.name}?
+              {showDeleteDialog?.type === 'payComponent' && (
+                <div className="mt-2 text-sm">
+                  <p><strong>Soft Delete:</strong> Komponen akan dinonaktifkan (masih dapat diaktifkan kembali)</p>
+                  <p><strong>Hard Delete:</strong> Komponen akan dihapus permanen (tidak dapat dikembalikan)</p>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
@@ -1961,21 +1977,29 @@ export function PayrollCalculator() {
               variant="outline" 
               onClick={() => {
                 if (showDeleteDialog) {
-                  handleDeletePayrollRun(showDeleteDialog.id, false) // Soft delete
+                  if (showDeleteDialog.type === 'payComponent') {
+                    handleDeleteComponent(showDeleteDialog.id, false) // Soft delete
+                  } else {
+                    handleDeletePayrollRun(showDeleteDialog.id, false) // Soft delete
+                  }
                 }
               }}
             >
-              Soft Delete
+              {showDeleteDialog?.type === 'payComponent' ? 'Nonaktifkan' : 'Soft Delete'}
             </Button>
             <Button 
               variant="destructive" 
               onClick={() => {
                 if (showDeleteDialog) {
-                  handleDeletePayrollRun(showDeleteDialog.id, true) // Hard delete
+                  if (showDeleteDialog.type === 'payComponent') {
+                    handleDeleteComponent(showDeleteDialog.id, true) // Hard delete
+                  } else {
+                    handleDeletePayrollRun(showDeleteDialog.id, true) // Hard delete
+                  }
                 }
               }}
             >
-              Hard Delete
+              {showDeleteDialog?.type === 'payComponent' ? 'Hapus Permanen' : 'Hard Delete'}
             </Button>
           </div>
         </DialogContent>
@@ -2018,6 +2042,7 @@ function ComponentDialog({
   onSave, 
   onCancel 
 }: ComponentDialogProps) {
+  const { toast } = useToast()
   const [formData, setFormData] = useState<PayComponentForm>({
     nama: '',
     tipe: 'EARNING',
@@ -2065,19 +2090,40 @@ function ComponentDialog({
     e.preventDefault()
     
     if (!formData.nama.trim()) {
+      toast({
+        title: "Error",
+        description: "Nama komponen wajib diisi",
+        variant: "destructive"
+      })
       return
     }
 
     // Validation based on method
-    if (formData.metode === 'FLAT' && !formData.nominal) {
+    if (formData.metode === 'FLAT' && (formData.nominal === undefined || formData.nominal <= 0)) {
+      toast({
+        title: "Error", 
+        description: "Nominal wajib diisi dan harus lebih dari 0 untuk metode FLAT",
+        variant: "destructive"
+      })
       return
     }
 
-    if (['PER_HARI', 'PERSENTASE'].includes(formData.metode) && !formData.rate) {
+    if (['PER_HARI', 'PERSENTASE'].includes(formData.metode) && (formData.rate === undefined || formData.rate <= 0)) {
+      toast({
+        title: "Error",
+        description: "Rate wajib diisi dan harus lebih dari 0 untuk metode PER_HARI atau PERSENTASE", 
+        variant: "destructive"
+      })
       return
     }
 
-    onSave(formData)
+    // Clean the data - ensure numbers are properly set
+    const cleanData = {
+      ...formData,
+      ...(formData.metode === 'FLAT' ? { rate: undefined } : { nominal: undefined })
+    }
+
+    onSave(cleanData)
   }
 
   return (

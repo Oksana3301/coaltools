@@ -38,15 +38,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const tipe = searchParams.get('tipe')
     const aktif = searchParams.get('aktif')
+    const includeInactive = searchParams.get('includeInactive') === 'true'
     
     const where = {
       ...(tipe && { tipe: tipe as 'EARNING' | 'DEDUCTION' }),
-      ...(aktif !== null && { aktif: aktif === 'true' })
+      ...(aktif !== null ? { aktif: aktif === 'true' } : !includeInactive ? { aktif: true } : {})
     }
 
     const payComponents = await prisma.payComponent.findMany({
       where,
-      orderBy: [{ order: 'asc' }, { nama: 'asc' }]
+      orderBy: [{ order: 'asc' }, { nama: 'asc' }],
+      include: {
+        payrollLineComponents: {
+          select: { id: true }
+        }
+      }
     })
 
     return NextResponse.json({
@@ -195,7 +201,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Hapus komponen gaji (soft delete)
+// DELETE - Hapus komponen gaji (soft delete by default, hard delete dengan force=true)
 export async function DELETE(request: NextRequest) {
     const prisma = getPrismaClient();
     if (!prisma) {
@@ -209,6 +215,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const force = searchParams.get('force') === 'true'
 
     if (!id) {
       return NextResponse.json(
@@ -220,16 +227,74 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const payComponent = await prisma.payComponent.update({
+    // Check if component exists
+    const payComponent = await prisma.payComponent.findUnique({
       where: { id },
-      data: { aktif: false }
+      select: { 
+        id: true, 
+        nama: true, 
+        aktif: true,
+        payrollLineComponents: {
+          select: { id: true }
+        }
+      }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: payComponent,
-      message: 'Komponen gaji berhasil dinonaktifkan'
-    })
+    if (!payComponent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Komponen gaji tidak ditemukan'
+        },
+        { status: 404 }
+      )
+    }
+
+    // If already inactive and user wants soft delete, don't allow
+    if (!payComponent.aktif && !force) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Komponen sudah dinonaktifkan. Gunakan force=true untuk penghapusan permanen.'
+        },
+        { status: 400 }
+      )
+    }
+
+    // For hard delete, check if component is used in any payroll
+    if (force && payComponent.payrollLineComponents.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Komponen gaji tidak bisa dihapus permanen karena sudah digunakan dalam payroll. Gunakan soft delete saja.'
+        },
+        { status: 400 }
+      )
+    }
+
+    if (force) {
+      // Hard delete - permanently remove from database
+      await prisma.payComponent.delete({
+        where: { id }
+      })
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Komponen gaji berhasil dihapus permanen'
+      })
+    } else {
+      // Soft delete - mark as inactive
+      const updatedComponent = await prisma.payComponent.update({
+        where: { id },
+        data: { aktif: false }
+      })
+
+      return NextResponse.json({
+        success: true,
+        data: updatedComponent,
+        message: 'Komponen gaji berhasil dinonaktifkan'
+      })
+    }
   } catch (error) {
     console.error('Error deleting pay component:', error)
     return NextResponse.json(
