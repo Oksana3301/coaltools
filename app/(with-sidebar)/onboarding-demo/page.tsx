@@ -20,6 +20,7 @@ import {
   FileSpreadsheet
 } from "lucide-react"
 import { DataInputForm } from "@/components/dashboard/data-input-form"
+import { SimpleSimulationForm } from "@/components/dashboard/simple-simulation-form"
 import { KPIStat } from "@/components/dashboard/kpi-stat"
 import { ChartCard } from "@/components/dashboard/chart-card"
 import { WaterfallChart } from "@/components/dashboard/waterfall-chart"
@@ -63,7 +64,7 @@ export default function CoalLensDashboardPage() {
     })
   }
 
-  const formatCurrency = (amount: number, currency = 'USD') => {
+  const formatCurrency = (amount: number, currency = 'IDR') => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: currency,
@@ -78,16 +79,16 @@ export default function CoalLensDashboardPage() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              CoalLens Core12 Dashboard
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Dashboard CoalLens Core12
         </h1>
             <p className="text-gray-600">
-              Comprehensive coal mining analytics with real-time data input and Core12 metrics calculation
+              Analytics komprehensif pertambangan batubara dengan input data real-time dan perhitungan metrics Core12
             </p>
             {dashboardData && (
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <Activity className="h-4 w-4" />
-                Last calculated: {new Date(dashboardData.lastUpdated).toLocaleString('id-ID')}
+                Terakhir dihitung: {new Date(dashboardData.lastUpdated).toLocaleString('id-ID')}
               </div>
             )}
           </div>
@@ -123,27 +124,28 @@ export default function CoalLensDashboardPage() {
               Input Data
             </TabsTrigger>
             <TabsTrigger value="executive" className="text-xs lg:text-sm" disabled={!dashboardData}>
-              Executive
+              Eksekutif
             </TabsTrigger>
             <TabsTrigger value="unit-economics" className="text-xs lg:text-sm" disabled={!dashboardData}>
-              Unit Economics
+              Unit Ekonomi
             </TabsTrigger>
             <TabsTrigger value="costs" className="text-xs lg:text-sm" disabled={!dashboardData}>
-              Costs
+              Biaya
             </TabsTrigger>
             <TabsTrigger value="working-capital" className="text-xs lg:text-sm" disabled={!dashboardData}>
-              Working Capital
+              Modal Kerja
             </TabsTrigger>
             <TabsTrigger value="cash-pnl" className="text-xs lg:text-sm" disabled={!dashboardData}>
-              Cash & P&L
+              Kas & L/R
             </TabsTrigger>
             <TabsTrigger value="alerts" className="text-xs lg:text-sm" disabled={!dashboardData}>
-              Alerts
+              Peringatan
             </TabsTrigger>
           </TabsList>
 
           {/* Data Input Tab */}
           <TabsContent value="input" className="space-y-6">
+            <SimpleSimulationForm onCalculate={handleDataCalculated} />
             <DataInputForm onCalculate={handleDataCalculated} />
           </TabsContent>
 
@@ -154,40 +156,40 @@ export default function CoalLensDashboardPage() {
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                   <KPIStat 
-                    label="Realized Price/ton" 
+                    label="Harga Realisasi/ton" 
                     value={dashboardData.kpi.realizedPricePerTon} 
-                    suffix=" USD"
+                    suffix=" IDR"
                     delta={3.2}
                     format="currency"
                   />
                   <KPIStat 
-                    label="Cash Cost/ton" 
+                    label="Biaya Kas/ton" 
                     value={dashboardData.kpi.cashCostPerTon} 
-                    suffix=" USD"
+                    suffix=" IDR"
                     delta={-1.5}
                     format="currency"
                   />
                   <KPIStat 
-                    label="Cash Margin/ton" 
+                    label="Margin Kas/ton" 
                     value={dashboardData.kpi.cashMarginPerTon} 
-                    suffix=" USD"
+                    suffix=" IDR"
                     delta={8.7}
                     format="currency"
                   />
                   <KPIStat 
-                    label="EBITDA Margin" 
+                    label="Margin EBITDA" 
                     value={dashboardData.kpi.ebitdaMarginPct} 
                     suffix="%"
                     delta={2.1}
                   />
                   <KPIStat 
-                    label="Total Tons" 
+                    label="Total Ton" 
                     value={dashboardData.kpi.saleableTons} 
                     delta={5.3}
                     format="number"
                   />
                   <KPIStat 
-                    label="Yield %" 
+                    label="Rendemen %" 
                     value={dashboardData.kpi.yieldPct} 
                     suffix="%"
                     delta={1.2}
@@ -196,7 +198,7 @@ export default function CoalLensDashboardPage() {
 
                 {/* Charts Row 1 */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ChartCard title="Production → Revenue Bridge" subtitle="Tons to revenue conversion">
+                  <ChartCard title="Bridge Produksi → Pendapatan" subtitle="Konversi ton ke pendapatan">
                     <WaterfallChart 
                       data={dashboardData.productionBridge.steps.map(step => ({
                         name: step.label,
@@ -208,7 +210,7 @@ export default function CoalLensDashboardPage() {
                     />
                   </ChartCard>
                   
-                  <ChartCard title="Monthly Cash Flow" subtitle="Inflow vs Outflow">
+                  <ChartCard title="Arus Kas Bulanan" subtitle="Masuk vs Keluar">
                     <LineAreaChart 
                       data={[
                         { name: 'Week 1', inflow: dashboardData.finance.cashIn / 4, outflow: dashboardData.finance.cashOut / 4, net: (dashboardData.finance.cashIn - dashboardData.finance.cashOut) / 4 },
@@ -228,7 +230,7 @@ export default function CoalLensDashboardPage() {
                 </div>
 
                 {/* Alerts Section */}
-                <ChartCard title="Active Alerts" subtitle="Priority issues requiring attention">
+                <ChartCard title="Peringatan Aktif" subtitle="Masalah prioritas yang memerlukan perhatian">
                   <AlertList alerts={dashboardData.alerts} />
                 </ChartCard>
               </>
@@ -241,18 +243,18 @@ export default function CoalLensDashboardPage() {
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <KPIStat 
-                    label="Yield %" 
+                    label="Rendemen %" 
                     value={dashboardData.kpi.yieldPct} 
                     suffix="%"
                     delta={2.1}
                   />
                   <KPIStat 
-                    label="Strip Ratio" 
+                    label="Rasio Kupas" 
                     value={dashboardData.kpi.stripRatio} 
                     delta={-5.3}
                   />
                   <KPIStat 
-                    label="Benchmark Diff" 
+                    label="Selisih Benchmark" 
                     value={dashboardData.kpi.benchmarkDiff} 
                     suffix=" USD/ton"
                     delta={12.5}

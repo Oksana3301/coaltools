@@ -376,7 +376,7 @@ export function DataInputForm({ onCalculate }: { onCalculate: (data: any) => voi
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calculator className="h-5 w-5" />
-          Input Data Mining & Kalkulasi Core12 Metrics
+          Input Data Tambang & Kalkulasi Metrics Core12
         </CardTitle>
         <CardDescription>
           Masukkan data produksi, penjualan, dan biaya untuk menghitung KPI Core12 secara komprehensif
