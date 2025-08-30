@@ -118,7 +118,7 @@ export default function CoalLensDashboardPage() {
 
         {/* Main Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-fit">
+          <TabsList className="grid w-full grid-cols-8 lg:w-fit">
             <TabsTrigger value="input" className="text-xs lg:text-sm">
               <Calculator className="h-4 w-4 mr-1 lg:mr-2" />
               Input Data
@@ -140,6 +140,9 @@ export default function CoalLensDashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="alerts" className="text-xs lg:text-sm" disabled={!dashboardData}>
               Peringatan
+            </TabsTrigger>
+            <TabsTrigger value="bep-analysis" className="text-xs lg:text-sm" disabled={!dashboardData}>
+              BEP & ROI
             </TabsTrigger>
           </TabsList>
 
@@ -502,6 +505,134 @@ export default function CoalLensDashboardPage() {
                 <ChartCard title="Alert Management" subtitle="Rules, threshold monitoring, and incident tracking">
                   <AlertList alerts={dashboardData.alerts} />
                 </ChartCard>
+              </>
+            )}
+          </TabsContent>
+
+          {/* BEP & ROI Analysis Tab */}
+          <TabsContent value="bep-analysis" className="space-y-6">
+            {dashboardData && dashboardData.bepAnalysis && (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                  <KPIStat 
+                    label="Break Even Point" 
+                    value={dashboardData.bepAnalysis.breakEvenMonths} 
+                    suffix=" bulan"
+                    delta={0}
+                  />
+                  <KPIStat 
+                    label="ROI Tahunan" 
+                    value={dashboardData.bepAnalysis.roi} 
+                    suffix="%"
+                    delta={0}
+                  />
+                  <KPIStat 
+                    label="Total Investasi" 
+                    value={dashboardData.bepAnalysis.totalInvestment / 1000000000} 
+                    suffix=" Miliar IDR"
+                    delta={0}
+                    format="currency"
+                  />
+                  <KPIStat 
+                    label="Profit Bulanan" 
+                    value={dashboardData.bepAnalysis.monthlyProfit / 1000000} 
+                    suffix=" Juta IDR"
+                    delta={0}
+                    format="currency"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <ChartCard title="Proyeksi Profit & BEP" subtitle="Kumulatif profit dari investasi awal">
+                    <LineAreaChart
+                      data={dashboardData.bepAnalysis.cumulativeProfitProjection}
+                      xKey="name"
+                      lines={[
+                        { key: 'cumulative', name: 'Kumulatif Profit', color: '#22c55e' },
+                      ]}
+                      height={300}
+                    />
+                  </ChartCard>
+                  
+                  <ChartCard title="Analisis Keuangan" subtitle="Ringkasan financial metrics">
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-semibold text-blue-800 mb-2">📊 Financial Summary</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Payback Period:</span>
+                            <div className="font-semibold text-blue-700">
+                              {Math.ceil(dashboardData.bepAnalysis.breakEvenMonths)} bulan
+                              <span className="text-xs text-gray-500 ml-1">
+                                ({(dashboardData.bepAnalysis.breakEvenYears).toFixed(1)} tahun)
+                              </span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">IRR (approx):</span>
+                            <div className="font-semibold text-blue-700">
+                              {dashboardData.bepAnalysis.irr.toFixed(1)}%
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">NPV:</span>
+                            <div className="font-semibold text-green-700">
+                              IDR {(dashboardData.bepAnalysis.npv / 1000000000).toFixed(1)} Miliar
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Profit after Payback:</span>
+                            <div className="font-semibold text-green-700">
+                              IDR {(dashboardData.bepAnalysis.profitAfterPayback / 1000000000).toFixed(1)} Miliar
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-yellow-50 rounded-lg">
+                        <h4 className="font-semibold text-yellow-800 mb-2">💡 Interpretasi Hasil</h4>
+                        <div className="text-sm text-yellow-700 space-y-2">
+                          {dashboardData.bepAnalysis.breakEvenMonths <= 24 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-green-600">✅</span>
+                              <span>BEP ≤ 24 bulan: Investasi menarik</span>
+                            </div>
+                          )}
+                          {dashboardData.bepAnalysis.breakEvenMonths > 24 && dashboardData.bepAnalysis.breakEvenMonths <= 36 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-yellow-600">⚠️</span>
+                              <span>BEP 24-36 bulan: Investasi moderat</span>
+                            </div>
+                          )}
+                          {dashboardData.bepAnalysis.breakEvenMonths > 36 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-red-600">❌</span>
+                              <span>BEP &gt; 36 bulan: Investasi berisiko tinggi</span>
+                            </div>
+                          )}
+                          {dashboardData.bepAnalysis.roi >= 20 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-green-600">✅</span>
+                              <span>ROI ≥ 20%: Return sangat bagus</span>
+                            </div>
+                          )}
+                          {dashboardData.bepAnalysis.roi >= 15 && dashboardData.bepAnalysis.roi < 20 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-yellow-600">⚠️</span>
+                              <span>ROI 15-20%: Return moderat</span>
+                            </div>
+                          )}
+                          {dashboardData.bepAnalysis.roi < 15 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-red-600">❌</span>
+                              <span>ROI &lt; 15%: Return kurang menarik</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </ChartCard>
+                </div>
               </>
             )}
           </TabsContent>

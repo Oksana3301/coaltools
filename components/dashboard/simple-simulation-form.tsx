@@ -33,8 +33,15 @@ interface SimulationInputs {
   royaltyCost: number
   otherCost: number
   
+  // Capital Investment
+  initialCapital: number
+  equipmentCost: number
+  infrastructureCost: number
+  workingCapital: number
+  
   // Settings
   currency: 'USD' | 'IDR'
+  analysisMonths: number
 }
 
 export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any) => void }) {
@@ -52,7 +59,12 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
     maintenanceCost: 120000000, // 120 juta rupiah
     royaltyCost: 90000000, // 90 juta rupiah
     otherCost: 150000000, // 150 juta rupiah
-    currency: 'IDR'
+    initialCapital: 50000000000, // 50 miliar rupiah total investment
+    equipmentCost: 35000000000, // 35 miliar untuk equipment
+    infrastructureCost: 10000000000, // 10 miliar untuk infrastruktur
+    workingCapital: 5000000000, // 5 miliar working capital
+    currency: 'IDR',
+    analysisMonths: 24 // 2 tahun analisis
   })
 
   const calculateSimpleMetrics = async () => {
@@ -73,6 +85,43 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
       const ebitda = totalRevenue - totalCosts
       const ebitdaMarginPct = totalRevenue > 0 ? (ebitda / totalRevenue) * 100 : 0
       const ebitdaPerTon = inputs.saleableTons > 0 ? ebitda / inputs.saleableTons : 0
+      
+      // BEP and ROI Calculations
+      const monthlyProfit = ebitda // Assuming monthly production
+      const totalInvestment = inputs.equipmentCost + inputs.infrastructureCost + inputs.workingCapital
+      const breakEvenMonths = monthlyProfit > 0 ? totalInvestment / monthlyProfit : 0
+      const breakEvenYears = breakEvenMonths / 12
+      const roi = totalInvestment > 0 ? (monthlyProfit * 12 / totalInvestment) * 100 : 0
+      const paybackPeriod = breakEvenMonths
+      
+      // Profit projections for analysis period
+      const monthlyProfitProjection = []
+      const cumulativeProfitProjection = []
+      let cumulativeProfit = -totalInvestment // Start with negative investment
+      
+      for (let month = 1; month <= inputs.analysisMonths; month++) {
+        const monthProfit = monthlyProfit
+        cumulativeProfit += monthProfit
+        
+        monthlyProfitProjection.push({
+          month,
+          profit: monthProfit,
+          cumulative: cumulativeProfit,
+          isBreakEven: cumulativeProfit >= 0 && month === Math.ceil(breakEvenMonths)
+        })
+        
+        cumulativeProfitProjection.push({
+          name: `Bulan ${month}`,
+          profit: monthProfit,
+          cumulative: cumulativeProfit,
+          investment: month === 1 ? -totalInvestment : 0
+        })
+      }
+      
+      // IRR approximation (simplified)
+      const finalCumulative = cumulativeProfit
+      const irr = totalInvestment > 0 && finalCumulative > 0 ? 
+        (Math.pow(finalCumulative / totalInvestment, 12 / inputs.analysisMonths) - 1) * 100 : 0
       
       // Simulate delay for calculation
       await new Promise(resolve => setTimeout(resolve, 1500))
@@ -165,6 +214,20 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
           createdAt: new Date().toISOString(),
           status: 'open' as const
         }] : [],
+        // BEP and ROI Analysis
+        bepAnalysis: {
+          totalInvestment,
+          monthlyProfit,
+          breakEvenMonths,
+          breakEvenYears,
+          roi,
+          irr,
+          paybackPeriod,
+          monthlyProfitProjection,
+          cumulativeProfitProjection,
+          npv: finalCumulative, // Simplified NPV
+          profitAfterPayback: finalCumulative - totalInvestment
+        },
         lastUpdated: new Date().toISOString()
       }
       
@@ -197,7 +260,12 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
       maintenanceCost: 120000000, // 120 juta rupiah
       royaltyCost: 90000000, // 90 juta rupiah
       otherCost: 150000000, // 150 juta rupiah
-      currency: 'IDR'
+      initialCapital: 50000000000, // 50 miliar rupiah total investment
+      equipmentCost: 35000000000, // 35 miliar untuk equipment
+      infrastructureCost: 10000000000, // 10 miliar untuk infrastruktur
+      workingCapital: 5000000000, // 5 miliar working capital
+      currency: 'IDR',
+      analysisMonths: 24 // 2 tahun analisis
     })
   }
 
@@ -228,7 +296,7 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
           </Select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Production Data */}
           <Card className="p-4">
             <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -442,6 +510,94 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
               </div>
             </div>
           </Card>
+
+          {/* Capital Investment Data */}
+          <Card className="p-4">
+            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Investasi Modal ({inputs.currency})
+            </h4>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="equipmentCost" className="flex items-center gap-2">
+                  Biaya Equipment
+                  <span className="text-xs text-gray-500">(Alat Berat)</span>
+                </Label>
+                <Input
+                  id="equipmentCost"
+                  type="number"
+                  value={inputs.equipmentCost}
+                  onChange={(e) => setInputs(prev => ({ ...prev, equipmentCost: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  📖 Investasi excavator, dump truck, bulldozer, dan alat berat lainnya untuk operasi mining.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="infrastructureCost" className="flex items-center gap-2">
+                  Biaya Infrastruktur
+                  <span className="text-xs text-gray-500">(Fasilitas)</span>
+                </Label>
+                <Input
+                  id="infrastructureCost"
+                  type="number"
+                  value={inputs.infrastructureCost}
+                  onChange={(e) => setInputs(prev => ({ ...prev, infrastructureCost: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  📖 Pembangunan jalan tambang, workshop, stockpile area, office, dan fasilitas penunjang.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="workingCapital" className="flex items-center gap-2">
+                  Working Capital
+                  <span className="text-xs text-gray-500">(Modal Kerja)</span>
+                </Label>
+                <Input
+                  id="workingCapital"
+                  type="number"
+                  value={inputs.workingCapital}
+                  onChange={(e) => setInputs(prev => ({ ...prev, workingCapital: Number(e.target.value) }))}
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  📖 Modal kerja untuk biaya operasional awal, gaji karyawan, stock fuel dan spare parts.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="analysisMonths" className="flex items-center gap-2">
+                  Periode Analisis
+                  <span className="text-xs text-gray-500">(Bulan)</span>
+                </Label>
+                <Input
+                  id="analysisMonths"
+                  type="number"
+                  value={inputs.analysisMonths}
+                  onChange={(e) => setInputs(prev => ({ ...prev, analysisMonths: Number(e.target.value) }))}
+                  className="mt-1"
+                  min="12"
+                  max="60"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  📖 Periode proyeksi untuk analisis BEP dan ROI (12-60 bulan). Recommended: 24-36 bulan.
+                </p>
+              </div>
+              <div className="pt-4 p-3 bg-orange-50 rounded-lg">
+                <div className="text-sm text-gray-700">
+                  <strong>Total Investasi:</strong> 
+                  <br />
+                  <span className="text-lg font-semibold text-orange-700">
+                    {inputs.currency} {(inputs.equipmentCost + inputs.infrastructureCost + inputs.workingCapital).toLocaleString('id-ID')}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  💰 Equipment + Infrastruktur + Working Capital
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Quick Metrics Preview */}
@@ -449,7 +605,7 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
           <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
             📊 Preview Metrics Cepat
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 text-sm">
             <div className="p-3 bg-blue-50 rounded-lg">
               <span className="text-gray-600 block text-xs">Rendemen (Yield):</span>
               <Badge variant="outline" className="mt-1 font-semibold">
@@ -479,6 +635,30 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
                 {inputs.currency} {Number(inputs.pricePerTon - inputs.benchmarkPrice).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">vs Newcastle/HBA</p>
+            </div>
+            <div className="p-3 bg-yellow-50 rounded-lg">
+              <span className="text-gray-600 block text-xs">BEP (Break Even):</span>
+              <Badge variant="outline" className="mt-1 font-semibold">
+                {(() => {
+                  const monthlyProfit = (inputs.saleableTons * inputs.pricePerTon) - (inputs.fuelCost + inputs.haulingCost + inputs.maintenanceCost + inputs.royaltyCost + inputs.otherCost)
+                  const totalInvestment = inputs.equipmentCost + inputs.infrastructureCost + inputs.workingCapital
+                  const breakEvenMonths = monthlyProfit > 0 ? totalInvestment / monthlyProfit : 0
+                  return breakEvenMonths > 0 ? `${Math.ceil(breakEvenMonths)} bulan` : 'N/A'
+                })()}
+              </Badge>
+              <p className="text-xs text-gray-500 mt-1">Waktu Balik Modal</p>
+            </div>
+            <div className="p-3 bg-pink-50 rounded-lg">
+              <span className="text-gray-600 block text-xs">ROI Tahunan:</span>
+              <Badge variant="outline" className="mt-1 font-semibold">
+                {(() => {
+                  const monthlyProfit = (inputs.saleableTons * inputs.pricePerTon) - (inputs.fuelCost + inputs.haulingCost + inputs.maintenanceCost + inputs.royaltyCost + inputs.otherCost)
+                  const totalInvestment = inputs.equipmentCost + inputs.infrastructureCost + inputs.workingCapital
+                  const roi = totalInvestment > 0 ? (monthlyProfit * 12 / totalInvestment) * 100 : 0
+                  return roi > 0 ? `${roi.toFixed(1)}%` : 'N/A'
+                })()}
+              </Badge>
+              <p className="text-xs text-gray-500 mt-1">Return on Investment</p>
             </div>
           </div>
         </div>
@@ -527,6 +707,8 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
                   <li>• Strip Ratio: 3-8 (tergantung deposit)</li>
                   <li>• Cash Cost: $30-60/ton (Rp450-900rb)</li>
                   <li>• EBITDA Margin: 25-45%</li>
+                  <li>• BEP: 12-36 bulan (normal)</li>
+                  <li>• ROI: 15-35% per tahun</li>
                 </ul>
               </div>
               <div>
@@ -571,6 +753,15 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
                   <li>• Include overhead costs</li>
                 </ul>
               </div>
+              <div>
+                <h5 className="font-semibold mb-2">💼 Investasi Modal:</h5>
+                <ul className="space-y-1">
+                  <li>• Equipment: 60-70% total invest</li>
+                  <li>• Infrastruktur: 20-25%</li>
+                  <li>• Working Capital: 10-15%</li>
+                  <li>• Periode analisis: 24-36 bulan</li>
+                </ul>
+              </div>
             </div>
           </div>
           
@@ -579,6 +770,7 @@ export function SimpleSimulationForm({ onCalculate }: { onCalculate: (data: any)
             <ul className="text-sm text-yellow-700 space-y-1">
               <li>• Simulasi ini menggunakan formula standar industri batubara</li>
               <li>• Hasil perhitungan bersifat estimasi untuk analisis cepat</li>
+              <li>• BEP dan ROI tidak memperhitungkan inflasi, pajak, dan depresiasi</li>
               <li>• Untuk laporan resmi, gunakan data aktual dan audit profesional</li>
               <li>• Currency default: IDR (Rupiah), bisa diganti ke USD jika perlu</li>
             </ul>

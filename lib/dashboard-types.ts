@@ -169,6 +169,30 @@ export type CashflowData = {
   burnRate: number;
 };
 
+export type BEPAnalysis = {
+  totalInvestment: number;
+  monthlyProfit: number;
+  breakEvenMonths: number;
+  breakEvenYears: number;
+  roi: number;
+  irr: number;
+  paybackPeriod: number;
+  monthlyProfitProjection: Array<{
+    month: number;
+    profit: number;
+    cumulative: number;
+    isBreakEven: boolean;
+  }>;
+  cumulativeProfitProjection: Array<{
+    name: string;
+    profit: number;
+    cumulative: number;
+    investment: number;
+  }>;
+  npv: number;
+  profitAfterPayback: number;
+};
+
 export type DashboardSummary = {
   kpi: Core12KPI;
   finance: FinanceSummary;
@@ -180,6 +204,7 @@ export type DashboardSummary = {
   budgetComparison: BudgetComparison[];
   productionMetrics: ProductionMetrics;
   cashflow: CashflowData;
+  bepAnalysis?: BEPAnalysis;
   lastUpdated: string;
 };
 
