@@ -136,6 +136,7 @@ export function PayrollCalculator() {
   const [isPayComponentFormOpen, setIsPayComponentFormOpen] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ type: string; id: string; name: string } | null>(null)
   const [deletingPayrollRun, setDeletingPayrollRun] = useState<string | null>(null)
+  const [showQuickSetupDialog, setShowQuickSetupDialog] = useState<'tax' | 'overtime' | null>(null)
 
   // Load initial data
   useEffect(() => {
@@ -368,6 +369,57 @@ export function PayrollCalculator() {
 
   const removePayComponent = (index: number) => {
     setCustomPayComponents(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Quick setup functions for tax and overtime
+  const addQuickTaxComponent = () => {
+    setShowQuickSetupDialog('tax')
+  }
+
+  const addQuickOvertimeComponent = () => {
+    setShowQuickSetupDialog('overtime')
+  }
+
+  const handleQuickSetup = (type: 'tax' | 'overtime', config: any) => {
+    if (type === 'tax') {
+      setCustomPayComponents(prev => [...prev, {
+        nama: config.name || 'Pajak Penghasilan',
+        tipe: 'DEDUCTION',
+        taxable: false,
+        metode: 'PERSENTASE',
+        basis: config.basis || 'BRUTO',
+        rate: config.rate || 2,
+        nominal: undefined,
+        capMin: config.minAmount || undefined,
+        capMax: config.maxAmount || undefined,
+        order: prev.length + 1
+      }])
+      
+      toast({
+        title: "Komponen Pajak Ditambahkan",
+        description: `Komponen ${config.name || 'Pajak Penghasilan'} ${config.rate || 2}% telah ditambahkan.`,
+      })
+    } else if (type === 'overtime') {
+      setCustomPayComponents(prev => [...prev, {
+        nama: config.name || 'Lembur/Overtime',
+        tipe: 'EARNING',
+        taxable: config.taxable !== false,
+        metode: config.method || 'PERSENTASE',
+        basis: config.basis || 'UPAH_HARIAN',
+        rate: config.rate || 150,
+        nominal: config.method === 'FLAT' ? config.amount : undefined,
+        capMin: config.minAmount || undefined,
+        capMax: config.maxAmount || undefined,
+        order: prev.length + 1
+      }])
+      
+      toast({
+        title: "Komponen Lembur Ditambahkan",
+        description: `Komponen ${config.name || 'Lembur/Overtime'} telah ditambahkan.`,
+      })
+    }
+    
+    setShowQuickSetupDialog(null)
   }
 
   // Real-time calculation functions
@@ -1449,19 +1501,53 @@ export function PayrollCalculator() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Tax Configuration Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
+              {/* Tax and Overtime Configuration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Tax Configuration */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-blue-800">Konfigurasi Pajak</h4>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Setup komponen pajak untuk perhitungan gaji
+                      </p>
+                      <Button 
+                        size="sm" 
+                        className="mt-2 bg-blue-600 hover:bg-blue-700"
+                        onClick={() => addQuickTaxComponent()}
+                      >
+                        + Setup Pajak Cepat
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-800">Konfigurasi Pajak Manual</h4>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Perhitungan pajak otomatis (2%) telah dihapus. Untuk menambahkan pajak, buat komponen potongan baru dengan tipe "DEDUCTION" dan metode "PERSENTASE" sesuai dengan kebutuhan perusahaan Anda.
-                    </p>
+                </div>
+
+                {/* Overtime Configuration */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-green-800">Konfigurasi Lembur</h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        Setup komponen lembur/overtime untuk perhitungan
+                      </p>
+                      <Button 
+                        size="sm" 
+                        className="mt-2 bg-green-600 hover:bg-green-700"
+                        onClick={() => addQuickOvertimeComponent()}
+                      >
+                        + Setup Lembur Cepat
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2041,6 +2127,16 @@ export function PayrollCalculator() {
           setEditingComponent(null)
         }}
       />
+
+      {/* Quick Setup Dialog */}
+      {showQuickSetupDialog && (
+        <QuickSetupDialog
+          type={showQuickSetupDialog}
+          open={!!showQuickSetupDialog}
+          onOpenChange={() => setShowQuickSetupDialog(null)}
+          onSetup={handleQuickSetup}
+        />
+      )}
     </div>
   )
 }
@@ -2275,6 +2371,174 @@ function ComponentDialog({
             </Button>
             <Button type="submit">
               {editingComponent ? 'Update' : 'Simpan'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Quick Setup Dialog Component
+interface QuickSetupDialogProps {
+  type: 'tax' | 'overtime'
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSetup: (type: 'tax' | 'overtime', config: any) => void
+}
+
+function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialogProps) {
+  const [config, setConfig] = useState<any>({
+    name: type === 'tax' ? 'Pajak Penghasilan' : 'Lembur/Overtime',
+    rate: type === 'tax' ? 2 : 150,
+    basis: type === 'tax' ? 'BRUTO' : 'UPAH_HARIAN',
+    method: 'PERSENTASE',
+    taxable: type === 'overtime',
+    minAmount: '',
+    maxAmount: '',
+    amount: ''
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSetup(type, {
+      ...config,
+      rate: config.method === 'PERSENTASE' ? Number(config.rate) : undefined,
+      amount: config.method === 'FLAT' ? Number(config.amount) : undefined,
+      minAmount: config.minAmount ? Number(config.minAmount) : undefined,
+      maxAmount: config.maxAmount ? Number(config.maxAmount) : undefined
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>
+            {type === 'tax' ? 'Setup Komponen Pajak' : 'Setup Komponen Lembur'}
+          </DialogTitle>
+          <DialogDescription>
+            {type === 'tax' 
+              ? 'Konfigurasi komponen pajak untuk perhitungan gaji karyawan'
+              : 'Konfigurasi komponen lembur/overtime untuk perhitungan gaji karyawan'
+            }
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>Nama Komponen</Label>
+            <Input
+              value={config.name}
+              onChange={(e) => setConfig(prev => ({ ...prev, name: e.target.value }))}
+              placeholder={type === 'tax' ? 'Pajak Penghasilan' : 'Lembur/Overtime'}
+            />
+          </div>
+
+          <div>
+            <Label>Metode Perhitungan</Label>
+            <Select 
+              value={config.method} 
+              onValueChange={(value) => setConfig(prev => ({ ...prev, method: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PERSENTASE">Persentase</SelectItem>
+                <SelectItem value="FLAT">Nominal Tetap</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {config.method === 'PERSENTASE' ? (
+            <>
+              <div>
+                <Label>Persentase (%)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={config.rate}
+                  onChange={(e) => setConfig(prev => ({ ...prev, rate: e.target.value }))}
+                  placeholder={type === 'tax' ? '2' : '150'}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {type === 'tax' 
+                    ? 'Contoh: 2 untuk pajak 2%'
+                    : 'Contoh: 150 untuk lembur 150% (1.5x)'
+                  }
+                </p>
+              </div>
+
+              <div>
+                <Label>Basis Perhitungan</Label>
+                <Select 
+                  value={config.basis} 
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, basis: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UPAH_HARIAN">Upah Harian</SelectItem>
+                    <SelectItem value="BRUTO">Gaji Bruto</SelectItem>
+                    <SelectItem value="HARI_KERJA">Hari Kerja</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          ) : (
+            <div>
+              <Label>Nominal Tetap (Rp)</Label>
+              <Input
+                type="number"
+                value={config.amount}
+                onChange={(e) => setConfig(prev => ({ ...prev, amount: e.target.value }))}
+                placeholder="50000"
+              />
+            </div>
+          )}
+
+          {type === 'overtime' && (
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="taxable"
+                checked={config.taxable}
+                onChange={(e) => setConfig(prev => ({ ...prev, taxable: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="taxable">Kena Pajak</Label>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Minimal (Opsional)</Label>
+              <Input
+                type="number"
+                value={config.minAmount}
+                onChange={(e) => setConfig(prev => ({ ...prev, minAmount: e.target.value }))}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label>Maksimal (Opsional)</Label>
+              <Input
+                type="number"
+                value={config.maxAmount}
+                onChange={(e) => setConfig(prev => ({ ...prev, maxAmount: e.target.value }))}
+                placeholder="Tanpa batas"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Batal
+            </Button>
+            <Button type="submit">
+              Tambah Komponen
             </Button>
           </div>
         </form>
