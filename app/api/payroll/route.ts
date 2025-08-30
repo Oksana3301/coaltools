@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
       // Tax calculation removed - users must configure tax manually via pay components
       // const pajakRate = 2
       // const pajakNominal = taxableAmount * (pajakRate / 100)
+      const pajakRate = 0  // No automatic tax rate
       const pajakNominal = 0  // No automatic tax - use pay components for tax configuration
 
       // Calculate deduction components
