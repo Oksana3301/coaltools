@@ -137,6 +137,7 @@ export function PayrollCalculator() {
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ type: string; id: string; name: string } | null>(null)
   const [deletingPayrollRun, setDeletingPayrollRun] = useState<string | null>(null)
   const [showQuickSetupDialog, setShowQuickSetupDialog] = useState<'tax' | 'overtime' | null>(null)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -1502,6 +1503,20 @@ export function PayrollCalculator() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Tax and Overtime Configuration */}
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-semibold">Konfigurasi Pajak & Lembur</h4>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowTutorial(true)}
+                  className="flex items-center gap-2"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Tutorial
+                </Button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 {/* Tax Configuration */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -2137,6 +2152,14 @@ export function PayrollCalculator() {
           onSetup={handleQuickSetup}
         />
       )}
+
+      {/* Tutorial Dialog */}
+      {showTutorial && (
+        <TutorialDialog
+          open={showTutorial}
+          onOpenChange={setShowTutorial}
+        />
+      )}
     </div>
   )
 }
@@ -2542,6 +2565,291 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
             </Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Tutorial Dialog Component
+interface TutorialDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function TutorialDialog({ open, onOpenChange }: TutorialDialogProps) {
+  const [currentStep, setCurrentStep] = useState(1)
+  const totalSteps = 6
+
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps))
+  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1))
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-blue-800">Selamat Datang di Tutorial Pajak & Lembur</h3>
+            <p className="text-gray-700">
+              Tutorial ini akan memandu Anda untuk mengatur komponen pajak dan lembur dalam sistem payroll. 
+              Dengan pengaturan yang tepat, Anda dapat menghitung gaji karyawan secara akurat sesuai kebijakan perusahaan.
+            </p>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-800">Yang akan Anda pelajari:</h4>
+              <ul className="list-disc list-inside text-blue-700 mt-2 space-y-1">
+                <li>Cara mengatur komponen pajak dengan persentase atau nominal tetap</li>
+                <li>Konfigurasi lembur/overtime dengan berbagai metode perhitungan</li>
+                <li>Pengaturan basis perhitungan (upah harian, bruto, hari kerja)</li>
+                <li>Tips dan best practices untuk payroll yang akurat</li>
+              </ul>
+            </div>
+          </div>
+        )
+
+      case 2:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-blue-800">1. Pengaturan Komponen Pajak</h3>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">Jenis Pajak yang Umum:</h4>
+              <div className="space-y-3">
+                <div className="border-l-4 border-blue-400 pl-3">
+                  <p className="font-medium">PPh 21 (Pajak Penghasilan)</p>
+                  <p className="text-sm text-gray-600">Biasanya 5% dari penghasilan bruto karyawan</p>
+                </div>
+                <div className="border-l-4 border-green-400 pl-3">
+                  <p className="font-medium">BPJS Kesehatan</p>
+                  <p className="text-sm text-gray-600">1% dari gaji (ditanggung karyawan)</p>
+                </div>
+                <div className="border-l-4 border-orange-400 pl-3">
+                  <p className="font-medium">BPJS Ketenagakerjaan</p>
+                  <p className="text-sm text-gray-600">2% dari gaji (ditanggung karyawan)</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>💡 Tips:</strong> Selalu sesuaikan persentase pajak dengan regulasi terbaru dari pemerintah
+              </p>
+            </div>
+          </div>
+        )
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-blue-800">2. Metode Perhitungan Pajak</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-800 mb-2">Metode Persentase</h4>
+                <p className="text-sm text-gray-700 mb-2">Pajak dihitung berdasarkan persentase dari basis perhitungan</p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-xs text-gray-600">Contoh:</p>
+                  <p className="text-sm">Gaji Bruto: Rp 5,000,000</p>
+                  <p className="text-sm">PPh 21 (5%): Rp 250,000</p>
+                </div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-medium text-green-800 mb-2">Metode Nominal Tetap</h4>
+                <p className="text-sm text-gray-700 mb-2">Pajak dengan nominal yang sama untuk semua karyawan</p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-xs text-gray-600">Contoh:</p>
+                  <p className="text-sm">Iuran Koperasi: Rp 50,000</p>
+                  <p className="text-sm">Asuransi Tambahan: Rp 25,000</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h4 className="font-medium text-orange-800 mb-2">Basis Perhitungan</h4>
+              <ul className="text-sm text-orange-700 space-y-1">
+                <li><strong>Upah Harian:</strong> Berdasarkan upah harian × hari kerja</li>
+                <li><strong>Gaji Bruto:</strong> Berdasarkan total pendapatan (upah + tunjangan)</li>
+                <li><strong>Hari Kerja:</strong> Berdasarkan jumlah hari kerja dalam periode</li>
+              </ul>
+            </div>
+          </div>
+        )
+
+      case 4:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-green-800">3. Pengaturan Lembur/Overtime</h3>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-2">Regulasi Lembur di Indonesia:</h4>
+              <div className="space-y-2 text-sm text-green-700">
+                <p>• <strong>Jam Kerja Normal:</strong> 8 jam/hari atau 40 jam/minggu</p>
+                <p>• <strong>Lembur 1 jam pertama:</strong> 1.5x upah normal</p>
+                <p>• <strong>Lembur jam kedua dan seterusnya:</strong> 2x upah normal</p>
+                <p>• <strong>Lembur hari libur:</strong> 2x upah normal (8 jam pertama), 3x upah normal (jam berikutnya)</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white p-4 border border-green-200 rounded-lg">
+                <h4 className="font-medium text-green-800 mb-2">Contoh Perhitungan</h4>
+                <div className="text-sm space-y-1">
+                  <p>Upah Harian: Rp 200,000</p>
+                  <p>Upah per Jam: Rp 25,000</p>
+                  <p>Lembur 2 jam:</p>
+                  <p className="ml-2">• 1 jam × 1.5 = Rp 37,500</p>
+                  <p className="ml-2">• 1 jam × 2.0 = Rp 50,000</p>
+                  <p className="font-medium">Total Lembur: Rp 87,500</p>
+                </div>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">Pengaturan Sistem</h4>
+                <div className="text-sm text-yellow-700 space-y-2">
+                  <p>• <strong>Rate 150%:</strong> Untuk jam lembur standar</p>
+                  <p>• <strong>Rate 200%:</strong> Untuk jam lembur tambahan</p>
+                  <p>• <strong>Basis:</strong> Gunakan "Upah Harian" untuk perhitungan per jam</p>
+                  <p>• <strong>Taxable:</strong> Centang jika lembur kena pajak</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 5:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-purple-800">4. Setup Praktis dengan Quick Setup</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  Setup Pajak Cepat
+                </h4>
+                <div className="space-y-2 text-sm text-blue-700">
+                  <p>1. Klik tombol "Setup Pajak Cepat"</p>
+                  <p>2. Isi nama komponen (misal: "PPh 21")</p>
+                  <p>3. Pilih metode: Persentase atau Nominal</p>
+                  <p>4. Set rate (misal: 5 untuk 5%)</p>
+                  <p>5. Pilih basis perhitungan</p>
+                  <p>6. Klik "Tambah Komponen"</p>
+                </div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                  Setup Lembur Cepat
+                </h4>
+                <div className="space-y-2 text-sm text-green-700">
+                  <p>1. Klik tombol "Setup Lembur Cepat"</p>
+                  <p>2. Isi nama (misal: "Lembur Weekday")</p>
+                  <p>3. Pilih metode perhitungan</p>
+                  <p>4. Set rate (misal: 150 untuk 1.5x)</p>
+                  <p>5. Tentukan apakah kena pajak</p>
+                  <p>6. Set batas minimal/maksimal (opsional)</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-800 mb-2">💡 Tips Pro:</h4>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>• Buat komponen terpisah untuk berbagai jenis lembur (weekday, weekend, holiday)</li>
+                <li>• Gunakan batas maksimal untuk mengontrol budget lembur</li>
+                <li>• Set komponen pajak dengan basis "BRUTO" untuk perhitungan yang komprehensif</li>
+                <li>• Selalu test dengan data sampel sebelum payroll sesungguhnya</li>
+              </ul>
+            </div>
+          </div>
+        )
+
+      case 6:
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-green-800">5. Selesai! 🎉</h3>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-2">Anda telah menyelesaikan tutorial!</h4>
+              <p className="text-green-700 mb-3">
+                Sekarang Anda dapat mengatur komponen pajak dan lembur dengan mudah menggunakan sistem payroll.
+              </p>
+              <div className="bg-white p-3 rounded border border-green-200">
+                <h5 className="font-medium text-green-800 mb-2">Langkah Selanjutnya:</h5>
+                <ol className="text-sm text-green-700 space-y-1 list-decimal list-inside">
+                  <li>Setup komponen pajak sesuai kebijakan perusahaan</li>
+                  <li>Konfigurasi komponen lembur untuk berbagai skenario</li>
+                  <li>Test perhitungan dengan data karyawan sampel</li>
+                  <li>Jalankan payroll dengan komponen yang sudah dikonfigurasi</li>
+                </ol>
+              </div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">Butuh Bantuan Lebih Lanjut?</h4>
+              <p className="text-sm text-blue-700">
+                Anda dapat mengakses tutorial ini kapan saja dengan mengklik tombol "Tutorial" 
+                di bagian Konfigurasi Pajak & Lembur.
+              </p>
+            </div>
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <svg className="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            Tutorial: Pengaturan Pajak & Lembur
+          </DialogTitle>
+          <DialogDescription>
+            Pelajari cara mengonfigurasi komponen pajak dan lembur untuk perhitungan payroll yang akurat
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Progress Indicator */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex space-x-2">
+            {Array.from({ length: totalSteps }, (_, i) => (
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-full ${
+                  i + 1 <= currentStep ? 'bg-blue-500' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-gray-500">
+            {currentStep} dari {totalSteps}
+          </span>
+        </div>
+
+        {/* Step Content */}
+        <div className="min-h-[400px]">
+          {renderStepContent()}
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between pt-6 border-t">
+          <Button
+            variant="outline"
+            onClick={prevStep}
+            disabled={currentStep === 1}
+          >
+            ← Sebelumnya
+          </Button>
+          
+          <div className="flex gap-2">
+            {currentStep === totalSteps ? (
+              <Button onClick={() => onOpenChange(false)} className="bg-green-600 hover:bg-green-700">
+                Selesai Tutorial
+              </Button>
+            ) : (
+              <Button onClick={nextStep}>
+                Selanjutnya →
+              </Button>
+            )}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )
