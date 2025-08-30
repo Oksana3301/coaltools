@@ -250,13 +250,17 @@ export default function KwitansiPage() {
     saveFilesToStorage()
   }
 
-  const formatCurrency = (amount: string) => {
-    const num = parseInt(amount.replace(/\D/g, ''))
+  const formatCurrency = (amount: string | number) => {
+    // Convert to string if it's a number, then extract digits
+    const amountStr = String(amount)
+    const num = parseInt(amountStr.replace(/\D/g, ''))
     return new Intl.NumberFormat('id-ID').format(num)
   }
 
   const getAmountInWords = () => {
-    const num = parseInt(formData.jumlahUang.replace(/\D/g, ''))
+    // Convert to string if it's a number, then extract digits
+    const amountStr = String(formData.jumlahUang)
+    const num = parseInt(amountStr.replace(/\D/g, ''))
     return numberToWords(num) + ' rupiah'
   }
 
@@ -667,7 +671,7 @@ export default function KwitansiPage() {
       nomorKwitansi: kwitansi.nomorKwitansi,
       tanggal: kwitansi.tanggal,
       namaPenerima: kwitansi.namaPenerima,
-      jumlahUang: kwitansi.jumlahUang,
+      jumlahUang: String(kwitansi.jumlahUang || 0), // Convert to string to prevent replace() error
       untukPembayaran: kwitansi.untukPembayaran,
       namaPembayar: kwitansi.namaPembayar,
       nomorRekening: kwitansi.nomorRekening || '',
