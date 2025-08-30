@@ -612,7 +612,9 @@ export default function InvoicePage() {
           description: item.description,
           quantity: item.quantity,
           price: item.price,
-          total: item.total
+          discount: item.discount || 0,
+          tax: item.tax || 0,
+          total: calculateItemTotal(item)
         })),
         subtotal: calculateSubtotal(),
         discount: calculateTotalDiscount(),
@@ -711,7 +713,9 @@ export default function InvoicePage() {
           description: item.description,
           quantity: item.quantity,
           price: item.price,
-          total: item.total
+          discount: item.discount || 0,
+          tax: item.tax || 0,
+          total: calculateItemTotal(item)
         })),
         subtotal: calculateSubtotal(),
         discount: calculateTotalDiscount(),

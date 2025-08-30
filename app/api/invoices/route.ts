@@ -25,6 +25,8 @@ const invoiceSchema = z.object({
     description: z.string(),
     quantity: z.number(),
     price: z.number(),
+    discount: z.number().optional().default(0),
+    tax: z.number().optional().default(0),
     total: z.number()
   })).default([]),
   subtotal: z.number().default(0),
