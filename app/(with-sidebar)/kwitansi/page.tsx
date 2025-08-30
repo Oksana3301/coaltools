@@ -26,6 +26,8 @@ import {
   Mail
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { apiService } from "@/lib/api"
+import { getCurrentUser } from "@/lib/auth"
 
 // Function to convert number to Indonesian words
 function numberToWords(num: number): string {
@@ -529,6 +531,72 @@ export default function KwitansiPage() {
       title: "Kwitansi berhasil dibuat",
       description: `Kwitansi telah dibuat dengan nama: ${filename}`
     })
+  }
+
+  const saveKwitansi = async () => {
+    // Validate required fields
+    if (!formData.nomorKwitansi || !formData.namaPenerima || !formData.jumlahUang || !formData.untukPembayaran) {
+      toast({
+        title: "Error",
+        description: "Mohon lengkapi semua field yang wajib diisi",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) {
+        toast({
+          title: "Error",
+          description: "Anda harus login untuk menyimpan kwitansi",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const kwitansiData = {
+        nomorKwitansi: formData.nomorKwitansi,
+        tanggal: formData.tanggal,
+        namaPenerima: formData.namaPenerima,
+        jumlahUang: parseFloat(formData.jumlahUang.toString()),
+        untukPembayaran: formData.untukPembayaran,
+        namaPembayar: formData.namaPembayar,
+        nomorRekening: formData.nomorRekening,
+        namaRekening: formData.namaRekening,
+        bankName: formData.bankName,
+        transferMethod: formData.transferMethod,
+        tempat: formData.tempat,
+        tanggalKwitansi: formData.tanggalKwitansi,
+        signatureName: formData.signatureName,
+        signaturePosition: formData.signaturePosition,
+        materai: formData.materai || '',
+        headerImage: headerImage || undefined,
+        createdBy: currentUser.id
+      }
+
+      const response = await apiService.createKwitansi(kwitansiData)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: "Kwitansi berhasil disimpan"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal menyimpan kwitansi",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error saving kwitansi:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menyimpan kwitansi",
+        variant: "destructive"
+      })
+    }
   }
 
 
@@ -1476,6 +1544,10 @@ export default function KwitansiPage() {
               Lihat Bukti Transfer
             </Button>
           )}
+          <Button onClick={() => saveKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+            <Save className="h-4 w-4 mr-2" />
+            Simpan Data
+          </Button>
           <Button onClick={() => generateKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
             <Download className="h-4 w-4 mr-2" />
             Buat PDF

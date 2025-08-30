@@ -2,31 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
 
-// Schema untuk validasi input kwitansi
-const kwitansiSchema = z.object({
-  nomorKwitansi: z.string().min(1, 'Nomor kwitansi wajib diisi'),
-  tanggal: z.string().min(1, 'Tanggal wajib diisi'),
-  namaPenerima: z.string().min(1, 'Nama penerima wajib diisi'),
-  jumlahUang: z.number().min(0, 'Jumlah uang harus positif'),
-  untukPembayaran: z.string().min(1, 'Untuk pembayaran wajib diisi'),
-  namaPembayar: z.string().min(1, 'Nama pembayar wajib diisi'),
-  nomorRekening: z.string().optional(),
-  namaRekening: z.string().optional(),
-  bankName: z.string().optional(),
-  transferMethod: z.string().optional(),
-  tempat: z.string().min(1, 'Tempat wajib diisi'),
-  tanggalKwitansi: z.string().min(1, 'Tanggal kwitansi wajib diisi'),
-  signatureName: z.string().min(1, 'Nama tanda tangan wajib diisi'),
-  signaturePosition: z.string().min(1, 'Jabatan tanda tangan wajib diisi'),
-  materai: z.string().optional(),
+// Schema untuk validasi input invoice
+const invoiceSchema = z.object({
+  invoiceNumber: z.string().min(1, 'Nomor invoice wajib diisi'),
+  createdDate: z.string().min(1, 'Tanggal pembuatan wajib diisi'),
+  dueDate: z.string().optional(),
+  applicantName: z.string().min(1, 'Nama pemohon wajib diisi'),
+  recipientName: z.string().min(1, 'Nama penerima wajib diisi'),
+  notes: z.string().optional(),
+  termsConditions: z.string().optional(),
   headerImage: z.string().optional(),
-  payrollRunId: z.string().optional(),
-  payrollLineId: z.string().optional(),
-  employeeId: z.string().optional(),
+  showBankDetails: z.boolean().default(false),
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  accountHolder: z.string().optional(),
+  transferMethod: z.string().optional(),
+  signatureName: z.string().optional(),
+  signaturePosition: z.string().optional(),
+  signatureLocation: z.string().optional(),
+  items: z.array(z.object({
+    id: z.string(),
+    description: z.string(),
+    quantity: z.number(),
+    price: z.number(),
+    total: z.number()
+  })).default([]),
+  subtotal: z.number().default(0),
+  discount: z.number().default(0),
+  tax: z.number().default(0),
+  total: z.number().default(0),
   createdBy: z.string().min(1, 'Created by wajib diisi')
 })
 
-// GET - Ambil semua kwitansi dengan search dan filter
+// GET - Ambil semua invoices dengan search dan filter
 export async function GET(request: NextRequest) {
   const prisma = getPrismaClient()
   if (!prisma) {
@@ -41,8 +49,6 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100) // Max 100 records
     const search = searchParams.get('search') || ''
-    const payrollRunId = searchParams.get('payrollRunId')
-    const employeeId = searchParams.get('employeeId')
     const createdBy = searchParams.get('createdBy')
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
@@ -51,19 +57,16 @@ export async function GET(request: NextRequest) {
 
     const where = {
       deletedAt: null, // Only show non-deleted records
-      ...(payrollRunId && { payrollRunId }),
-      ...(employeeId && { employeeId }),
       ...(createdBy && { createdBy }),
       ...(search && {
         OR: [
-          { nomorKwitansi: { contains: search } },
-          { namaPenerima: { contains: search } },
-          { namaPembayar: { contains: search } },
-          { untukPembayaran: { contains: search } }
+          { invoiceNumber: { contains: search } },
+          { applicantName: { contains: search } },
+          { recipientName: { contains: search } }
         ]
       }),
       ...(dateFrom && dateTo && {
-        tanggal: {
+        createdDate: {
           gte: dateFrom,
           lte: dateTo
         }
@@ -71,24 +74,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Check total count and enforce 100 record limit
-    const totalCount = await prisma.kwitansi.count({ 
+    const totalCount = await prisma.invoice.count({ 
       where: { deletedAt: null, ...(createdBy && { createdBy }) }
     })
 
-    const [kwitansi, total] = await Promise.all([
-      prisma.kwitansi.findMany({
+    const [invoices, total] = await Promise.all([
+      prisma.invoice.findMany({
         where,
         skip,
         take: limit,
 
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.kwitansi.count({ where })
+      prisma.invoice.count({ where })
     ])
 
     return NextResponse.json({
       success: true,
-      data: kwitansi,
+      data: invoices,
       pagination: {
         page,
         limit,
@@ -101,18 +104,18 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Error fetching kwitansi:', error)
+    console.error('Error fetching invoices:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengambil data kwitansi'
+        error: 'Gagal mengambil data invoice'
       },
       { status: 500 }
     )
   }
 }
 
-// POST - Buat kwitansi baru dengan limit 100 records
+// POST - Buat invoice baru dengan limit 100 records
 export async function POST(request: NextRequest) {
   const prisma = getPrismaClient()
   if (!prisma) {
@@ -124,10 +127,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const validatedData = kwitansiSchema.parse(body)
+    const validatedData = invoiceSchema.parse(body)
 
     // Check if user has reached 100 record limit
-    const userRecordCount = await prisma.kwitansi.count({
+    const userRecordCount = await prisma.invoice.count({
       where: { 
         createdBy: validatedData.createdBy,
         deletedAt: null 
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     // If at limit, auto-delete oldest record
     if (userRecordCount >= 100) {
-      const oldestRecord = await prisma.kwitansi.findFirst({
+      const oldestRecord = await prisma.invoice.findFirst({
         where: { 
           createdBy: validatedData.createdBy,
           deletedAt: null 
@@ -145,25 +148,25 @@ export async function POST(request: NextRequest) {
       })
 
       if (oldestRecord) {
-        await prisma.kwitansi.update({
+        await prisma.invoice.update({
           where: { id: oldestRecord.id },
           data: { deletedAt: new Date() }
         })
       }
     }
 
-    const kwitansi = await prisma.kwitansi.create({
+    const invoice = await prisma.invoice.create({
       data: validatedData,
 
     })
 
     return NextResponse.json({
       success: true,
-      data: kwitansi,
-      message: 'Kwitansi berhasil disimpan'
+      data: invoice,
+      message: 'Invoice berhasil disimpan'
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating kwitansi:', error)
+    console.error('Error creating invoice:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -179,14 +182,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal menyimpan kwitansi'
+        error: 'Gagal menyimpan invoice'
       },
       { status: 500 }
     )
   }
 }
 
-// PUT - Update kwitansi
+// PUT - Update invoice
 export async function PUT(request: NextRequest) {
   const prisma = getPrismaClient()
   if (!prisma) {
@@ -204,15 +207,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ID kwitansi wajib diisi'
+          error: 'ID invoice wajib diisi'
         },
         { status: 400 }
       )
     }
 
-    const validatedData = kwitansiSchema.partial().parse(updateData)
+    const validatedData = invoiceSchema.partial().parse(updateData)
 
-    const kwitansi = await prisma.kwitansi.update({
+    const invoice = await prisma.invoice.update({
       where: { id },
       data: validatedData,
 
@@ -220,11 +223,11 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: kwitansi,
-      message: 'Kwitansi berhasil diupdate'
+      data: invoice,
+      message: 'Invoice berhasil diupdate'
     })
   } catch (error) {
-    console.error('Error updating kwitansi:', error)
+    console.error('Error updating invoice:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -240,14 +243,14 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengupdate kwitansi'
+        error: 'Gagal mengupdate invoice'
       },
       { status: 500 }
     )
   }
 }
 
-// DELETE - Hapus kwitansi (soft delete by default, hard delete with force=true)
+// DELETE - Hapus invoice (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
   const prisma = getPrismaClient()
   if (!prisma) {
@@ -266,34 +269,34 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ID kwitansi wajib diisi'
+          error: 'ID invoice wajib diisi'
         },
         { status: 400 }
       )
     }
 
-    // Check if kwitansi exists
-    const kwitansi = await prisma.kwitansi.findUnique({
+    // Check if invoice exists
+    const invoice = await prisma.invoice.findUnique({
       where: { id },
       select: { deletedAt: true }
     })
 
-    if (!kwitansi) {
+    if (!invoice) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Kwitansi tidak ditemukan'
+          error: 'Invoice tidak ditemukan'
         },
         { status: 404 }
       )
     }
 
     // If already soft deleted, only allow hard delete
-    if (kwitansi.deletedAt && !force) {
+    if (invoice.deletedAt && !force) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Kwitansi sudah dihapus. Gunakan force=true untuk penghapusan permanen.'
+          error: 'Invoice sudah dihapus. Gunakan force=true untuk penghapusan permanen.'
         },
         { status: 400 }
       )
@@ -301,32 +304,32 @@ export async function DELETE(request: NextRequest) {
 
     if (force) {
       // Hard delete - permanently remove from database
-      await prisma.kwitansi.delete({
+      await prisma.invoice.delete({
         where: { id }
       })
       
       return NextResponse.json({
         success: true,
-        message: 'Kwitansi berhasil dihapus permanen'
+        message: 'Invoice berhasil dihapus permanen'
       })
     } else {
       // Soft delete - mark as deleted
-      await prisma.kwitansi.update({
+      await prisma.invoice.update({
         where: { id },
         data: { deletedAt: new Date() }
       })
       
       return NextResponse.json({
         success: true,
-        message: 'Kwitansi berhasil dihapus (soft delete)'
+        message: 'Invoice berhasil dihapus (soft delete)'
       })
     }
   } catch (error) {
-    console.error('Error deleting kwitansi:', error)
+    console.error('Error deleting invoice:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal menghapus kwitansi'
+        error: 'Gagal menghapus invoice'
       },
       { status: 500 }
     )

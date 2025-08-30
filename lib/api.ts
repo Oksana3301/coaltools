@@ -38,6 +38,99 @@ export interface KasBesarExpense {
   }
 }
 
+export interface Kwitansi {
+  id?: string
+  nomorKwitansi: string
+  tanggal: string
+  namaPenerima: string
+  jumlahUang: number
+  untukPembayaran: string
+  namaPembayar: string
+  nomorRekening?: string
+  namaRekening?: string
+  bankName?: string
+  transferMethod?: string
+  tempat: string
+  tanggalKwitansi: string
+  signatureName: string
+  signaturePosition: string
+  materai?: string
+  headerImage?: string
+  payrollRunId?: string
+  payrollLineId?: string
+  employeeId?: string
+  createdBy: string
+  createdAt?: string
+  updatedAt?: string
+  deletedAt?: string
+
+  creator?: {
+    id: string
+    name: string
+    email: string
+  }
+  payrollRun?: {
+    id: string
+    periodeAwal: string
+    periodeAkhir: string
+    status: string
+  }
+  payrollLine?: {
+    id: string
+    employeeName: string
+    neto: number
+  }
+  employee?: {
+    id: string
+    nama: string
+    jabatan: string
+    site: string
+  }
+}
+
+export interface InvoiceItem {
+  id: string
+  description: string
+  quantity: number
+  price: number
+  total: number
+}
+
+export interface Invoice {
+  id?: string
+  invoiceNumber: string
+  createdDate: string
+  dueDate?: string
+  applicantName: string
+  recipientName: string
+  notes?: string
+  termsConditions?: string
+  headerImage?: string
+  showBankDetails: boolean
+  bankName?: string
+  accountNumber?: string
+  accountHolder?: string
+  transferMethod?: string
+  signatureName?: string
+  signaturePosition?: string
+  signatureLocation?: string
+  items: InvoiceItem[]
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  createdBy: string
+  createdAt?: string
+  updatedAt?: string
+  deletedAt?: string
+
+  creator?: {
+    id: string
+    name: string
+    email: string
+  }
+}
+
 export interface KasKecilExpense {
   id?: string
   hari: string
@@ -697,6 +790,104 @@ class ApiService {
     return this.fetchApi<any>('/users', {
       method: 'POST',
       body: JSON.stringify(data)
+    })
+  }
+
+  // KWITANSI METHODS
+
+  // Get all kwitansi with search and filters
+  async getKwitansi(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    createdBy?: string
+    dateFrom?: string
+    dateTo?: string
+    payrollRunId?: string
+    employeeId?: string
+  }): Promise<ApiResponse<Kwitansi[]>> {
+    const searchParams = new URLSearchParams()
+    
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    if (params?.search) searchParams.append('search', params.search)
+    if (params?.createdBy) searchParams.append('createdBy', params.createdBy)
+    if (params?.dateFrom) searchParams.append('dateFrom', params.dateFrom)
+    if (params?.dateTo) searchParams.append('dateTo', params.dateTo)
+    if (params?.payrollRunId) searchParams.append('payrollRunId', params.payrollRunId)
+    if (params?.employeeId) searchParams.append('employeeId', params.employeeId)
+
+    const query = searchParams.toString()
+    return this.fetchApi<Kwitansi[]>(`/kwitansi${query ? `?${query}` : ''}`)
+  }
+
+  // Create new kwitansi
+  async createKwitansi(data: Omit<Kwitansi, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Kwitansi>> {
+    return this.fetchApi<Kwitansi>('/kwitansi', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Update kwitansi
+  async updateKwitansi(data: Partial<Kwitansi> & { id: string }): Promise<ApiResponse<Kwitansi>> {
+    return this.fetchApi<Kwitansi>('/kwitansi', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Delete kwitansi (soft delete by default, hard delete with force=true)
+  async deleteKwitansi(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/kwitansi?id=${id}&force=${hardDelete}`, {
+      method: 'DELETE'
+    })
+  }
+
+  // INVOICE METHODS
+
+  // Get all invoices with search and filters
+  async getInvoices(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    createdBy?: string
+    dateFrom?: string
+    dateTo?: string
+  }): Promise<ApiResponse<Invoice[]>> {
+    const searchParams = new URLSearchParams()
+    
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    if (params?.search) searchParams.append('search', params.search)
+    if (params?.createdBy) searchParams.append('createdBy', params.createdBy)
+    if (params?.dateFrom) searchParams.append('dateFrom', params.dateFrom)
+    if (params?.dateTo) searchParams.append('dateTo', params.dateTo)
+
+    const query = searchParams.toString()
+    return this.fetchApi<Invoice[]>(`/invoices${query ? `?${query}` : ''}`)
+  }
+
+  // Create new invoice
+  async createInvoice(data: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Invoice>> {
+    return this.fetchApi<Invoice>('/invoices', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Update invoice
+  async updateInvoice(data: Partial<Invoice> & { id: string }): Promise<ApiResponse<Invoice>> {
+    return this.fetchApi<Invoice>('/invoices', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Delete invoice (soft delete by default, hard delete with force=true)
+  async deleteInvoice(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
+    return this.fetchApi<null>(`/invoices?id=${id}&force=${hardDelete}`, {
+      method: 'DELETE'
     })
   }
 }

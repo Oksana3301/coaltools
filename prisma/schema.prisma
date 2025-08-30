@@ -18,6 +18,8 @@ model User {
   updated_at       DateTime?        @default(now()) @db.Timestamptz(6)
   login_activity   login_activity[]
   pay_components   PayComponent[]
+  // kwitansi         Kwitansi[]
+  // invoices         Invoice[]
   // Temporarily disabled payroll relationships for testing
   // approvedPayrolls PayrollRun[]     @relation("PayrollApprovedBy")
   // payrollRuns      PayrollRun[]
@@ -286,7 +288,44 @@ model Kwitansi {
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime? @map("deleted_at")
 
+  // Relations temporarily disabled for testing
+  // creator           User?     @relation(fields: [createdBy], references: [id])
+
   @@map("kwitansi")
+}
+
+model Invoice {
+  id                String    @id @default(cuid())
+  invoiceNumber     String    @map("invoice_number")
+  createdDate       String    @map("created_date")
+  dueDate           String?   @map("due_date")
+  applicantName     String    @map("applicant_name")
+  recipientName     String    @map("recipient_name")
+  notes             String?
+  termsConditions   String?   @map("terms_conditions")
+  headerImage       String?   @map("header_image")
+  showBankDetails   Boolean   @default(false) @map("show_bank_details")
+  bankName          String?   @map("bank_name")
+  accountNumber     String?   @map("account_number")
+  accountHolder     String?   @map("account_holder")
+  transferMethod    String?   @map("transfer_method")
+  signatureName     String?   @map("signature_name")
+  signaturePosition String?   @map("signature_position")
+  signatureLocation String?   @map("signature_location")
+  items             Json      // Store invoice items as JSON
+  subtotal          Float     @default(0)
+  discount          Float     @default(0)
+  tax               Float     @default(0)
+  total             Float     @default(0)
+  createdBy         String    @map("created_by")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime? @map("deleted_at")
+
+  // Relations temporarily disabled for testing
+  // creator           User      @relation(fields: [createdBy], references: [id])
+
+  @@map("invoices")
 }
 
 model ProductionReport {

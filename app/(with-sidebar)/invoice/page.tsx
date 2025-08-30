@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Receipt, Download, Save, Plus, Trash2, FileText, Eye, Image, Building2, Calendar, User, DollarSign, CreditCard, MapPin, Phone, Mail, X, Maximize, Upload, ImageIcon } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
+import { apiService } from "@/lib/api"
+import { getCurrentUser } from "@/lib/auth"
 
 export default function InvoicePage() {
   const { toast } = useToast()
@@ -514,6 +516,83 @@ export default function InvoicePage() {
       toast({
         title: "Invoice berhasil dibuat",
         description: `Invoice telah di-generate dengan nama: ${filename}`
+      })
+    }
+  }
+
+  const saveInvoice = async () => {
+    // Validate required fields
+    if (!invoiceNumber || !applicantName || !recipientName || items.length === 0) {
+      toast({
+        title: "Error",
+        description: "Mohon lengkapi semua field yang wajib diisi dan tambahkan minimal satu item",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) {
+        toast({
+          title: "Error",
+          description: "Anda harus login untuk menyimpan invoice",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const invoiceData = {
+        invoiceNumber,
+        createdDate,
+        dueDate: dueDate || undefined,
+        applicantName,
+        recipientName,
+        notes: notes || undefined,
+        termsConditions: termsAndConditions || undefined,
+        headerImage: headerImage || undefined,
+        showBankDetails,
+        bankName: showBankDetails ? bankDetails.bankName : undefined,
+        accountNumber: showBankDetails ? bankDetails.accountNumber : undefined,
+        accountHolder: showBankDetails ? bankDetails.accountHolder : undefined,
+        transferMethod: showBankDetails ? bankDetails.transferMethod : undefined,
+        signatureName: signatureInfo?.name || undefined,
+        signaturePosition: signatureInfo?.position || undefined,
+        signatureLocation: signatureInfo?.location || undefined,
+        items: items.map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total
+        })),
+        subtotal: calculateSubtotal(),
+        discount: calculateTotalDiscount(),
+        tax: calculateTotalTax(),
+        total: calculateTotal(),
+        createdBy: currentUser.id
+      }
+
+      const response = await apiService.createInvoice(invoiceData)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: "Invoice berhasil disimpan"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal menyimpan invoice",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error saving invoice:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menyimpan invoice",
+        variant: "destructive"
       })
     }
   }
@@ -1230,6 +1309,10 @@ export default function InvoicePage() {
               <Button onClick={() => openFullScreenPreview()} variant="outline" className="flex-1">
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Layar Penuh
+              </Button>
+              <Button onClick={() => saveInvoice()} className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+                <Save className="h-4 w-4 mr-2" />
+                Simpan Data
               </Button>
               <Button onClick={() => generatePDF()} variant="outline" className="flex-1">
                 <Download className="h-4 w-4 mr-2" />
