@@ -61,14 +61,17 @@ export default function InvoicePage() {
   const loadSavedInvoices = useCallback(async () => {
     setLoading(true)
     try {
+      console.log('Loading invoices...')
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
+        console.log('No user found, setting empty data')
         // Don't block the page if no user - just set empty data
         setSavedInvoices([])
         setLoading(false)
         return
       }
 
+      console.log('Fetching invoices for user:', currentUser.id)
       const response = await apiService.getInvoices({
         limit: 100,
         createdBy: currentUser.id,
@@ -77,8 +80,13 @@ export default function InvoicePage() {
         dateTo: dateFilter || undefined
       })
 
+      console.log('Invoice response:', response)
       if (response.success) {
         setSavedInvoices(response.data || [])
+        console.log('Invoices loaded successfully:', response.data?.length || 0)
+      } else {
+        console.error('Failed to load invoices:', response.error)
+        setSavedInvoices([])
       }
     } catch (error) {
       console.error('Error loading invoices:', error)
@@ -795,6 +803,78 @@ export default function InvoicePage() {
     setHeaderImage('')
     setItems([])
     setEditingInvoice(null)
+  }
+
+  // Calculation functions
+  const calculateItemTotal = (item: any) => {
+    const subtotal = item.quantity * item.price
+    const discountAmount = (subtotal * item.discount) / 100
+    const afterDiscount = subtotal - discountAmount
+    const taxAmount = (afterDiscount * item.tax) / 100
+    return afterDiscount + taxAmount
+  }
+
+  const calculateSubtotal = () => {
+    return items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+  }
+
+  const calculateTotalDiscount = () => {
+    return items.reduce((sum, item) => {
+      const subtotal = item.quantity * item.price
+      return sum + ((subtotal * item.discount) / 100)
+    }, 0)
+  }
+
+  const calculateTotalTax = () => {
+    return items.reduce((sum, item) => {
+      const subtotal = item.quantity * item.price
+      const afterDiscount = subtotal - ((subtotal * item.discount) / 100)
+      return sum + ((afterDiscount * item.tax) / 100)
+    }, 0)
+  }
+
+  const calculateTotal = () => {
+    return items.reduce((sum, item) => sum + calculateItemTotal(item), 0)
+  }
+
+  const calculateGrandTotal = () => {
+    return calculateTotal()
+  }
+
+  // Generate filename for invoice
+  const getGeneratedFilename = () => {
+    const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+    const cleanInvoiceNumber = invoiceNumber.replace(/[^a-zA-Z0-9]/g, '_')
+    const cleanApplicant = applicantName.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_')
+    const cleanRecipient = recipientName.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_')
+    const total = calculateGrandTotal()
+    const cleanTotal = `Rp${new Intl.NumberFormat('id-ID').format(total).replace(/[^a-zA-Z0-9]/g, '_')}`
+    return `Invoice_${cleanInvoiceNumber}_${cleanApplicant}_to_${cleanRecipient}_${cleanTotal}_${date}.pdf`
+  }
+
+  // Generate Invoice PDF
+  const generateInvoice = async () => {
+    // Validate required fields
+    if (!invoiceNumber || !applicantName || !recipientName) {
+      toast({
+        title: "Error",
+        description: "Mohon lengkapi field Invoice Number, Pemohon, dan Penerima",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (items.some(item => !item.description || item.quantity <= 0 || item.price <= 0)) {
+      toast({
+        title: "Error", 
+        description: "Mohon pastikan semua item memiliki deskripsi, quantity > 0, dan harga > 0",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Generate the invoice PDF
+    await openFullScreenPreview()
   }
 
   const openFullScreenPreview = async () => {
@@ -1847,6 +1927,36 @@ export default function InvoicePage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Action Buttons */}
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          <Button
+            onClick={generateInvoice}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
+            disabled={!invoiceNumber || !applicantName || !recipientName || items.some(item => !item.description || item.quantity <= 0 || item.price <= 0)}
+          >
+            <Download className="h-5 w-5" />
+            Generate PDF Invoice
+          </Button>
+          
+          <Button
+            onClick={editingInvoice ? updateInvoice : saveInvoice}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3"
+            disabled={!invoiceNumber || !applicantName || !recipientName || items.some(item => !item.description || item.quantity <= 0 || item.price <= 0)}
+          >
+            <Save className="h-5 w-5" />
+            {editingInvoice ? 'Update Data' : 'Simpan Data'}
+          </Button>
+          
+          <Button
+            onClick={clearForm}
+            variant="outline"
+            className="flex items-center gap-2 px-6 py-3"
+          >
+            <X className="h-5 w-5" />
+            Clear Form
+          </Button>
+        </div>
 
         {/* Data Management Section */}
         <div className="mt-12">
