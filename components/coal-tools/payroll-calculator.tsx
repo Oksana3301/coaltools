@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -632,6 +633,227 @@ export function PayrollCalculator() {
       toast({
         title: "Error",
         description: error.message || "Gagal menyetujui payroll",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Export payroll to PDF
+  const exportToPDF = async (payrollRun: PayrollRun) => {
+    setLoading(true)
+    try {
+      // Get detailed payroll data
+      const response = await apiService.getPayrollRun(payrollRun.id!)
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch payroll data')
+      }
+
+      const payrollData = response.data
+      const currentDate = new Date().toLocaleDateString('id-ID')
+      
+      // Create PDF content
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Laporan Payroll ${payrollData.periodeAwal} - ${payrollData.periodeAkhir}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .company-name { font-size: 20px; font-weight: bold; color: #2563eb; }
+            .report-title { font-size: 16px; margin: 10px 0; }
+            .period { font-size: 14px; color: #666; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f5f5f5; font-weight: bold; }
+            .currency { text-align: right; }
+            .summary { margin-top: 30px; background: #f9f9f9; padding: 15px; }
+            .summary-item { display: flex; justify-content: space-between; margin: 5px 0; }
+            .total { font-weight: bold; border-top: 2px solid #333; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
+            <div class="report-title">LAPORAN PAYROLL KARYAWAN</div>
+            <div class="period">Periode: ${payrollData.periodeAwal} - ${payrollData.periodeAkhir}</div>
+            <div class="period">Tanggal Cetak: ${currentDate}</div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama Karyawan</th>
+                <th>Jabatan</th>
+                <th>Hari Kerja</th>
+                <th>Gaji Bruto</th>
+                <th>Potongan</th>
+                <th>Gaji Neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${payrollData.payrollLines?.map((line: any, index: number) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${line.employee?.nama || line.employeeName}</td>
+                  <td>${line.employee?.jabatan || '-'}</td>
+                  <td>${line.hariKerja}</td>
+                  <td class="currency">Rp ${Number(line.bruto).toLocaleString('id-ID')}</td>
+                  <td class="currency">Rp ${Number(line.pajakNominal || 0).toLocaleString('id-ID')}</td>
+                  <td class="currency">Rp ${Number(line.neto).toLocaleString('id-ID')}</td>
+                </tr>
+              `).join('') || ''}
+            </tbody>
+          </table>
+
+          <div class="summary">
+            <h3>Ringkasan</h3>
+            <div class="summary-item">
+              <span>Total Karyawan:</span>
+              <span>${payrollData.payrollLines?.length || 0} orang</span>
+            </div>
+            <div class="summary-item">
+              <span>Total Gaji Bruto:</span>
+              <span>Rp ${payrollData.payrollLines?.reduce((sum: number, line: any) => sum + Number(line.bruto), 0).toLocaleString('id-ID') || '0'}</span>
+            </div>
+            <div class="summary-item">
+              <span>Total Potongan:</span>
+              <span>Rp ${payrollData.payrollLines?.reduce((sum: number, line: any) => sum + Number(line.pajakNominal || 0), 0).toLocaleString('id-ID') || '0'}</span>
+            </div>
+            <div class="summary-item total">
+              <span>Total Gaji Neto:</span>
+              <span>Rp ${payrollData.payrollLines?.reduce((sum: number, line: any) => sum + Number(line.neto), 0).toLocaleString('id-ID') || '0'}</span>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+
+      // Use browser's print functionality to generate PDF
+      const newWindow = window.open('', '_blank')
+      if (newWindow) {
+        newWindow.document.write(htmlContent)
+        newWindow.document.close()
+        newWindow.print()
+      }
+
+      toast({
+        title: "PDF Dibuat",
+        description: "Laporan payroll telah dibuka di tab baru"
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal membuat PDF",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Export payroll to Excel
+  const exportToExcel = async (payrollRun: PayrollRun) => {
+    setLoading(true)
+    try {
+      // Get detailed payroll data
+      const response = await apiService.getPayrollRun(payrollRun.id!)
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch payroll data')
+      }
+
+      const payrollData = response.data
+      
+      // Create CSV content for Excel compatibility
+      const headers = [
+        'No',
+        'Nama Karyawan',
+        'Jabatan',
+        'Site',
+        'Hari Kerja',
+        'Upah Harian',
+        'Uang Makan',
+        'Uang BBM',
+        'Gaji Bruto',
+        'Pajak',
+        'Potongan Lain',
+        'Gaji Neto'
+      ]
+      
+      const csvContent = [
+        headers.join(','),
+        ...payrollData.payrollLines?.map((line: any, index: number) => [
+          index + 1,
+          `"${line.employee?.nama || line.employeeName}"`,
+          `"${line.employee?.jabatan || '-'}"`,
+          `"${line.employee?.site || '-'}"`,
+          line.hariKerja,
+          Number(line.upahHarian).toFixed(0),
+          Number(line.uangMakanHarian).toFixed(0),
+          Number(line.uangBbmHarian).toFixed(0),
+          Number(line.bruto).toFixed(0),
+          Number(line.pajakNominal || 0).toFixed(0),
+          Number(line.potonganLain || 0).toFixed(0),
+          Number(line.neto).toFixed(0)
+        ].join(',')) || []
+      ].join('\n')
+
+      // Create and download Excel file
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `Payroll_${payrollData.periodeAwal}_${payrollData.periodeAkhir}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast({
+        title: "Excel Dibuat",
+        description: "File Excel payroll berhasil diunduh"
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal membuat Excel",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Generate kwitansi for all employees
+  const generateKwitansiForAll = async (payrollRun: PayrollRun) => {
+    setLoading(true)
+    try {
+      const response = await apiService.updatePayrollRunStatus(
+        payrollRun.id!,
+        'APPROVED',
+        CURRENT_USER_ID
+      )
+
+      if (response.success) {
+        toast({
+          title: "Kwitansi Dibuat",
+          description: "Kwitansi telah dibuat otomatis untuk semua karyawan"
+        })
+        
+        // Reload payroll runs
+        const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+        if (payrollRunsRes.success) {
+          setPayrollRuns(payrollRunsRes.data || [])
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal membuat kwitansi",
         variant: "destructive"
       })
     } finally {
@@ -2052,6 +2274,33 @@ export function PayrollCalculator() {
                   >
                     Lihat
                   </Button>
+                  
+                  {/* Export Buttons */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <Download className="h-4 w-4 mr-1" />
+                        Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => exportToPDF(run)}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Export PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => exportToExcel(run)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Excel
+                      </DropdownMenuItem>
+                      {run.status === 'DRAFT' && (
+                        <DropdownMenuItem onClick={() => generateKwitansiForAll(run)}>
+                          <Receipt className="h-4 w-4 mr-2" />
+                          Buat Kwitansi
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
                   <Button
                     size="sm"
                     variant="outline"
