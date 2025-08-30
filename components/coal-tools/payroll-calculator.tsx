@@ -1393,10 +1393,12 @@ export function PayrollCalculator() {
                                         <span className="text-gray-600">Bruto:</span>
                                         <span className="font-semibold">{formatCurrency(calculation.bruto)}</span>
                                       </div>
-                                      <div className="flex justify-between text-red-600">
-                                        <span>Pajak:</span>
-                                        <span className="font-semibold">-{formatCurrency(calculation.pajakNominal)}</span>
-                                      </div>
+                                      {calculation.pajakNominal > 0 && (
+                                        <div className="flex justify-between text-red-600">
+                                          <span>Pajak:</span>
+                                          <span className="font-semibold">-{formatCurrency(calculation.pajakNominal)}</span>
+                                        </div>
+                                      )}
                                       {calculation.cashbon > 0 && (
                                         <div className="flex justify-between text-red-600">
                                           <span>Cashbon:</span>
@@ -1665,10 +1667,12 @@ export function PayrollCalculator() {
                               {/* Deductions */}
                               <div className="space-y-1">
                                 <div className="font-medium text-red-700">POTONGAN</div>
-                                <div className="flex justify-between">
-                                  <span>Pajak:</span>
-                                  <span>{formatCurrency(calc!.pajakNominal)}</span>
-                                </div>
+                                {calc!.pajakNominal > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Pajak:</span>
+                                    <span>{formatCurrency(calc!.pajakNominal)}</span>
+                                  </div>
+                                )}
                                 {calc!.cashbon > 0 && (
                                   <div className="flex justify-between">
                                     <span>Cashbon:</span>
