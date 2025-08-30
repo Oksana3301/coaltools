@@ -569,8 +569,16 @@ export default function InvoicePage() {
   }
 
   const saveInvoice = async () => {
+    console.log('=== SAVING INVOICE DEBUG ===')
+    console.log('invoiceNumber:', invoiceNumber)
+    console.log('applicantName:', applicantName)
+    console.log('recipientName:', recipientName)
+    console.log('items length:', items.length)
+    console.log('items:', items)
+    
     // Validate required fields
     if (!invoiceNumber || !applicantName || !recipientName || items.length === 0) {
+      console.log('❌ Validation failed - missing required fields')
       toast({
         title: "Error",
         description: "Mohon lengkapi semua field yang wajib diisi dan tambahkan minimal satu item",
@@ -581,7 +589,10 @@ export default function InvoicePage() {
 
     try {
       const currentUser = getCurrentUser()
+      console.log('Current user:', currentUser)
+      
       if (!currentUser?.id) {
+        console.log('❌ No user logged in')
         toast({
           title: "Info",
           description: "Fitur simpan data memerlukan login. Anda masih bisa menggunakan generator untuk membuat PDF.",
@@ -589,6 +600,8 @@ export default function InvoicePage() {
         })
         return
       }
+      
+      console.log('✅ User authenticated:', currentUser.id)
 
       const invoiceData = {
         invoiceNumber,
@@ -623,9 +636,14 @@ export default function InvoicePage() {
         createdBy: currentUser.id
       }
 
+      console.log('📤 Sending invoice data:', JSON.stringify(invoiceData, null, 2))
+      
       const response = await apiService.createInvoice(invoiceData)
+      
+      console.log('📥 API Response:', response)
 
       if (response.success) {
+        console.log('✅ Invoice saved successfully:', response.data)
         toast({
           title: "Berhasil",
           description: "Invoice berhasil disimpan"
@@ -633,6 +651,7 @@ export default function InvoicePage() {
         // Refresh the data list
         loadSavedInvoices()
       } else {
+        console.log('❌ Save failed:', response.error)
         toast({
           title: "Error",
           description: response.error || "Gagal menyimpan invoice",
