@@ -572,9 +572,9 @@ export default function KwitansiPage() {
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
         toast({
-          title: "Error",
-          description: "Anda harus login untuk menyimpan kwitansi",
-          variant: "destructive"
+          title: "Info",
+          description: "Fitur simpan data memerlukan login. Anda masih bisa menggunakan generator untuk membuat PDF.",
+          variant: "default"
         })
         return
       }
@@ -631,6 +631,8 @@ export default function KwitansiPage() {
     try {
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
+        // Don't block the page if no user - just set empty data
+        setSavedKwitansi([])
         setLoading(false)
         return
       }
@@ -648,6 +650,8 @@ export default function KwitansiPage() {
       }
     } catch (error) {
       console.error('Error loading kwitansi:', error)
+      // Don't block the page on error - just show empty state
+      setSavedKwitansi([])
     } finally {
       setLoading(false)
     }

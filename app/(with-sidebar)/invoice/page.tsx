@@ -558,9 +558,9 @@ export default function InvoicePage() {
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
         toast({
-          title: "Error",
-          description: "Anda harus login untuk menyimpan invoice",
-          variant: "destructive"
+          title: "Info",
+          description: "Fitur simpan data memerlukan login. Anda masih bisa menggunakan generator untuk membuat PDF.",
+          variant: "default"
         })
         return
       }
@@ -628,6 +628,8 @@ export default function InvoicePage() {
     try {
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
+        // Don't block the page if no user - just set empty data
+        setSavedInvoices([])
         setLoading(false)
         return
       }
@@ -645,6 +647,8 @@ export default function InvoicePage() {
       }
     } catch (error) {
       console.error('Error loading invoices:', error)
+      // Don't block the page on error - just show empty state
+      setSavedInvoices([])
     } finally {
       setLoading(false)
     }
