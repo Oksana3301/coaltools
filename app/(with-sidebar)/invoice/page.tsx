@@ -48,14 +48,9 @@ export default function InvoicePage() {
     place: 'Sawahlunto',
     date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
   })
-  const [items, setItems] = useState([{ 
-    id: '1', 
-    description: '', 
-    quantity: 1, 
-    price: 0, 
-    discount: 0, 
-    tax: 0 
-  }])
+  const [items, setItems] = useState<any[]>([])
+
+
 
   // Load saved invoices data
   const loadSavedInvoices = useCallback(async () => {
@@ -815,10 +810,25 @@ export default function InvoicePage() {
       return
     }
 
-    if (items.some(item => !item.description || item.quantity <= 0 || item.price <= 0)) {
+    if (items.length === 0) {
       toast({
         title: "Error", 
-        description: "Mohon pastikan semua item memiliki deskripsi, quantity > 0, dan harga > 0",
+        description: "Mohon tambahkan minimal satu item",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Validate only items that have some content
+    const invalidItems = items.filter(item => 
+      (item.description && (!item.description.trim() || item.quantity <= 0 || item.price <= 0)) ||
+      (!item.description && (item.quantity > 0 || item.price > 0))
+    )
+    
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Error", 
+        description: "Mohon pastikan semua item yang diisi memiliki deskripsi, quantity > 0, dan harga > 0",
         variant: "destructive"
       })
       return
@@ -1884,7 +1894,7 @@ export default function InvoicePage() {
           <Button
             onClick={generateInvoice}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-            disabled={!invoiceNumber || !applicantName || !recipientName || items.some(item => !item.description || item.quantity <= 0 || item.price <= 0)}
+            disabled={!invoiceNumber || !applicantName || !recipientName || items.length === 0}
           >
             <Download className="h-5 w-5" />
             Generate PDF Invoice
@@ -1893,7 +1903,7 @@ export default function InvoicePage() {
           <Button
             onClick={editingInvoice ? updateInvoice : saveInvoice}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3"
-            disabled={!invoiceNumber || !applicantName || !recipientName || items.some(item => !item.description || item.quantity <= 0 || item.price <= 0)}
+            disabled={!invoiceNumber || !applicantName || !recipientName || items.length === 0}
           >
             <Save className="h-5 w-5" />
             {editingInvoice ? 'Update Data' : 'Simpan Data'}
