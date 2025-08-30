@@ -14,6 +14,8 @@ import {
   Download, 
   Save,
   Eye,
+  Edit,
+  Trash2,
   FileText,
   Calendar,
   User,
@@ -67,6 +69,15 @@ export default function KwitansiPage() {
 
   const [showBankDetails, setShowBankDetails] = useState(false)
   
+  // Data management state
+  const [savedKwitansi, setSavedKwitansi] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showDataManagement, setShowDataManagement] = useState(false)
+  const [editingKwitansi, setEditingKwitansi] = useState<any | null>(null)
+  const [viewingKwitansi, setViewingKwitansi] = useState<any | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
+  
   // Load auto-kwitansi data from localStorage if available
   useEffect(() => {
     const autoKwitansiData = localStorage.getItem('autoKwitansiData')
@@ -89,7 +100,15 @@ export default function KwitansiPage() {
         console.error('Error parsing auto kwitansi data:', error)
       }
     }
+    
+    // Load saved kwitansi data
+    loadSavedKwitansi()
   }, [])
+
+  // Load data when search or date filter changes
+  useEffect(() => {
+    loadSavedKwitansi()
+  }, [searchTerm, dateFilter])
   const [formData, setFormData] = useState({
     nomorKwitansi: "KW-001/2025",
     tanggal: "2025-08-07",
@@ -583,6 +602,8 @@ export default function KwitansiPage() {
           title: "Berhasil",
           description: "Kwitansi berhasil disimpan"
         })
+        // Refresh the data list
+        loadSavedKwitansi()
       } else {
         toast({
           title: "Error",
@@ -598,6 +619,171 @@ export default function KwitansiPage() {
         variant: "destructive"
       })
     }
+  }
+
+  // Load saved kwitansi data
+  const loadSavedKwitansi = async () => {
+    setLoading(true)
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) {
+        return
+      }
+
+      const response = await apiService.getKwitansi({
+        limit: 100,
+        createdBy: currentUser.id,
+        search: searchTerm || undefined,
+        dateFrom: dateFilter || undefined,
+        dateTo: dateFilter || undefined
+      })
+
+      if (response.success) {
+        setSavedKwitansi(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading kwitansi:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Edit kwitansi
+  const handleEditKwitansi = (kwitansi: any) => {
+    setEditingKwitansi(kwitansi)
+    // Populate form with existing data
+    setFormData({
+      nomorKwitansi: kwitansi.nomorKwitansi,
+      tanggal: kwitansi.tanggal,
+      namaPenerima: kwitansi.namaPenerima,
+      jumlahUang: kwitansi.jumlahUang,
+      untukPembayaran: kwitansi.untukPembayaran,
+      namaPembayar: kwitansi.namaPembayar,
+      nomorRekening: kwitansi.nomorRekening || '',
+      namaRekening: kwitansi.namaRekening || '',
+      bankName: kwitansi.bankName || 'BRI',
+      transferMethod: kwitansi.transferMethod || 'Transfer ke rekening',
+      tempat: kwitansi.tempat,
+      tanggalKwitansi: kwitansi.tanggalKwitansi,
+      signatureName: kwitansi.signatureName,
+      signaturePosition: kwitansi.signaturePosition,
+      materai: kwitansi.materai || ''
+    })
+    if (kwitansi.headerImage) {
+      setHeaderImage(kwitansi.headerImage)
+    }
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Update kwitansi
+  const updateKwitansi = async () => {
+    if (!editingKwitansi) return
+
+    try {
+      const kwitansiData = {
+        id: editingKwitansi.id,
+        nomorKwitansi: formData.nomorKwitansi,
+        tanggal: formData.tanggal,
+        namaPenerima: formData.namaPenerima,
+        jumlahUang: parseFloat(formData.jumlahUang.toString()),
+        untukPembayaran: formData.untukPembayaran,
+        namaPembayar: formData.namaPembayar,
+        nomorRekening: formData.nomorRekening,
+        namaRekening: formData.namaRekening,
+        bankName: formData.bankName,
+        transferMethod: formData.transferMethod,
+        tempat: formData.tempat,
+        tanggalKwitansi: formData.tanggalKwitansi,
+        signatureName: formData.signatureName,
+        signaturePosition: formData.signaturePosition,
+        materai: formData.materai || '',
+        headerImage: headerImage || undefined
+      }
+
+      const response = await apiService.updateKwitansi(kwitansiData)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: "Kwitansi berhasil diupdate"
+        })
+        setEditingKwitansi(null)
+        loadSavedKwitansi()
+        
+        // Clear form
+        clearForm()
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal mengupdate kwitansi",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error updating kwitansi:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat mengupdate kwitansi",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Delete kwitansi
+  const deleteKwitansi = async (id: string, hardDelete: boolean = false) => {
+    try {
+      const response = await apiService.deleteKwitansi(id, hardDelete)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: hardDelete ? "Kwitansi berhasil dihapus permanen" : "Kwitansi berhasil dihapus"
+        })
+        loadSavedKwitansi()
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal menghapus kwitansi",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting kwitansi:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menghapus kwitansi",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Clear form
+  const clearForm = () => {
+    setFormData({
+      nomorKwitansi: '',
+      tanggal: new Date().toISOString().split('T')[0],
+      namaPenerima: '',
+      jumlahUang: 0,
+      untukPembayaran: '',
+      namaPembayar: 'PT. GLOBAL LESTARI ALAM',
+      nomorRekening: '',
+      namaRekening: '',
+      bankName: 'BRI',
+      transferMethod: 'Transfer ke rekening',
+      tempat: 'Sawahlunto',
+      tanggalKwitansi: new Date().toLocaleDateString('id-ID', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      }),
+      signatureName: 'ATIKA DEWI SURYANI',
+      signaturePosition: 'Accounting',
+      materai: ''
+    })
+    setHeaderImage('')
+    setEditingKwitansi(null)
   }
 
 
@@ -1545,10 +1731,16 @@ export default function KwitansiPage() {
               Lihat Bukti Transfer
             </Button>
           )}
-          <Button onClick={() => saveKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+          <Button onClick={() => editingKwitansi ? updateKwitansi() : saveKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
             <Save className="h-4 w-4 mr-2" />
-            Simpan Data
+            {editingKwitansi ? 'Update Data' : 'Simpan Data'}
           </Button>
+          {editingKwitansi && (
+            <Button onClick={() => clearForm()} variant="outline" className="flex-1 h-12">
+              <X className="h-4 w-4 mr-2" />
+              Batal Edit
+            </Button>
+          )}
           <Button onClick={() => generateKwitansi()} className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
             <Download className="h-4 w-4 mr-2" />
             Buat PDF
@@ -1599,6 +1791,179 @@ export default function KwitansiPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Data Management Section */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Data Kwitansi Tersimpan</h2>
+            <Button
+              onClick={() => setShowDataManagement(!showDataManagement)}
+              variant="outline"
+            >
+              {showDataManagement ? 'Sembunyikan' : 'Tampilkan'} Data ({savedKwitansi.length}/100)
+            </Button>
+          </div>
+
+          {showDataManagement && (
+            <Card className="border-2 border-gray-200">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <CardTitle>Manajemen Data Kwitansi</CardTitle>
+                    <CardDescription>
+                      Kelola semua kwitansi yang telah dibuat. Maksimal 100 data.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Cari kwitansi..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-64"
+                    />
+                    <Input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Memuat data...</p>
+                  </div>
+                ) : savedKwitansi.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">Belum ada kwitansi tersimpan</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {savedKwitansi.map((kwitansi, index) => (
+                      <Card key={kwitansi.id} className="border border-gray-200">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold text-lg">{kwitansi.nomorKwitansi}</h3>
+                                <Badge variant="outline">
+                                  Rp {new Intl.NumberFormat('id-ID').format(kwitansi.jumlahUang)}
+                                </Badge>
+                              </div>
+                              <p className="text-gray-600 mb-1">
+                                <strong>Penerima:</strong> {kwitansi.namaPenerima}
+                              </p>
+                              <p className="text-gray-600 mb-1">
+                                <strong>Untuk:</strong> {kwitansi.untukPembayaran}
+                              </p>
+                              <p className="text-gray-600 mb-1">
+                                <strong>Tanggal:</strong> {new Date(kwitansi.tanggal).toLocaleDateString('id-ID')}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                Dibuat: {new Date(kwitansi.createdAt).toLocaleDateString('id-ID')} 
+                                {new Date(kwitansi.createdAt).toLocaleTimeString('id-ID')}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setViewingKwitansi(kwitansi)}
+                                title="Lihat Detail"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleEditKwitansi(kwitansi)}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => deleteKwitansi(kwitansi.id, false)}
+                                title="Hapus (Soft Delete)"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* View Modal */}
+        {viewingKwitansi && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-xl font-bold">Detail Kwitansi</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewingKwitansi(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <div><strong>Nomor:</strong> {viewingKwitansi.nomorKwitansi}</div>
+                  <div><strong>Tanggal:</strong> {new Date(viewingKwitansi.tanggal).toLocaleDateString('id-ID')}</div>
+                  <div><strong>Penerima:</strong> {viewingKwitansi.namaPenerima}</div>
+                  <div><strong>Jumlah:</strong> Rp {new Intl.NumberFormat('id-ID').format(viewingKwitansi.jumlahUang)}</div>
+                  <div><strong>Untuk Pembayaran:</strong> {viewingKwitansi.untukPembayaran}</div>
+                  <div><strong>Pembayar:</strong> {viewingKwitansi.namaPembayar}</div>
+                  <div><strong>Tempat:</strong> {viewingKwitansi.tempat}</div>
+                  <div><strong>Tanggal Kwitansi:</strong> {viewingKwitansi.tanggalKwitansi}</div>
+                  <div><strong>Nama Penandatangan:</strong> {viewingKwitansi.signatureName}</div>
+                  <div><strong>Jabatan:</strong> {viewingKwitansi.signaturePosition}</div>
+                  {viewingKwitansi.nomorRekening && (
+                    <div><strong>No. Rekening:</strong> {viewingKwitansi.nomorRekening}</div>
+                  )}
+                  {viewingKwitansi.namaRekening && (
+                    <div><strong>Nama Rekening:</strong> {viewingKwitansi.namaRekening}</div>
+                  )}
+                  {viewingKwitansi.bankName && (
+                    <div><strong>Bank:</strong> {viewingKwitansi.bankName}</div>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    onClick={() => {
+                      handleEditKwitansi(viewingKwitansi)
+                      setViewingKwitansi(null)
+                    }}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => setViewingKwitansi(null)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Tutup
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
 
       </div>

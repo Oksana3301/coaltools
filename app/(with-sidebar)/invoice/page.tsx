@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Receipt, Download, Save, Plus, Trash2, FileText, Eye, Image, Building2, Calendar, User, DollarSign, CreditCard, MapPin, Phone, Mail, X, Maximize, Upload, ImageIcon } from 'lucide-react'
+import { Receipt, Download, Save, Edit, Plus, Trash2, FileText, Eye, Image, Building2, Calendar, User, DollarSign, CreditCard, MapPin, Phone, Mail, X, Maximize, Upload, ImageIcon } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
@@ -17,8 +17,27 @@ export default function InvoicePage() {
   const { toast } = useToast()
   const [headerImage, setHeaderImage] = useState<string>('')
   const [headerImageName, setHeaderImageName] = useState<string>('')
+  
+  // Data management state
+  const [savedInvoices, setSavedInvoices] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showDataManagement, setShowDataManagement] = useState(false)
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null)
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('INV-001/2025')
   const [createdDate, setCreatedDate] = useState(new Date().toISOString().split('T')[0])
+
+  // Load saved invoices data on component mount
+  useEffect(() => {
+    loadSavedInvoices()
+  }, [])
+
+  // Load data when search or date filter changes
+  useEffect(() => {
+    loadSavedInvoices()
+  }, [searchTerm, dateFilter])
   const [dueDate, setDueDate] = useState('')
   const [applicantName, setApplicantName] = useState('PT. GLOBAL LESTARI ALAM')
   const [recipientName, setRecipientName] = useState('')
@@ -580,6 +599,8 @@ export default function InvoicePage() {
           title: "Berhasil",
           description: "Invoice berhasil disimpan"
         })
+        // Refresh the data list
+        loadSavedInvoices()
       } else {
         toast({
           title: "Error",
@@ -595,6 +616,176 @@ export default function InvoicePage() {
         variant: "destructive"
       })
     }
+  }
+
+  // Load saved invoices data
+  const loadSavedInvoices = async () => {
+    setLoading(true)
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) {
+        return
+      }
+
+      const response = await apiService.getInvoices({
+        limit: 100,
+        createdBy: currentUser.id,
+        search: searchTerm || undefined,
+        dateFrom: dateFilter || undefined,
+        dateTo: dateFilter || undefined
+      })
+
+      if (response.success) {
+        setSavedInvoices(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading invoices:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Edit invoice
+  const handleEditInvoice = (invoice: any) => {
+    setEditingInvoice(invoice)
+    // Populate form with existing data
+    setInvoiceNumber(invoice.invoiceNumber)
+    setCreatedDate(invoice.createdDate)
+    setDueDate(invoice.dueDate || '')
+    setApplicantName(invoice.applicantName)
+    setRecipientName(invoice.recipientName)
+    setNotes(invoice.notes || '')
+    setTermsAndConditions(invoice.termsConditions || '')
+    setShowBankDetails(invoice.showBankDetails)
+    if (invoice.headerImage) {
+      setHeaderImage(invoice.headerImage)
+    }
+    if (invoice.bankName) {
+      setBankDetails({
+        bankName: invoice.bankName,
+        accountNumber: invoice.accountNumber || '',
+        accountHolder: invoice.accountHolder || '',
+        transferMethod: invoice.transferMethod || 'Transfer ke rekening'
+      })
+    }
+    if (invoice.signatureName) {
+      setSignatureInfo({
+        name: invoice.signatureName,
+        position: invoice.signaturePosition || '',
+        place: invoice.signatureLocation || ''
+      })
+    }
+    setItems(invoice.items || [])
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Update invoice
+  const updateInvoice = async () => {
+    if (!editingInvoice) return
+
+    try {
+      const invoiceData = {
+        id: editingInvoice.id,
+        invoiceNumber,
+        createdDate,
+        dueDate: dueDate || undefined,
+        applicantName,
+        recipientName,
+        notes: notes || undefined,
+        termsConditions: termsAndConditions || undefined,
+        headerImage: headerImage || undefined,
+        showBankDetails,
+        bankName: showBankDetails ? bankDetails.bankName : undefined,
+        accountNumber: showBankDetails ? bankDetails.accountNumber : undefined,
+        accountHolder: showBankDetails ? bankDetails.accountHolder : undefined,
+        transferMethod: showBankDetails ? bankDetails.transferMethod : undefined,
+        signatureName: signatureInfo?.name || undefined,
+        signaturePosition: signatureInfo?.position || undefined,
+        signatureLocation: signatureInfo?.place || undefined,
+        items: items.map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total
+        })),
+        subtotal: calculateSubtotal(),
+        discount: calculateTotalDiscount(),
+        tax: calculateTotalTax(),
+        total: calculateTotal()
+      }
+
+      const response = await apiService.updateInvoice(invoiceData)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: "Invoice berhasil diupdate"
+        })
+        setEditingInvoice(null)
+        loadSavedInvoices()
+        
+        // Clear form
+        clearForm()
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal mengupdate invoice",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error updating invoice:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat mengupdate invoice",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Delete invoice
+  const deleteInvoice = async (id: string, hardDelete: boolean = false) => {
+    try {
+      const response = await apiService.deleteInvoice(id, hardDelete)
+
+      if (response.success) {
+        toast({
+          title: "Berhasil",
+          description: hardDelete ? "Invoice berhasil dihapus permanen" : "Invoice berhasil dihapus"
+        })
+        loadSavedInvoices()
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Gagal menghapus invoice",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+      toast({
+        title: "Error",
+        description: "Terjadi kesalahan saat menghapus invoice",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Clear form
+  const clearForm = () => {
+    setInvoiceNumber('INV-001/2025')
+    setCreatedDate(new Date().toISOString().split('T')[0])
+    setDueDate('')
+    setApplicantName('PT. GLOBAL LESTARI ALAM')
+    setRecipientName('')
+    setNotes('')
+    setTermsAndConditions('')
+    setHeaderImage('')
+    setItems([])
+    setEditingInvoice(null)
   }
 
   const openFullScreenPreview = async () => {
@@ -1310,10 +1501,16 @@ export default function InvoicePage() {
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Layar Penuh
               </Button>
-              <Button onClick={() => saveInvoice()} className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+              <Button onClick={() => editingInvoice ? updateInvoice() : saveInvoice()} className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
                 <Save className="h-4 w-4 mr-2" />
-                Simpan Data
+                {editingInvoice ? 'Update Data' : 'Simpan Data'}
               </Button>
+              {editingInvoice && (
+                <Button onClick={() => clearForm()} variant="outline" className="flex-1">
+                  <X className="h-4 w-4 mr-2" />
+                  Batal Edit
+                </Button>
+              )}
               <Button onClick={() => generatePDF()} variant="outline" className="flex-1">
                 <Download className="h-4 w-4 mr-2" />
                 Buat PDF
@@ -1641,6 +1838,200 @@ export default function InvoicePage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Data Management Section */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Data Invoice Tersimpan</h2>
+            <Button
+              onClick={() => setShowDataManagement(!showDataManagement)}
+              variant="outline"
+            >
+              {showDataManagement ? 'Sembunyikan' : 'Tampilkan'} Data ({savedInvoices.length}/100)
+            </Button>
+          </div>
+
+          {showDataManagement && (
+            <Card className="border-2 border-gray-200">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div>
+                    <CardTitle>Manajemen Data Invoice</CardTitle>
+                    <CardDescription>
+                      Kelola semua invoice yang telah dibuat. Maksimal 100 data.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Cari invoice..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-64"
+                    />
+                    <Input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Memuat data...</p>
+                  </div>
+                ) : savedInvoices.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">Belum ada invoice tersimpan</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {savedInvoices.map((invoice, index) => (
+                      <Card key={invoice.id} className="border border-gray-200">
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold text-lg">{invoice.invoiceNumber}</h3>
+                                <Badge variant="outline">
+                                  Rp {new Intl.NumberFormat('id-ID').format(invoice.total)}
+                                </Badge>
+                              </div>
+                              <p className="text-gray-600 mb-1">
+                                <strong>Pemohon:</strong> {invoice.applicantName}
+                              </p>
+                              <p className="text-gray-600 mb-1">
+                                <strong>Penerima:</strong> {invoice.recipientName}
+                              </p>
+                              <p className="text-gray-600 mb-1">
+                                <strong>Tanggal:</strong> {new Date(invoice.createdDate).toLocaleDateString('id-ID')}
+                              </p>
+                              {invoice.dueDate && (
+                                <p className="text-gray-600 mb-1">
+                                  <strong>Jatuh Tempo:</strong> {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
+                                </p>
+                              )}
+                              <p className="text-sm text-gray-500">
+                                Dibuat: {new Date(invoice.createdAt).toLocaleDateString('id-ID')} 
+                                {new Date(invoice.createdAt).toLocaleTimeString('id-ID')}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setViewingInvoice(invoice)}
+                                title="Lihat Detail"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleEditInvoice(invoice)}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => deleteInvoice(invoice.id, false)}
+                                title="Hapus (Soft Delete)"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* View Modal */}
+        {viewingInvoice && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-xl font-bold">Detail Invoice</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewingInvoice(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <div><strong>Nomor Invoice:</strong> {viewingInvoice.invoiceNumber}</div>
+                  <div><strong>Tanggal Dibuat:</strong> {new Date(viewingInvoice.createdDate).toLocaleDateString('id-ID')}</div>
+                  {viewingInvoice.dueDate && (
+                    <div><strong>Jatuh Tempo:</strong> {new Date(viewingInvoice.dueDate).toLocaleDateString('id-ID')}</div>
+                  )}
+                  <div><strong>Pemohon:</strong> {viewingInvoice.applicantName}</div>
+                  <div><strong>Penerima:</strong> {viewingInvoice.recipientName}</div>
+                  {viewingInvoice.notes && (
+                    <div><strong>Catatan:</strong> {viewingInvoice.notes}</div>
+                  )}
+                  {viewingInvoice.termsConditions && (
+                    <div><strong>Syarat & Ketentuan:</strong> {viewingInvoice.termsConditions}</div>
+                  )}
+                  <div className="mt-4">
+                    <strong>Item:</strong>
+                    <div className="mt-2 space-y-2">
+                      {Array.isArray(viewingInvoice.items) ? viewingInvoice.items.map((item: any, index: number) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded">
+                          <div>{item.description}</div>
+                          <div className="text-sm text-gray-600">
+                            Qty: {item.quantity} × Rp {new Intl.NumberFormat('id-ID').format(item.price)} = 
+                            Rp {new Intl.NumberFormat('id-ID').format(item.total)}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-gray-500">Data item tidak tersedia</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-4 p-4 bg-gray-50 rounded">
+                    <div><strong>Subtotal:</strong> Rp {new Intl.NumberFormat('id-ID').format(viewingInvoice.subtotal)}</div>
+                    <div><strong>Diskon:</strong> Rp {new Intl.NumberFormat('id-ID').format(viewingInvoice.discount)}</div>
+                    <div><strong>Pajak:</strong> Rp {new Intl.NumberFormat('id-ID').format(viewingInvoice.tax)}</div>
+                    <div className="text-lg font-bold"><strong>Total:</strong> Rp {new Intl.NumberFormat('id-ID').format(viewingInvoice.total)}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    onClick={() => {
+                      handleEditInvoice(viewingInvoice)
+                      setViewingInvoice(null)
+                    }}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => setViewingInvoice(null)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Tutup
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
