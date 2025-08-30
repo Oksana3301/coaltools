@@ -805,52 +805,9 @@ export default function InvoicePage() {
     setEditingInvoice(null)
   }
 
-  // Calculation functions
-  const calculateItemTotal = (item: any) => {
-    const subtotal = item.quantity * item.price
-    const discountAmount = (subtotal * item.discount) / 100
-    const afterDiscount = subtotal - discountAmount
-    const taxAmount = (afterDiscount * item.tax) / 100
-    return afterDiscount + taxAmount
-  }
 
-  const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
-  }
 
-  const calculateTotalDiscount = () => {
-    return items.reduce((sum, item) => {
-      const subtotal = item.quantity * item.price
-      return sum + ((subtotal * item.discount) / 100)
-    }, 0)
-  }
 
-  const calculateTotalTax = () => {
-    return items.reduce((sum, item) => {
-      const subtotal = item.quantity * item.price
-      const afterDiscount = subtotal - ((subtotal * item.discount) / 100)
-      return sum + ((afterDiscount * item.tax) / 100)
-    }, 0)
-  }
-
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + calculateItemTotal(item), 0)
-  }
-
-  const calculateGrandTotal = () => {
-    return calculateTotal()
-  }
-
-  // Generate filename for invoice
-  const getGeneratedFilename = () => {
-    const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-    const cleanInvoiceNumber = invoiceNumber.replace(/[^a-zA-Z0-9]/g, '_')
-    const cleanApplicant = applicantName.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_')
-    const cleanRecipient = recipientName.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_')
-    const total = calculateGrandTotal()
-    const cleanTotal = `Rp${new Intl.NumberFormat('id-ID').format(total).replace(/[^a-zA-Z0-9]/g, '_')}`
-    return `Invoice_${cleanInvoiceNumber}_${cleanApplicant}_to_${cleanRecipient}_${cleanTotal}_${date}.pdf`
-  }
 
   // Generate Invoice PDF
   const generateInvoice = async () => {

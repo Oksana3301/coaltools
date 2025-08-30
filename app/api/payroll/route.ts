@@ -166,9 +166,10 @@ export async function POST(request: NextRequest) {
 
       bruto += totalEarnings
 
-      // Calculate tax (simplified 2%)
-      const pajakRate = 2
-      const pajakNominal = taxableAmount * (pajakRate / 100)
+      // Tax calculation removed - users must configure tax manually via pay components
+      // const pajakRate = 2
+      // const pajakNominal = taxableAmount * (pajakRate / 100)
+      const pajakNominal = 0  // No automatic tax - use pay components for tax configuration
 
       // Calculate deduction components
       payComponents
