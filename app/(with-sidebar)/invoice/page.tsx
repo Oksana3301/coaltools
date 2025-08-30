@@ -28,20 +28,6 @@ export default function InvoicePage() {
   const [dateFilter, setDateFilter] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('INV-001/2025')
   const [createdDate, setCreatedDate] = useState(new Date().toISOString().split('T')[0])
-
-  // Load saved invoices data on component mount
-  useEffect(() => {
-    try {
-      loadSavedInvoices()
-    } catch (error) {
-      console.error('Error in useEffect:', error)
-    }
-  }, [])
-
-  // Load data when search or date filter changes
-  useEffect(() => {
-    loadSavedInvoices()
-  }, [loadSavedInvoices])
   const [dueDate, setDueDate] = useState('')
   const [applicantName, setApplicantName] = useState('PT. GLOBAL LESTARI ALAM')
   const [recipientName, setRecipientName] = useState('')
@@ -70,6 +56,52 @@ export default function InvoicePage() {
     discount: 0, 
     tax: 0 
   }])
+
+  // Load saved invoices data
+  const loadSavedInvoices = useCallback(async () => {
+    setLoading(true)
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) {
+        // Don't block the page if no user - just set empty data
+        setSavedInvoices([])
+        setLoading(false)
+        return
+      }
+
+      const response = await apiService.getInvoices({
+        limit: 100,
+        createdBy: currentUser.id,
+        search: searchTerm || undefined,
+        dateFrom: dateFilter || undefined,
+        dateTo: dateFilter || undefined
+      })
+
+      if (response.success) {
+        setSavedInvoices(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading invoices:', error)
+      // Don't block the page on error - just show empty state
+      setSavedInvoices([])
+    } finally {
+      setLoading(false)
+    }
+  }, [searchTerm, dateFilter])
+
+  // Load saved invoices data on component mount
+  useEffect(() => {
+    try {
+      loadSavedInvoices()
+    } catch (error) {
+      console.error('Error in useEffect:', error)
+    }
+  }, [])
+
+  // Load data when search or date filter changes
+  useEffect(() => {
+    loadSavedInvoices()
+  }, [loadSavedInvoices])
 
   const handleHeaderUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -621,38 +653,6 @@ export default function InvoicePage() {
       })
     }
   }
-
-  // Load saved invoices data
-  const loadSavedInvoices = useCallback(async () => {
-    setLoading(true)
-    try {
-      const currentUser = getCurrentUser()
-      if (!currentUser?.id) {
-        // Don't block the page if no user - just set empty data
-        setSavedInvoices([])
-        setLoading(false)
-        return
-      }
-
-      const response = await apiService.getInvoices({
-        limit: 100,
-        createdBy: currentUser.id,
-        search: searchTerm || undefined,
-        dateFrom: dateFilter || undefined,
-        dateTo: dateFilter || undefined
-      })
-
-      if (response.success) {
-        setSavedInvoices(response.data || [])
-      }
-    } catch (error) {
-      console.error('Error loading invoices:', error)
-      // Don't block the page on error - just show empty state
-      setSavedInvoices([])
-    } finally {
-      setLoading(false)
-    }
-  }, [searchTerm, dateFilter])
 
   // Edit invoice
   const handleEditInvoice = (invoice: any) => {

@@ -75,44 +75,10 @@ export default function KwitansiPage() {
   const [showDataManagement, setShowDataManagement] = useState(false)
   const [editingKwitansi, setEditingKwitansi] = useState<any | null>(null)
   const [viewingKwitansi, setViewingKwitansi] = useState<any | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
+    const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   
-  // Load auto-kwitansi data from localStorage if available
-  useEffect(() => {
-    try {
-    const autoKwitansiData = localStorage.getItem('autoKwitansiData')
-    if (autoKwitansiData) {
-      try {
-        const data = JSON.parse(autoKwitansiData)
-        setFormData(prev => ({
-          ...prev,
-          ...data
-        }))
-        
-        // Clear the data from localStorage after loading
-        localStorage.removeItem('autoKwitansiData')
-        
-        toast({
-          title: "Data Kwitansi Dimuat",
-          description: "Data kwitansi dari payroll telah dimuat otomatis"
-        })
-      } catch (error) {
-        console.error('Error parsing auto kwitansi data:', error)
-      }
-      }
-      
-      // Load saved kwitansi data
-      loadSavedKwitansi()
-    } catch (error) {
-      console.error('Error in useEffect:', error)
-    }
-  }, [])
-
-  // Load data when search or date filter changes
-  useEffect(() => {
-    loadSavedKwitansi()
-  }, [loadSavedKwitansi])
+  // Form data state - must be declared before useEffect
   const [formData, setFormData] = useState({
     nomorKwitansi: "KW-001/2025",
     tanggal: "2025-08-07",
@@ -136,6 +102,74 @@ export default function KwitansiPage() {
   const [headerImage, setHeaderImage] = useState<string | null>(null)
   const [headerImageName, setHeaderImageName] = useState<string>("")
   const [transferProofs, setTransferProofs] = useState<Array<{ file: File; keterangan: string; title: string }>>([])
+
+  // Load saved kwitansi data
+  const loadSavedKwitansi = useCallback(async () => {
+    setLoading(true)
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) {
+        // Don't block the page if no user - just set empty data
+        setSavedKwitansi([])
+        setLoading(false)
+        return
+      }
+
+      const response = await apiService.getKwitansi({
+        limit: 100,
+        createdBy: currentUser.id,
+        search: searchTerm || undefined,
+        dateFrom: dateFilter || undefined,
+        dateTo: dateFilter || undefined
+      })
+
+      if (response.success) {
+        setSavedKwitansi(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading kwitansi:', error)
+      // Don't block the page on error - just show empty state
+      setSavedKwitansi([])
+    } finally {
+      setLoading(false)
+    }
+  }, [searchTerm, dateFilter])
+
+  // Load auto-kwitansi data from localStorage if available
+  useEffect(() => {
+    try {
+      const autoKwitansiData = localStorage.getItem('autoKwitansiData')
+      if (autoKwitansiData) {
+        try {
+          const data = JSON.parse(autoKwitansiData)
+          setFormData(prev => ({
+            ...prev,
+            ...data
+          }))
+          
+          // Clear the data from localStorage after loading
+          localStorage.removeItem('autoKwitansiData')
+          
+          toast({
+            title: "Data Kwitansi Dimuat",
+            description: "Data kwitansi dari payroll telah dimuat otomatis"
+          })
+        } catch (error) {
+          console.error('Error parsing auto kwitansi data:', error)
+        }
+      }
+      
+      // Load saved kwitansi data
+      loadSavedKwitansi()
+    } catch (error) {
+      console.error('Error in useEffect:', error)
+    }
+  }, [])
+
+  // Load data when search or date filter changes
+  useEffect(() => {
+    loadSavedKwitansi()
+  }, [loadSavedKwitansi])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -624,38 +658,6 @@ export default function KwitansiPage() {
       })
     }
   }
-
-  // Load saved kwitansi data
-  const loadSavedKwitansi = useCallback(async () => {
-    setLoading(true)
-    try {
-      const currentUser = getCurrentUser()
-      if (!currentUser?.id) {
-        // Don't block the page if no user - just set empty data
-        setSavedKwitansi([])
-        setLoading(false)
-        return
-      }
-
-      const response = await apiService.getKwitansi({
-        limit: 100,
-        createdBy: currentUser.id,
-        search: searchTerm || undefined,
-        dateFrom: dateFilter || undefined,
-        dateTo: dateFilter || undefined
-      })
-
-      if (response.success) {
-        setSavedKwitansi(response.data || [])
-      }
-    } catch (error) {
-      console.error('Error loading kwitansi:', error)
-      // Don't block the page on error - just show empty state
-      setSavedKwitansi([])
-    } finally {
-      setLoading(false)
-    }
-  }, [searchTerm, dateFilter])
 
   // Edit kwitansi
   const handleEditKwitansi = (kwitansi: any) => {
