@@ -569,6 +569,11 @@ class ApiService {
     return this.fetchApi<PayrollRun>(`/payroll/${id}`)
   }
 
+  // Alias for getPayrollRunById for compatibility
+  async getPayrollRun(id: string): Promise<ApiResponse<PayrollRun>> {
+    return this.getPayrollRunById(id)
+  }
+
   // Create new payroll run
   async createPayrollRun(data: {
     periodeAwal: string

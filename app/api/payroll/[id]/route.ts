@@ -148,9 +148,31 @@ async function generateKwitansiForPayroll(payrollRun: any) {
     year: 'numeric' 
   })
 
+  // Get complete payroll data with employee relationships
+  const completePayrollRun = await prisma.payrollRun.findUnique({
+    where: { id: payrollRun.id },
+    include: {
+      payrollLines: {
+        include: {
+          employee: true
+        }
+      }
+    }
+  })
+
+  if (!completePayrollRun?.payrollLines) {
+    console.error('No payroll lines found for payroll run:', payrollRun.id)
+    return
+  }
+
   // Generate kwitansi for each employee in the payroll
-  for (const payrollLine of payrollRun.payrollLines) {
+  for (const payrollLine of completePayrollRun.payrollLines) {
     const employee = payrollLine.employee
+    
+    if (!employee) {
+      console.error('Employee not found for payroll line:', payrollLine.id)
+      continue
+    }
     
     // Generate unique kwitansi number
     const kwitansiCount = await prisma.kwitansi.count({
@@ -162,29 +184,36 @@ async function generateKwitansiForPayroll(payrollRun: any) {
     
     const nomorKwitansi = `KW-${payrollRun.id.slice(-6)}-${employee.id.slice(-4)}-${String(kwitansiCount + 1).padStart(3, '0')}`
 
-    // Create kwitansi record
-    await prisma.kwitansi.create({
-      data: {
-        nomorKwitansi,
-        tanggal: currentDate.toISOString().split('T')[0],
-        namaPenerima: employee.nama,
-        jumlahUang: payrollLine.neto,
-        untukPembayaran: `Gaji Karyawan ${employee.nama} untuk periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`,
-        namaPembayar: 'PT. GLOBAL LESTARI ALAM',
-        nomorRekening: employee.bankAccount || '',
-        namaRekening: employee.nama,
-        bankName: employee.bankName || 'BRI',
-        transferMethod: 'Transfer ke rekening',
-        tempat: 'Sawahlunto',
-        tanggalKwitansi,
-        signatureName: 'ATIKA DEWI SURYANI',
-        signaturePosition: 'Accounting',
-        materai: '',
-        payrollRunId: payrollRun.id,
-        payrollLineId: payrollLine.id,
-        employeeId: employee.id,
-        createdBy: payrollRun.createdBy
-      }
-    })
+    try {
+      // Create kwitansi record
+      await prisma.kwitansi.create({
+        data: {
+          nomorKwitansi,
+          tanggal: currentDate.toISOString().split('T')[0],
+          namaPenerima: employee.nama || payrollLine.employeeName,
+          jumlahUang: Number(payrollLine.neto),
+          untukPembayaran: `Gaji Karyawan ${employee.nama || payrollLine.employeeName} untuk periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`,
+          namaPembayar: 'PT. GLOBAL LESTARI ALAM',
+          nomorRekening: employee.bankAccount || '',
+          namaRekening: employee.nama || payrollLine.employeeName,
+          bankName: employee.bankName || 'BRI',
+          transferMethod: 'Transfer ke rekening',
+          tempat: 'Sawahlunto',
+          tanggalKwitansi,
+          signatureName: 'ATIKA DEWI SURYANI',
+          signaturePosition: 'Accounting',
+          materai: '',
+          payrollRunId: payrollRun.id,
+          payrollLineId: payrollLine.id,
+          employeeId: employee.id,
+          createdBy: payrollRun.createdBy
+        }
+      })
+      console.log(`Kwitansi created for employee: ${employee.nama || payrollLine.employeeName}`)
+    } catch (error) {
+      console.error(`Error creating kwitansi for employee ${employee.nama || payrollLine.employeeName}:`, error)
+    }
   }
+  
+  console.log(`Generated ${completePayrollRun.payrollLines.length} kwitansi for payroll run ${payrollRun.id}`)
 }
