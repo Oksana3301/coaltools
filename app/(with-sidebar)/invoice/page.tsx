@@ -61,17 +61,13 @@ export default function InvoicePage() {
   const loadSavedInvoices = useCallback(async () => {
     setLoading(true)
     try {
-      console.log('Loading invoices...')
       const currentUser = getCurrentUser()
       if (!currentUser?.id) {
-        console.log('No user found, setting empty data')
         // Don't block the page if no user - just set empty data
         setSavedInvoices([])
-        setLoading(false)
         return
       }
 
-      console.log('Fetching invoices for user:', currentUser.id)
       const response = await apiService.getInvoices({
         limit: 100,
         createdBy: currentUser.id,
@@ -80,12 +76,10 @@ export default function InvoicePage() {
         dateTo: dateFilter || undefined
       })
 
-      console.log('Invoice response:', response)
       if (response.success) {
         setSavedInvoices(response.data || [])
-        console.log('Invoices loaded successfully:', response.data?.length || 0)
       } else {
-        console.error('Failed to load invoices:', response.error)
+        // Don't block the page on API error - just show empty state
         setSavedInvoices([])
       }
     } catch (error) {
@@ -97,19 +91,15 @@ export default function InvoicePage() {
     }
   }, [searchTerm, dateFilter])
 
-  // Load saved invoices data on component mount
+  // Load saved invoices data on component mount and when search/filter changes
   useEffect(() => {
     try {
       loadSavedInvoices()
     } catch (error) {
       console.error('Error in useEffect:', error)
+      setLoading(false) // Ensure loading state is cleared even on error
     }
-  }, [])
-
-  // Load data when search or date filter changes
-  useEffect(() => {
-    loadSavedInvoices()
-  }, [loadSavedInvoices])
+  }, [searchTerm, dateFilter]) // Only depend on search and filter, not the function itself
 
   const handleHeaderUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -804,6 +794,10 @@ export default function InvoicePage() {
     setItems([])
     setEditingInvoice(null)
   }
+
+
+
+
 
 
 
