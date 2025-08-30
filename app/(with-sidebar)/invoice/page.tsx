@@ -632,7 +632,7 @@ export default function InvoicePage() {
         subtotal: calculateSubtotal(),
         discount: calculateTotalDiscount(),
         tax: calculateTotalTax(),
-        total: calculateTotal(),
+        total: calculateGrandTotal(),
         createdBy: currentUser.id
       }
 
@@ -739,7 +739,7 @@ export default function InvoicePage() {
         subtotal: calculateSubtotal(),
         discount: calculateTotalDiscount(),
         tax: calculateTotalTax(),
-        total: calculateTotal()
+        total: calculateGrandTotal()
       }
 
       const response = await apiService.updateInvoice(invoiceData)
