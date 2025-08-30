@@ -574,6 +574,26 @@ class ApiService {
     return this.getPayrollRunById(id)
   }
 
+  // Dashboard summary endpoint
+  async getDashboardSummary(filters: { period: string; site?: string; currency?: string }): Promise<ApiResponse<any>> {
+    try {
+      const queryParams = new URLSearchParams({
+        period: filters.period,
+        site: filters.site || 'ALL',
+        currency: filters.currency || 'IDR'
+      })
+      
+      const response = await fetch(`${this.baseUrl}/api/dashboard/summary?${queryParams}`)
+      return await response.json()
+    } catch (error) {
+      console.error('Dashboard summary API error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch dashboard summary'
+      }
+    }
+  }
+
   // Create new payroll run
   async createPayrollRun(data: {
     periodeAwal: string
