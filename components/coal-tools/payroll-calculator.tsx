@@ -453,10 +453,10 @@ export function PayrollCalculator() {
     // Update bruto with earnings
     bruto += totalEarnings
 
-    // Calculate tax (2% of taxable amount)
-    const pajakRate = 2
-    const pajakNominal = taxableAmount * (pajakRate / 100)
-    totalDeductions += pajakNominal
+    // Tax calculation removed - users must configure tax manually via pay components
+    // const pajakRate = 2
+    // const pajakNominal = taxableAmount * (pajakRate / 100)
+    const pajakNominal = 0  // No automatic tax - use pay components for tax configuration
 
     // Add cashbon to deductions
     totalDeductions += employeePayroll.cashbon
@@ -889,7 +889,7 @@ export function PayrollCalculator() {
               <td colspan="3"><strong>POTONGAN</strong></td>
             </tr>
             <tr>
-              <td>Pajak (2%)</td>
+              <td>Pajak</td>
               <td>-</td>
               <td style="text-align: right">${formatCurrency(calculation.pajakNominal)}</td>
             </tr>
@@ -1394,7 +1394,7 @@ export function PayrollCalculator() {
                                         <span className="font-semibold">{formatCurrency(calculation.bruto)}</span>
                                       </div>
                                       <div className="flex justify-between text-red-600">
-                                        <span>Pajak (2%):</span>
+                                        <span>Pajak:</span>
                                         <span className="font-semibold">-{formatCurrency(calculation.pajakNominal)}</span>
                                       </div>
                                       {calculation.cashbon > 0 && (
@@ -1447,6 +1447,23 @@ export function PayrollCalculator() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Tax Configuration Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-800">Konfigurasi Pajak Manual</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Perhitungan pajak otomatis (2%) telah dihapus. Untuk menambahkan pajak, buat komponen potongan baru dengan tipe "DEDUCTION" dan metode "PERSENTASE" sesuai dengan kebutuhan perusahaan Anda.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
               {/* Existing Pay Components */}
               <div>
                 <h4 className="font-medium mb-3">Komponen Gaji Standar</h4>
@@ -1649,7 +1666,7 @@ export function PayrollCalculator() {
                               <div className="space-y-1">
                                 <div className="font-medium text-red-700">POTONGAN</div>
                                 <div className="flex justify-between">
-                                  <span>Pajak (2%):</span>
+                                  <span>Pajak:</span>
                                   <span>{formatCurrency(calc!.pajakNominal)}</span>
                                 </div>
                                 {calc!.cashbon > 0 && (
