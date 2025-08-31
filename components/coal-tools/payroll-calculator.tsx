@@ -518,6 +518,130 @@ export function PayrollCalculator() {
     })
   }
 
+  // Helper function to calculate payroll run total correctly
+  const calculatePayrollRunTotal = (payrollRun: PayrollRun): number => {
+    if (!payrollRun.payrollLines || payrollRun.payrollLines.length === 0) {
+      return 0
+    }
+
+    return payrollRun.payrollLines.reduce((total, line) => {
+      // Recalculate neto from stored data if neto is 0 or missing
+      let neto = line.neto || 0
+      
+      if (neto === 0) {
+        // Recalculate from stored fields
+        const employee = employees.find(emp => emp.id === line.employeeId)
+        if (employee) {
+          // Calculate bruto
+          const baseUpah = line.upahHarian * line.hariKerja
+          const uangMakan = line.uangMakanHarian * line.hariKerja
+          const uangBbm = line.uangBbmHarian * line.hariKerja
+          const overtimeAmount = line.overtimeAmount || 0
+          
+          let totalEarnings = baseUpah + uangMakan + uangBbm + overtimeAmount
+          
+          // Add component earnings
+          if (line.components) {
+            line.components.forEach(comp => {
+              if (comp.amount > 0) {
+                totalEarnings += comp.amount
+              }
+            })
+          }
+          
+          const bruto = totalEarnings
+          
+          // Calculate deductions
+          let totalDeductions = line.pajakNominal || 0
+          totalDeductions += line.potonganLain || 0
+          totalDeductions += line.cashbon || 0
+          
+          // Add component deductions
+          if (line.components) {
+            line.components.forEach(comp => {
+              if (comp.amount < 0) {
+                totalDeductions += Math.abs(comp.amount)
+              }
+            })
+          }
+          
+          neto = bruto - totalDeductions
+        }
+      }
+      
+      return total + neto
+    }, 0)
+  }
+
+  // Helper functions to calculate individual line values correctly
+  const calculateLineBruto = (line: PayrollLine): number => {
+    const baseUpah = line.upahHarian * line.hariKerja
+    const uangMakan = line.uangMakanHarian * line.hariKerja
+    const uangBbm = line.uangBbmHarian * line.hariKerja
+    const overtimeAmount = line.overtimeAmount || 0
+    
+    let totalEarnings = baseUpah + uangMakan + uangBbm + overtimeAmount
+    
+    // Add component earnings
+    if (line.components) {
+      line.components.forEach(comp => {
+        if (comp.amount > 0) {
+          totalEarnings += comp.amount
+        }
+      })
+    }
+    
+    return line.bruto || totalEarnings
+  }
+
+  const calculateLineNeto = (line: PayrollLine): number => {
+    // Return stored neto if available and non-zero
+    if (line.neto && line.neto > 0) {
+      return line.neto
+    }
+    
+    // Otherwise recalculate
+    const bruto = calculateLineBruto(line)
+    
+    let totalDeductions = line.pajakNominal || 0
+    totalDeductions += line.potonganLain || 0
+    totalDeductions += line.cashbon || 0
+    
+    // Add component deductions
+    if (line.components) {
+      line.components.forEach(comp => {
+        if (comp.amount < 0) {
+          totalDeductions += Math.abs(comp.amount)
+        }
+      })
+    }
+    
+    return bruto - totalDeductions
+  }
+
+  // Function to refresh payroll data
+  const refreshPayrollData = async () => {
+    setLoading(true)
+    try {
+      const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+      if (payrollRunsRes.success) {
+        setPayrollRuns(payrollRunsRes.data || [])
+        toast({
+          title: "Data Berhasil Direfresh",
+          description: "Riwayat payroll telah diperbarui dengan data terbaru"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal merefresh data payroll",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Quick setup functions for tax and overtime
   const addQuickTaxComponent = () => {
     setShowQuickSetupDialog('tax')
@@ -2565,7 +2689,7 @@ export function PayrollCalculator() {
                 </CardTitle>
                 <CardDescription>
                   {currentPayrollRun.payrollLines?.length || 0} karyawan • 
-                  Total: {formatCurrency(currentPayrollRun.payrollLines?.reduce((sum, line) => sum + line.neto, 0) || 0)}
+                  Total: {formatCurrency(calculatePayrollRunTotal(currentPayrollRun))}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -2619,7 +2743,7 @@ export function PayrollCalculator() {
                   <div>
                     <h4 className="font-medium">{line.employeeName}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {line.hariKerja} hari • Bruto: {formatCurrency(line.bruto)} • Neto: {formatCurrency(line.neto)}
+                      {line.hariKerja} hari • Bruto: {formatCurrency(calculateLineBruto(line))} • Neto: {formatCurrency(calculateLineNeto(line))}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -2670,13 +2794,30 @@ export function PayrollCalculator() {
       {/* Payroll History */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Riwayat Payroll
-          </CardTitle>
-          <CardDescription>
-            Daftar payroll yang pernah dibuat
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Riwayat Payroll
+              </CardTitle>
+              <CardDescription>
+                Daftar payroll yang pernah dibuat
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline" 
+              size="sm"
+              onClick={refreshPayrollData}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -2689,7 +2830,7 @@ export function PayrollCalculator() {
                   <div className="text-sm text-muted-foreground">
                     Periode: {run.periodeAwal} - {run.periodeAkhir} • 
                     {run.payrollLines?.length || 0} karyawan • 
-                    Total: {formatCurrency(run.payrollLines?.reduce((sum, line) => sum + line.neto, 0) || 0)}
+                    Total: {formatCurrency(calculatePayrollRunTotal(run))}
                   </div>
                   {run.notes && (
                     <div className="text-xs text-gray-500 mt-1">
