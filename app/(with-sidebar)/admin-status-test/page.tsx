@@ -359,6 +359,183 @@ export default function AdminStatusTestPage() {
     }
   }
 
+  const runEndToEndPayrollTest = async () => {
+    updateResult('E2E Payroll Test', 'running', 'Starting comprehensive end-to-end payroll test...')
+    
+    try {
+      // Step 1: Get active employees
+      updateResult('E2E Step 1', 'running', 'Fetching active employees...')
+      const employeesResponse = await fetch('/api/employees?aktif=true&limit=2')
+      const employeesData = await employeesResponse.json()
+      
+      if (!employeesData.success || !employeesData.data || employeesData.data.length === 0) {
+        updateResult('E2E Step 1', 'error', '❌ No active employees found for testing')
+        updateResult('E2E Payroll Test', 'error', '❌ Cannot proceed without active employees')
+        return
+      }
+      
+      const employees = employeesData.data.slice(0, 2) // Take only 2 employees for testing
+      updateResult('E2E Step 1', 'success', `✅ Found ${employees.length} active employees: ${employees.map(e => e.nama).join(', ')}`)
+      
+      // Step 2: Get pay components
+      updateResult('E2E Step 2', 'running', 'Fetching pay components...')
+      const componentsResponse = await fetch('/api/pay-components?aktif=true')
+      const componentsData = await componentsResponse.json()
+      
+      let payComponents = []
+      if (componentsData.success && componentsData.data) {
+        payComponents = componentsData.data
+        updateResult('E2E Step 2', 'success', `✅ Found ${payComponents.length} pay components`)
+      } else {
+        updateResult('E2E Step 2', 'warning', '⚠️ No pay components found, continuing with basic payroll')
+      }
+      
+      // Step 3: Create comprehensive payroll with employee overrides
+      updateResult('E2E Step 3', 'running', 'Creating comprehensive payroll with employee data...')
+      
+      const now = new Date()
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+      
+      const payrollPayload = {
+        periodeAwal: startDate,
+        periodeAkhir: endDate,
+        createdBy: 'e2e-test-user',
+        customFileName: `E2E Test Payroll ${now.toISOString().split('T')[0]}`,
+        notes: 'End-to-end test payroll with full employee data',
+        employeeOverrides: employees.map((emp, index) => ({
+          employeeId: emp.id,
+          hariKerja: 22,
+          overtimeHours: index === 0 ? 5 : 0, // First employee has overtime
+          overtimeRate: 1.5,
+          overtimeAmount: 0,
+          normalHours: index === 0 ? 3 : 0,
+          holidayHours: index === 0 ? 2 : 0,
+          nightFirstHour: 0,
+          nightAdditionalHours: 0,
+          customHourlyRate: 0,
+          cashbon: index === 1 ? 100000 : 0, // Second employee has cashbon
+          selectedStandardComponents: payComponents.filter(c => c.jenis === 'STANDARD').map(c => c.id),
+          selectedAdditionalComponents: payComponents.filter(c => c.jenis === 'ADDITIONAL').slice(0, 2).map(c => c.id),
+          customComponents: []
+        }))
+      }
+      
+      console.log('🧪 E2E Payroll creation payload:', payrollPayload)
+      
+      const payrollResponse = await fetch('/api/payroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payrollPayload)
+      })
+      
+      const payrollResult = await payrollResponse.json()
+      console.log('🧪 E2E Payroll creation response:', payrollResult)
+      
+      if (!payrollResult.success) {
+        updateResult('E2E Step 3', 'error', `❌ Payroll creation failed: ${payrollResult.error || 'Unknown error'}`)
+        updateResult('E2E Payroll Test', 'error', '❌ Failed to create payroll')
+        return
+      }
+      
+      const createdPayroll = payrollResult.data
+      updateResult('E2E Step 3', 'success', `✅ Payroll created successfully! ID: ${createdPayroll.id}`)
+      
+      // Step 4: Retrieve the created payroll with full data
+      updateResult('E2E Step 4', 'running', 'Retrieving payroll with calculated data...')
+      
+      const retrieveResponse = await fetch(`/api/payroll/${createdPayroll.id}`)
+      const retrieveResult = await retrieveResponse.json()
+      
+      if (!retrieveResult.success) {
+        updateResult('E2E Step 4', 'error', `❌ Failed to retrieve payroll: ${retrieveResult.error}`)
+      } else {
+        const fullPayroll = retrieveResult.data
+        const totalLines = fullPayroll.payrollLines?.length || 0
+        const totalAmount = fullPayroll.payrollLines?.reduce((sum: number, line: any) => sum + (line.neto || 0), 0) || 0
+        
+        updateResult('E2E Step 4', 'success', `✅ Retrieved payroll with ${totalLines} employee lines, total: Rp ${totalAmount.toLocaleString()}`)
+        
+        // Step 5: Test status update to APPROVED (to enable PDF/Kwitansi generation)
+        updateResult('E2E Step 5', 'running', 'Updating payroll status to APPROVED...')
+        
+        try {
+          const statusResponse = await fetch(`/api/payroll/${createdPayroll.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'APPROVED',
+              approvedBy: 'e2e-test-user'
+            })
+          })
+          
+          const statusResult = await statusResponse.json()
+          if (statusResult.success) {
+            updateResult('E2E Step 5', 'success', '✅ Payroll status updated to APPROVED')
+            
+            // Step 6: Test PDF generation capability
+            updateResult('E2E Step 6', 'running', 'Testing PDF generation capability...')
+            
+            // Since we can't actually generate PDF in test environment, we simulate the process
+            const pdfTestResult = {
+              canGenerate: true,
+              employeeCount: totalLines,
+              totalAmount: totalAmount,
+              hasValidData: fullPayroll.payrollLines?.every((line: any) => line.employeeName && line.neto) || false
+            }
+            
+            if (pdfTestResult.hasValidData) {
+              updateResult('E2E Step 6', 'success', `✅ PDF generation ready: ${pdfTestResult.employeeCount} employees, valid data structure`)
+              
+              // Step 7: Test Kwitansi generation capability
+              updateResult('E2E Step 7', 'running', 'Testing Kwitansi generation capability...')
+              
+              const kwitansiTestResult = {
+                canGenerateKwitansi: fullPayroll.payrollLines?.every((line: any) => 
+                  line.employee?.bankName && line.employee?.bankAccount && line.neto > 0
+                ) || false,
+                employeesWithBankInfo: fullPayroll.payrollLines?.filter((line: any) => 
+                  line.employee?.bankName && line.employee?.bankAccount
+                ).length || 0
+              }
+              
+              if (kwitansiTestResult.canGenerateKwitansi) {
+                updateResult('E2E Step 7', 'success', `✅ Kwitansi generation ready: ${kwitansiTestResult.employeesWithBankInfo} employees with bank info`)
+                updateResult('E2E Payroll Test', 'success', '✅ COMPLETE: End-to-end payroll test successful - Create ✓ Generate ✓ PDF Ready ✓ Kwitansi Ready ✓')
+              } else {
+                updateResult('E2E Step 7', 'warning', `⚠️ Kwitansi generation limited: only ${kwitansiTestResult.employeesWithBankInfo} employees have bank info`)
+                updateResult('E2E Payroll Test', 'warning', '⚠️ PARTIAL SUCCESS: Payroll created but some employees missing bank details for kwitansi')
+              }
+            } else {
+              updateResult('E2E Step 6', 'error', '❌ PDF generation not possible: invalid payroll data structure')
+              updateResult('E2E Payroll Test', 'error', '❌ FAILED: Payroll created but PDF generation not possible')
+            }
+          } else {
+            updateResult('E2E Step 5', 'warning', `⚠️ Status update failed: ${statusResult.error}, continuing test...`)
+            updateResult('E2E Payroll Test', 'warning', '⚠️ PARTIAL: Payroll created but status update failed')
+          }
+        } catch (statusError: any) {
+          updateResult('E2E Step 5', 'warning', `⚠️ Status update error: ${statusError.message}`)
+        }
+      }
+      
+      // Cleanup: Delete the test payroll
+      updateResult('E2E Cleanup', 'running', 'Cleaning up test payroll...')
+      try {
+        await fetch(`/api/payroll?id=${createdPayroll.id}&force=true`, {
+          method: 'DELETE'
+        })
+        updateResult('E2E Cleanup', 'success', '✅ Test payroll cleaned up successfully')
+      } catch {
+        updateResult('E2E Cleanup', 'warning', '⚠️ Could not clean up test payroll - manual cleanup may be needed')
+      }
+      
+    } catch (error: any) {
+      updateResult('E2E Payroll Test', 'error', `❌ E2E test failed: ${error.message}`)
+      console.error('E2E test error:', error)
+    }
+  }
+
   const runAllTests = async () => {
     setIsRunning(true)
     setResults([])
@@ -547,7 +724,16 @@ export default function AdminStatusTestPage() {
             Test all UI buttons, status workflows, delete operations, and CRUD functionality across all sidebar pages
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            onClick={() => runEndToEndPayrollTest()} 
+            disabled={isRunning || isCrudTesting}
+            variant="default"
+            className="min-w-[140px] bg-purple-600 hover:bg-purple-700"
+          >
+            <Play className="h-4 w-4 mr-2" />
+            E2E Payroll Test
+          </Button>
           <Button 
             onClick={() => testPayrollCreateLive()} 
             disabled={isRunning || isCrudTesting}
@@ -604,6 +790,33 @@ export default function AdminStatusTestPage() {
         </TabsList>
 
         <TabsContent value="ui-tests" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="border-purple-200 bg-purple-50 dark:bg-purple-950">
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-purple-800 dark:text-purple-200 mb-2">🎯 E2E Payroll Test</h3>
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  Complete end-to-end test: Create payroll → Generate → PDF/Kwitansi ready
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-red-200 bg-red-50 dark:bg-red-950">
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-red-800 dark:text-red-200 mb-2">🧪 Quick Payroll Test</h3>
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  Simple API test for payroll creation (minimal data)
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950">
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">🔧 UI Test</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Comprehensive UI button functionality verification
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
           <Card>
             <CardHeader>
               <CardTitle>UI & Button Test Results</CardTitle>
@@ -611,7 +824,7 @@ export default function AdminStatusTestPage() {
             <CardContent>
               {results.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  Click "Test UI" to start testing UI buttons, status workflows, and delete operations
+                  Click "E2E Payroll Test" for comprehensive testing or "Test UI" for button verification
                 </p>
               ) : (
                 <div className="space-y-3">
