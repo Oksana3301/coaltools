@@ -616,18 +616,34 @@ class ApiService {
       hariKerja: number
     }>
   }): Promise<ApiResponse<PayrollRun>> {
-    return this.fetchApi<PayrollRun>('/payroll', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
+    console.log('🆕 createPayrollRun called with:', data)
+    try {
+      const result = await this.fetchApi<PayrollRun>('/payroll', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      })
+      console.log('📊 createPayrollRun result:', result)
+      return result
+    } catch (error) {
+      console.error('❌ createPayrollRun error:', error)
+      throw error
+    }
   }
 
   // Update payroll run
   async updatePayrollRun(data: Partial<PayrollRun> & { id: string }): Promise<ApiResponse<PayrollRun>> {
-    return this.fetchApi<PayrollRun>('/payroll', {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    })
+    console.log('🔄 updatePayrollRun called with:', data)
+    try {
+      const result = await this.fetchApi<PayrollRun>('/payroll', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      })
+      console.log('📊 updatePayrollRun result:', result)
+      return result
+    } catch (error) {
+      console.error('❌ updatePayrollRun error:', error)
+      throw error
+    }
   }
 
   // Update payroll run status

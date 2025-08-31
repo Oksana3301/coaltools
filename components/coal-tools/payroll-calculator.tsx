@@ -963,6 +963,12 @@ export function PayrollCalculator() {
 
   // Quick save function for current data
   const quickSaveData = async () => {
+    console.log('🚀 quickSaveData called with:', {
+      selectedEmployees: selectedEmployees.length,
+      payrollPeriod,
+      currentPayrollRun: currentPayrollRun?.id
+    })
+
     if (selectedEmployees.length === 0) {
       toast({
         title: "Tidak Ada Data",
@@ -993,7 +999,7 @@ export function PayrollCalculator() {
       
       if (currentPayrollRun && currentPayrollRun.id) {
         // Update existing
-        response = await apiService.updatePayrollRun({
+        const updateData = {
           id: currentPayrollRun.id,
           periodeAwal: payrollPeriod.periodeAwal,
           periodeAkhir: payrollPeriod.periodeAkhir,
@@ -1018,7 +1024,11 @@ export function PayrollCalculator() {
               customComponents: customPayComponents.filter(comp => comp.nama)
             }
           })
-        })
+        };
+        
+        console.log('📝 Update payload:', JSON.stringify(updateData, null, 2));
+        response = await apiService.updatePayrollRun(updateData);
+        console.log('✅ Update response:', response);
       } else {
         // Create new
         response = await apiService.createPayrollRun({
@@ -1049,7 +1059,10 @@ export function PayrollCalculator() {
         })
       }
 
+      console.log('📊 API Response:', response)
+      
       if (response.success && response.data) {
+        console.log('✅ Save successful:', response.data)
         setCurrentPayrollRun(response.data)
         setLastSavedData({
           timestamp: new Date().toISOString(),
@@ -1065,9 +1078,17 @@ export function PayrollCalculator() {
           title: "Data Berhasil Disimpan",
           description: `${fileName} - ${selectedEmployees.length} karyawan - ${formatCurrency(totalAmount)}`
         })
+      } else {
+        console.error('❌ Save failed - response not successful:', response)
+        toast({
+          title: "Error Response",
+          description: response.error || "API response tidak berhasil",
+          variant: "destructive"
+        })
       }
     } catch (error: any) {
-      console.error('Quick save error:', error)
+      console.error('❌ Quick save error:', error)
+      console.error('Error stack:', error.stack)
       toast({
         title: "Error Menyimpan Data",
         description: error.message || "Gagal menyimpan data payroll. Coba lagi.",
@@ -1384,6 +1405,14 @@ export function PayrollCalculator() {
 
   // Step 6: Generate Payroll
   const generatePayroll = async () => {
+    console.log('🚀 generatePayroll called')
+    console.log('Current state:', {
+      selectedEmployees: selectedEmployees.length,
+      payrollPeriod,
+      currentPayrollRun: currentPayrollRun?.id,
+      customPayComponents: customPayComponents.length
+    })
+    
     setLoading(true)
     try {
       let response
@@ -3388,6 +3417,27 @@ export function PayrollCalculator() {
           )}
           
           <div className="flex flex-col gap-2">
+            {/* Test Button for Debugging */}
+            <Button
+              onClick={() => {
+                console.log('🧪 TEST BUTTON CLICKED')
+                console.log('State check:', {
+                  employees: employees.length,
+                  selectedEmployees: selectedEmployees.length,
+                  payrollPeriod,
+                  currentPayrollRun: currentPayrollRun?.id,
+                  savingData,
+                  loading
+                })
+                alert('Test button working! Check console for details.')
+              }}
+              size="sm"
+              variant="outline"
+              className="mb-2"
+            >
+              🧪 Test
+            </Button>
+            
             {/* Quick Save Button */}
             <Button
               onClick={quickSaveData}
