@@ -1418,18 +1418,38 @@ export function PayrollCalculator() {
       overtimeAmount,
       overtimeDetail: {
         ...(employeePayroll.overtimeDetail || {}),
-        hourlyRate: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)),
-        normalAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.normalHours || 0) * 1.5,
-        holidayAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.holidayHours || 0) * 2,
-        nightFirstAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.nightFirstHour || 0) * 1.5,
-        nightAdditionalAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.nightAdditionalHours || 0) * 2
+        hourlyRate: (() => {
+          const hourlyRate = employeePayroll.overtimeDetail?.customHourlyRate || 
+                           Math.round(((employee?.kontrakUpahHarian || 0) * 22) / 173)
+          return hourlyRate
+        })(),
+        normalAmount: (() => {
+          const hourlyRate = employeePayroll.overtimeDetail?.customHourlyRate || 
+                           Math.round(((employee?.kontrakUpahHarian || 0) * 22) / 173)
+          return hourlyRate * (employeePayroll.overtimeDetail?.normalHours || 0) * 1.5
+        })(),
+        holidayAmount: (() => {
+          const hourlyRate = employeePayroll.overtimeDetail?.customHourlyRate || 
+                           Math.round(((employee?.kontrakUpahHarian || 0) * 22) / 173)
+          return hourlyRate * (employeePayroll.overtimeDetail?.holidayHours || 0) * 2
+        })(),
+        nightFirstAmount: (() => {
+          const hourlyRate = employeePayroll.overtimeDetail?.customHourlyRate || 
+                           Math.round(((employee?.kontrakUpahHarian || 0) * 22) / 173)
+          return hourlyRate * (employeePayroll.overtimeDetail?.nightFirstHour || 0) * 1.5
+        })(),
+        nightAdditionalAmount: (() => {
+          const hourlyRate = employeePayroll.overtimeDetail?.customHourlyRate || 
+                           Math.round(((employee?.kontrakUpahHarian || 0) * 22) / 173)
+          return hourlyRate * (employeePayroll.overtimeDetail?.nightAdditionalHours || 0) * 2
+        })()
       },
       totalEarnings,
       bruto,
       totalDeductions,
       pajakNominal,
       taxableAmount,
-      cashbon: employeePayroll.cashbon,
+      cashbon: employeePayroll.cashbon || 0,
       neto,
       components: selectedComponents.map(comp => ({
         ...comp,
@@ -1589,19 +1609,19 @@ export function PayrollCalculator() {
               return {
                 employeeId: emp.employeeId,
                 hariKerja: emp.hariKerja,
-                // Overtime details
-                overtimeHours: emp.overtimeHours,
-                overtimeRate: emp.overtimeRate,
+                // Overtime details with null safety
+                overtimeHours: emp.overtimeHours || 0,
+                overtimeRate: emp.overtimeRate || 1.5,
                 overtimeAmount: calculation?.overtimeAmount || 0,
-                normalHours: emp.overtimeDetail.normalHours,
-                holidayHours: emp.overtimeDetail.holidayHours,
-                nightFirstHour: emp.overtimeDetail.nightFirstHour,
-                nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
-                customHourlyRate: emp.overtimeDetail.customHourlyRate,
-                cashbon: emp.cashbon,
-                // Components
-                selectedStandardComponents: emp.selectedStandardComponents,
-                selectedAdditionalComponents: emp.selectedAdditionalComponents,
+                normalHours: emp.overtimeDetail?.normalHours || 0,
+                holidayHours: emp.overtimeDetail?.holidayHours || 0,
+                nightFirstHour: emp.overtimeDetail?.nightFirstHour || 0,
+                nightAdditionalHours: emp.overtimeDetail?.nightAdditionalHours || 0,
+                customHourlyRate: emp.overtimeDetail?.customHourlyRate || 0,
+                cashbon: emp.cashbon || 0,
+                // Components with null safety
+                selectedStandardComponents: emp.selectedStandardComponents || [],
+                selectedAdditionalComponents: emp.selectedAdditionalComponents || [],
                 customComponents: customPayComponents.filter(comp => comp.nama)
               }
             })
@@ -4564,9 +4584,9 @@ export function PayrollCalculator() {
                         </DropdownMenuItem>
                   
                                             <DropdownMenuItem 
-                        onClick={() => setShowDeleteDialog({
-                          type: 'payrollRun',
-                          id: run.id!,
+                    onClick={() => setShowDeleteDialog({
+                      type: 'payrollRun',
+                      id: run.id!,
                           name: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`,
                           status: run.status
                         })}
