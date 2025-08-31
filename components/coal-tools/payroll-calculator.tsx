@@ -951,7 +951,8 @@ export function PayrollCalculator() {
       
       if (currentPayrollRun && currentPayrollRun.id) {
         // Update existing
-        response = await apiService.updatePayrollRun(currentPayrollRun.id, {
+        response = await apiService.updatePayrollRun({
+          id: currentPayrollRun.id,
           periodeAwal: payrollPeriod.periodeAwal,
           periodeAkhir: payrollPeriod.periodeAkhir,
           customFileName: fileName,
@@ -1064,7 +1065,8 @@ export function PayrollCalculator() {
   const renamePayrollFile = async (payrollRunId: string, newFileName: string, notes?: string) => {
     setRenamingFile(true)
     try {
-      const response = await apiService.updatePayrollRun(payrollRunId, {
+      const response = await apiService.updatePayrollRun({
+        id: payrollRunId,
         customFileName: newFileName.trim(),
         notes: notes || ''
       })

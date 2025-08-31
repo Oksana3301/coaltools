@@ -7,6 +7,8 @@ const payrollRunSchema = z.object({
   periodeAwal: z.string().min(1, 'Periode awal wajib diisi'),
   periodeAkhir: z.string().min(1, 'Periode akhir wajib diisi'),
   createdBy: z.string().min(1, 'Created by wajib diisi'),
+  customFileName: z.string().max(1000).optional(),
+  notes: z.string().optional(),
   employeeOverrides: z.array(z.object({
     employeeId: z.string(),
     hariKerja: z.number().min(0).max(31)
@@ -43,6 +45,22 @@ export async function GET(request: NextRequest) {
         where,
         skip,
         take: limit,
+        include: {
+          payrollLines: {
+            include: {
+              employee: {
+                select: { id: true, nama: true, jabatan: true, site: true }
+              },
+              components: true
+            }
+          },
+          creator: {
+            select: { id: true, name: true, email: true }
+          },
+          approver: {
+            select: { id: true, name: true, email: true }
+          }
+        },
         orderBy: { created_at: 'desc' }
       }),
       prisma.payrollRun.count({ where })
@@ -248,7 +266,9 @@ export async function POST(request: NextRequest) {
           periodeAwal: validatedData.periodeAwal,
           periodeAkhir: validatedData.periodeAkhir,
           createdBy: userId,
-          status: 'DRAFT'
+          status: 'DRAFT',
+          customFileName: validatedData.customFileName,
+          notes: validatedData.notes
         }
       })
 
@@ -263,6 +283,15 @@ export async function POST(request: NextRequest) {
             upahHarian: calc.upahHarian,
             uangMakanHarian: calc.uangMakanHarian,
             uangBbmHarian: calc.uangBbmHarian,
+            overtimeHours: calc.overtimeHours || 0,
+            overtimeRate: calc.overtimeRate || 1.5,
+            overtimeAmount: calc.overtimeAmount || 0,
+            normalHours: calc.normalHours || 0,
+            holidayHours: calc.holidayHours || 0,
+            nightFirstHour: calc.nightFirstHour || 0,
+            nightAdditionalHours: calc.nightAdditionalHours || 0,
+            customHourlyRate: calc.customHourlyRate || 0,
+            cashbon: calc.cashbon || 0,
             bruto: calc.bruto,
             pajakRate: calc.pajakRate,
             pajakNominal: calc.pajakNominal,
@@ -357,7 +386,8 @@ export async function PUT(request: NextRequest) {
         data: {
           ...updateData,
           ...(status && { status }),
-          ...(approvedBy && { approvedBy })
+          ...(approvedBy && { approvedBy }),
+          updated_at: new Date()
         }
       })
 
@@ -380,9 +410,23 @@ export async function PUT(request: NextRequest) {
       return updatedRun
     })
 
-    // Fetch complete data
+    // Fetch complete data with payrollLines
     const completePayrollRun = await prisma.payrollRun.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        payrollLines: {
+          include: {
+            employee: true,
+            components: true
+          }
+        },
+        creator: {
+          select: { id: true, name: true, email: true }
+        },
+        approver: {
+          select: { id: true, name: true, email: true }
+        }
+      }
     })
 
     return NextResponse.json({
