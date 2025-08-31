@@ -67,6 +67,241 @@ const getCurrentUserId = () => {
 
 const CURRENT_USER_ID = getCurrentUserId()
 
+// Save Dialog Form Component
+interface SaveDialogFormProps {
+  currentFileName?: string
+  currentNotes?: string
+  employeeCount: number
+  totalAmount: number
+  onSave: (settings: { fileName: string; notes: string }) => Promise<void>
+  onCancel: () => void
+  isLoading: boolean
+}
+
+function SaveDialogForm({ 
+  currentFileName, 
+  currentNotes, 
+  employeeCount, 
+  totalAmount, 
+  onSave, 
+  onCancel, 
+  isLoading 
+}: SaveDialogFormProps) {
+  const { toast } = useToast()
+  const [fileName, setFileName] = useState(currentFileName || '')
+  const [notes, setNotes] = useState(currentNotes || '')
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!fileName.trim()) {
+      toast({
+        title: "Error",
+        description: "Nama file tidak boleh kosong",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      await onSave({ fileName: fileName.trim(), notes: notes.trim() })
+    } catch (error) {
+      // Error handling is done in parent
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Data Summary */}
+      <div className="bg-gray-50 rounded-lg p-3 text-sm">
+        <div className="font-medium text-gray-700 mb-2">Data Summary:</div>
+        <div className="space-y-1 text-gray-600">
+          <div>• {employeeCount} karyawan terpilih</div>
+          <div>• Total: {formatCurrency(totalAmount)}</div>
+          <div>• Akan disimpan: {new Date().toLocaleString('id-ID')}</div>
+        </div>
+      </div>
+
+      {/* File Name Input */}
+      <div className="space-y-2">
+        <Label htmlFor="fileName">Nama File *</Label>
+        <Input
+          id="fileName"
+          value={fileName}
+          onChange={(e) => setFileName(e.target.value)}
+          placeholder="Masukkan nama file (max 1000 karakter)"
+          maxLength={1000}
+          disabled={saving || isLoading}
+        />
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Format: .pdf akan ditambahkan otomatis saat export</span>
+          <span>{fileName.length}/1000</span>
+        </div>
+      </div>
+
+      {/* Notes Input */}
+      <div className="space-y-2">
+        <Label htmlFor="notes">Catatan (Opsional)</Label>
+        <Textarea
+          id="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Tambahkan catatan untuk payroll ini..."
+          rows={3}
+          disabled={saving || isLoading}
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 pt-2">
+        <Button
+          onClick={onCancel}
+          variant="outline"
+          className="flex-1"
+          disabled={saving || isLoading}
+        >
+          Batal
+        </Button>
+        <Button
+          onClick={handleSave}
+          className="flex-1"
+          disabled={saving || isLoading || !fileName.trim()}
+        >
+          {saving || isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Menyimpan...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Simpan
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// Rename Dialog Form Component
+interface RenameDialogFormProps {
+  payrollRun: PayrollRun
+  currentFileName: string
+  onRename: (payrollRunId: string, newFileName: string, notes?: string) => Promise<void>
+  onCancel: () => void
+  isLoading: boolean
+}
+
+function RenameDialogForm({ 
+  payrollRun, 
+  currentFileName, 
+  onRename, 
+  onCancel, 
+  isLoading 
+}: RenameDialogFormProps) {
+  const { toast } = useToast()
+  const [fileName, setFileName] = useState(currentFileName)
+  const [notes, setNotes] = useState(payrollRun.notes || '')
+  const [renaming, setRenaming] = useState(false)
+
+  const handleRename = async () => {
+    if (!fileName.trim()) {
+      toast({
+        title: "Error",
+        description: "Nama file tidak boleh kosong",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setRenaming(true)
+    try {
+      await onRename(payrollRun.id!, fileName.trim(), notes.trim())
+    } catch (error) {
+      // Error handling is done in parent
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Current Data Summary */}
+      <div className="bg-blue-50 rounded-lg p-3 text-sm">
+        <div className="font-medium text-blue-700 mb-2">File Payroll:</div>
+        <div className="space-y-1 text-blue-600">
+          <div>• Periode: {payrollRun.periodeAwal} - {payrollRun.periodeAkhir}</div>
+          <div>• {payrollRun.payrollLines?.length || 0} karyawan</div>
+          <div>• Status: {payrollRun.status}</div>
+          <div>• Dibuat: {payrollRun.createdAt ? new Date(payrollRun.createdAt).toLocaleString('id-ID') : '-'}</div>
+        </div>
+      </div>
+
+      {/* File Name Input */}
+      <div className="space-y-2">
+        <Label htmlFor="newFileName">Nama File Baru *</Label>
+        <Input
+          id="newFileName"
+          value={fileName}
+          onChange={(e) => setFileName(e.target.value)}
+          placeholder="Masukkan nama file baru (max 1000 karakter)"
+          maxLength={1000}
+          disabled={renaming || isLoading}
+        />
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Format: .pdf akan ditambahkan otomatis saat export</span>
+          <span>{fileName.length}/1000</span>
+        </div>
+      </div>
+
+      {/* Notes Input */}
+      <div className="space-y-2">
+        <Label htmlFor="newNotes">Catatan (Opsional)</Label>
+        <Textarea
+          id="newNotes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Tambahkan atau ubah catatan untuk payroll ini..."
+          rows={3}
+          disabled={renaming || isLoading}
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 pt-2">
+        <Button
+          onClick={onCancel}
+          variant="outline"
+          className="flex-1"
+          disabled={renaming || isLoading}
+        >
+          Batal
+        </Button>
+        <Button
+          onClick={handleRename}
+          className="flex-1"
+          disabled={renaming || isLoading || !fileName.trim()}
+        >
+          {renaming || isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Merename...
+            </>
+          ) : (
+            <>
+              <Edit className="h-4 w-4 mr-2" />
+              Rename
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // Form interfaces
 interface PayrollPeriodForm {
   periodeAwal: string
@@ -157,11 +392,63 @@ export function PayrollCalculator() {
   const [deletingPayrollRun, setDeletingPayrollRun] = useState<string | null>(null)
   const [showQuickSetupDialog, setShowQuickSetupDialog] = useState<'tax' | 'overtime' | null>(null)
   const [showTutorial, setShowTutorial] = useState(false)
+  
+  // Save data states
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [savingData, setSavingData] = useState(false)
+  const [lastSavedData, setLastSavedData] = useState<{ 
+    timestamp: string; 
+    fileName: string; 
+    employeeCount: number;
+    totalAmount: number;
+  } | null>(null)
+  
+  // Rename file states
+  const [showRenameDialog, setShowRenameDialog] = useState<{ payrollRun: PayrollRun; currentName: string } | null>(null)
+  const [renamingFile, setRenamingFile] = useState(false)
 
   // Load initial data
   useEffect(() => {
     loadInitialData()
   }, [])
+
+  // Auto-save when data changes (debounced)
+  useEffect(() => {
+    if (selectedEmployees.length === 0) return
+    
+    const autoSaveTimer = setTimeout(() => {
+      // Only auto-save if we have existing payroll run (in edit mode)
+      if (currentPayrollRun && currentPayrollRun.id) {
+        quickSaveData()
+      }
+    }, 10000) // Auto-save after 10 seconds of no changes
+
+    return () => clearTimeout(autoSaveTimer)
+  }, [selectedEmployees, payrollPeriod, customPayComponents])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S or Cmd+S for quick save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        if (selectedEmployees.length > 0) {
+          quickSaveData()
+        }
+      }
+      
+      // Ctrl+Shift+S or Cmd+Shift+S for save as
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault()
+        if (selectedEmployees.length > 0) {
+          setShowSaveDialog(true)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedEmployees])
 
   const loadInitialData = async () => {
     setLoading(true)
@@ -639,6 +926,179 @@ export function PayrollCalculator() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Quick save function for current data
+  const quickSaveData = async () => {
+    if (selectedEmployees.length === 0) {
+      toast({
+        title: "Tidak Ada Data",
+        description: "Pilih karyawan terlebih dahulu sebelum menyimpan",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSavingData(true)
+    try {
+      let response
+      const fileName = payrollPeriod.customFileName || `Payroll_${payrollPeriod.periodeAwal}_${payrollPeriod.periodeAkhir}`
+      
+      // Calculate current total
+      const calculations = selectedEmployees.map(emp => calculateEmployeePayroll(emp))
+      const totalAmount = calculations.reduce((sum, calc) => sum + calc.neto, 0)
+      
+      if (currentPayrollRun && currentPayrollRun.id) {
+        // Update existing
+        response = await apiService.updatePayrollRun(currentPayrollRun.id, {
+          periodeAwal: payrollPeriod.periodeAwal,
+          periodeAkhir: payrollPeriod.periodeAkhir,
+          customFileName: fileName,
+          notes: payrollPeriod.notes || '',
+          employeeOverrides: selectedEmployees.map(emp => {
+            const calculation = calculateEmployeePayroll(emp)
+            return {
+              employeeId: emp.employeeId,
+              hariKerja: emp.hariKerja,
+              overtimeHours: emp.overtimeHours,
+              overtimeRate: emp.overtimeRate,
+              overtimeAmount: calculation?.overtimeAmount || 0,
+              normalHours: emp.overtimeDetail.normalHours,
+              holidayHours: emp.overtimeDetail.holidayHours,
+              nightFirstHour: emp.overtimeDetail.nightFirstHour,
+              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
+              customHourlyRate: emp.overtimeDetail.customHourlyRate,
+              cashbon: emp.cashbon,
+              selectedStandardComponents: emp.selectedStandardComponents,
+              selectedAdditionalComponents: emp.selectedAdditionalComponents,
+              customComponents: customPayComponents.filter(comp => comp.nama)
+            }
+          })
+        })
+      } else {
+        // Create new
+        response = await apiService.createPayrollRun({
+          periodeAwal: payrollPeriod.periodeAwal,
+          periodeAkhir: payrollPeriod.periodeAkhir,
+          createdBy: CURRENT_USER_ID,
+          customFileName: fileName,
+          notes: payrollPeriod.notes || '',
+          employeeOverrides: selectedEmployees.map(emp => {
+            const calculation = calculateEmployeePayroll(emp)
+            return {
+              employeeId: emp.employeeId,
+              hariKerja: emp.hariKerja,
+              overtimeHours: emp.overtimeHours,
+              overtimeRate: emp.overtimeRate,
+              overtimeAmount: calculation?.overtimeAmount || 0,
+              normalHours: emp.overtimeDetail.normalHours,
+              holidayHours: emp.overtimeDetail.holidayHours,
+              nightFirstHour: emp.overtimeDetail.nightFirstHour,
+              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
+              customHourlyRate: emp.overtimeDetail.customHourlyRate,
+              cashbon: emp.cashbon,
+              selectedStandardComponents: emp.selectedStandardComponents,
+              selectedAdditionalComponents: emp.selectedAdditionalComponents,
+              customComponents: customPayComponents.filter(comp => comp.nama)
+            }
+          })
+        })
+      }
+
+      if (response.success && response.data) {
+        setCurrentPayrollRun(response.data)
+        setLastSavedData({
+          timestamp: new Date().toISOString(),
+          fileName: fileName,
+          employeeCount: selectedEmployees.length,
+          totalAmount: totalAmount
+        })
+        
+        // Refresh payroll list
+        await refreshPayrollData()
+        
+        toast({
+          title: "Data Berhasil Disimpan",
+          description: `${fileName} - ${selectedEmployees.length} karyawan - ${formatCurrency(totalAmount)}`
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan data payroll",
+        variant: "destructive"
+      })
+    } finally {
+      setSavingData(false)
+    }
+  }
+
+  // Save with custom settings
+  const saveWithSettings = async (customSettings: { fileName: string; notes: string }) => {
+    const originalFileName = payrollPeriod.customFileName
+    const originalNotes = payrollPeriod.notes
+    
+    // Temporarily update settings
+    setPayrollPeriod(prev => ({
+      ...prev,
+      customFileName: customSettings.fileName,
+      notes: customSettings.notes
+    }))
+    
+    try {
+      await quickSaveData()
+      setShowSaveDialog(false)
+    } catch (error) {
+      // Restore original values if save failed
+      setPayrollPeriod(prev => ({
+        ...prev,
+        customFileName: originalFileName,
+        notes: originalNotes
+      }))
+      throw error
+    }
+  }
+
+  // Rename file function
+  const renamePayrollFile = async (payrollRunId: string, newFileName: string, notes?: string) => {
+    setRenamingFile(true)
+    try {
+      const response = await apiService.updatePayrollRun(payrollRunId, {
+        customFileName: newFileName.trim(),
+        notes: notes || ''
+      })
+      
+      if (response.success) {
+        // Update local state
+        setPayrollRuns(prev => prev.map(run => 
+          run.id === payrollRunId 
+            ? { ...run, customFileName: newFileName.trim(), notes: notes || '', updatedAt: new Date().toISOString() }
+            : run
+        ))
+        
+        // Update current payroll run if it's the same
+        if (currentPayrollRun && currentPayrollRun.id === payrollRunId) {
+          setCurrentPayrollRun(prev => prev ? { ...prev, customFileName: newFileName.trim(), notes: notes || '', updatedAt: new Date().toISOString() } : prev)
+        }
+        
+        setShowRenameDialog(null)
+        toast({
+          title: "File Berhasil Direname",
+          description: `Nama file berubah menjadi: ${newFileName}`
+        })
+        
+        // Refresh payroll data
+        await refreshPayrollData()
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal mengubah nama file",
+        variant: "destructive"
+      })
+    } finally {
+      setRenamingFile(false)
     }
   }
 
@@ -2791,6 +3251,120 @@ export function PayrollCalculator() {
         </Card>
       )}
 
+      {/* Floating Save Button - Show when there's data to save */}
+      {selectedEmployees.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {/* Last saved indicator */}
+          {lastSavedData && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs max-w-xs">
+              <div className="flex items-center gap-1 text-green-700 font-medium mb-1">
+                <CheckCircle className="h-3 w-3" />
+                Tersimpan
+              </div>
+              <div className="text-green-600">
+                <div className="truncate">{lastSavedData.fileName}</div>
+                <div>{lastSavedData.employeeCount} karyawan • {formatCurrency(lastSavedData.totalAmount)}</div>
+                <div className="text-green-500">
+                  {new Date(lastSavedData.timestamp).toLocaleString('id-ID')}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex flex-col gap-2">
+            {/* Quick Save Button */}
+            <Button
+              onClick={quickSaveData}
+              disabled={savingData}
+              size="lg"
+              className="shadow-lg bg-blue-600 hover:bg-blue-700 text-white relative group"
+              title="Quick Save (Ctrl+S / Cmd+S)"
+            >
+              {savingData ? (
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              ) : (
+                <Save className="h-5 w-5 mr-2" />
+              )}
+              {savingData ? 'Menyimpan...' : 'Quick Save'}
+              
+              {/* Keyboard shortcut hint */}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Ctrl+S
+              </div>
+            </Button>
+            
+            {/* Save with Settings Button */}
+            <Button
+              onClick={() => setShowSaveDialog(true)}
+              variant="outline"
+              size="lg"
+              className="shadow-lg bg-white hover:bg-gray-50 relative group"
+              title="Save As... (Ctrl+Shift+S / Cmd+Shift+S)"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Save As...
+              
+              {/* Keyboard shortcut hint */}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Ctrl+Shift+S
+              </div>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Save Dialog */}
+      {showSaveDialog && (
+        <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Save className="h-5 w-5" />
+                Save Payroll Data
+              </DialogTitle>
+              <DialogDescription>
+                Simpan data payroll dengan nama file dan catatan custom
+              </DialogDescription>
+            </DialogHeader>
+            
+            <SaveDialogForm 
+              currentFileName={payrollPeriod.customFileName}
+              currentNotes={payrollPeriod.notes}
+              employeeCount={selectedEmployees.length}
+              totalAmount={selectedEmployees.length > 0 ? selectedEmployees.map(emp => calculateEmployeePayroll(emp)).reduce((sum, calc) => sum + calc.neto, 0) : 0}
+              onSave={saveWithSettings}
+              onCancel={() => setShowSaveDialog(false)}
+              isLoading={savingData}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Rename File Dialog */}
+      {showRenameDialog && (
+        <Dialog open={!!showRenameDialog} onOpenChange={() => setShowRenameDialog(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Rename Payroll File
+              </DialogTitle>
+              <DialogDescription>
+                Ubah nama file dan catatan untuk payroll ini
+              </DialogDescription>
+            </DialogHeader>
+            
+            <RenameDialogForm 
+              payrollRun={showRenameDialog.payrollRun}
+              currentFileName={showRenameDialog.currentName}
+              onRename={renamePayrollFile}
+              onCancel={() => setShowRenameDialog(null)}
+              isLoading={renamingFile}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Payroll History */}
       <Card>
         <CardHeader>
@@ -2832,6 +3406,15 @@ export function PayrollCalculator() {
                     {run.payrollLines?.length || 0} karyawan • 
                     Total: {formatCurrency(calculatePayrollRunTotal(run))}
                   </div>
+                  <div className="text-xs text-gray-400 mt-1 space-y-1">
+                    <div>Dibuat: {run.createdAt ? new Date(run.createdAt).toLocaleString('id-ID') : '-'}</div>
+                    {run.updatedAt && run.updatedAt !== run.createdAt && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Terakhir diubah: {new Date(run.updatedAt).toLocaleString('id-ID')}
+                      </div>
+                    )}
+                  </div>
                   {run.notes && (
                     <div className="text-xs text-gray-500 mt-1">
                       📝 {run.notes}
@@ -2862,6 +3445,20 @@ export function PayrollCalculator() {
                   >
                     <FileText className="h-4 w-4 mr-1" />
                     Lihat
+                  </Button>
+                  
+                  {/* Rename Button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowRenameDialog({
+                      payrollRun: run,
+                      currentName: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
+                    })}
+                    className="text-orange-600 hover:text-orange-700"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Rename
                   </Button>
                   
                   {/* Export Buttons */}
