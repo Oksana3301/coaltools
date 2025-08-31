@@ -36,7 +36,8 @@ import {
   DollarSign,
   CreditCard,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  UserPlus
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getCurrentUser } from "@/lib/auth"
@@ -454,12 +455,26 @@ export function PayrollCalculator() {
     setLoading(true)
     try {
       const [employeesRes, payComponentsRes, payrollRunsRes] = await Promise.all([
-        apiService.getEmployees(),
+        apiService.getEmployees({ aktif: 'true', limit: 200 }), // Only active employees
         apiService.getPayComponents(),
         apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
       ])
 
-      if (employeesRes.success) setEmployees(employeesRes.data || [])
+      console.log('Employees response:', employeesRes) // Debug log
+      
+      if (employeesRes.success) {
+        const activeEmployees = (employeesRes.data || []).filter(emp => emp.aktif !== false)
+        setEmployees(activeEmployees)
+        console.log('Active employees loaded:', activeEmployees.length) // Debug log
+      } else {
+        console.error('Failed to load employees:', employeesRes.error)
+        toast({
+          title: "Error",
+          description: `Gagal memuat data karyawan: ${employeesRes.error}`,
+          variant: "destructive"
+        })
+      }
+      
       if (payComponentsRes.success) {
         const allComponents = payComponentsRes.data || []
         setPayComponents(allComponents)
@@ -470,10 +485,27 @@ export function PayrollCalculator() {
         
         setStandardComponents(standard)
         setAdditionalComponents(additional)
+      } else {
+        console.error('Failed to load pay components:', payComponentsRes.error)
+        toast({
+          title: "Warning",
+          description: "Gagal memuat komponen gaji",
+          variant: "destructive"
+        })
       }
-      if (payrollRunsRes.success) setPayrollRuns(payrollRunsRes.data || [])
+      
+      if (payrollRunsRes.success) {
+        setPayrollRuns(payrollRunsRes.data || [])
+      } else {
+        console.error('Failed to load payroll runs:', payrollRunsRes.error)
+      }
     } catch (error) {
       console.error('Error loading initial data:', error)
+      toast({
+        title: "Error",
+        description: "Gagal memuat data. Coba refresh halaman.",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
@@ -2390,8 +2422,58 @@ export function PayrollCalculator() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {employees.filter(emp => emp.aktif).map((employee) => {
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  Memuat data karyawan...
+                </div>
+              ) : employees.length === 0 ? (
+                <div className="text-center py-8 space-y-4">
+                  <Users className="h-12 w-12 mx-auto text-gray-400" />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-700">Tidak Ada Data Karyawan</h3>
+                    <p className="text-gray-500">
+                      Belum ada karyawan yang terdaftar dalam sistem. 
+                      Silakan tambahkan karyawan terlebih dahulu.
+                    </p>
+                    <Button
+                      onClick={() => window.open('/coal-tools-karyawan', '_blank')}
+                      className="mt-4"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Kelola Karyawan
+                    </Button>
+                    <Button
+                      onClick={loadInitialData}
+                      variant="outline"
+                      className="ml-2"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh Data
+                    </Button>
+                  </div>
+                </div>
+              ) : employees.filter(emp => emp.aktif !== false).length === 0 ? (
+                <div className="text-center py-8 space-y-4">
+                  <AlertTriangle className="h-12 w-12 mx-auto text-orange-400" />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-700">Tidak Ada Karyawan Aktif</h3>
+                    <p className="text-gray-500">
+                      Semua karyawan dalam status tidak aktif. 
+                      Aktifkan karyawan untuk memulai perhitungan payroll.
+                    </p>
+                    <Button
+                      onClick={() => window.open('/coal-tools-karyawan', '_blank')}
+                      className="mt-4"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Kelola Status Karyawan
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {employees.filter(emp => emp.aktif !== false).map((employee) => {
                   const isSelected = selectedEmployees.some(emp => emp.employeeId === employee.id)
                   const selectedData = selectedEmployees.find(emp => emp.employeeId === employee.id)
                   
@@ -2689,7 +2771,8 @@ export function PayrollCalculator() {
                     </Card>
                   )
                 })}
-              </div>
+                </div>
+              )}
               
               <div className="flex justify-between">
                 <Button variant="outline" onClick={prevStep}>
