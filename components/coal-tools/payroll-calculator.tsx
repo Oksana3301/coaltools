@@ -1887,6 +1887,59 @@ export function PayrollCalculator() {
     }
   }
 
+  // Generate Complete Payroll PDF Package (Summary + All Kwitansi)
+  const generateCompletePayrollPDF = async (payrollRun: PayrollRun) => {
+    setLoading(true)
+    try {
+      console.log('🔴 generateCompletePayrollPDF called for payroll:', payrollRun.id)
+      
+      // Get detailed payroll data from API
+      const response = await apiService.getPayrollRun(payrollRun.id!)
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch payroll data')
+      }
+
+      const payrollData = response.data
+      console.log('🔴 Fetched payroll data:', payrollData)
+
+      if (!payrollData.payrollLines || payrollData.payrollLines.length === 0) {
+        toast({
+          title: "Info", 
+          description: "Tidak ada data karyawan untuk dibuat PDF",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Calculate totals
+      const totalBruto = payrollData.payrollLines.reduce((sum: number, line: any) => sum + (parseFloat(line.bruto) || 0), 0)
+      const totalNeto = payrollData.payrollLines.reduce((sum: number, line: any) => sum + (parseFloat(line.neto) || 0), 0)
+      const totalDeductions = totalBruto - totalNeto
+
+      // Generate comprehensive PDF with summary and all kwitansi
+      const completeContent = generateCompletePayrollHTML(payrollData, totalBruto, totalNeto, totalDeductions)
+      const fileName = payrollRun.customFileName 
+        ? `${payrollRun.customFileName}_Complete.pdf`
+        : `Payroll_Complete_${payrollRun.periodeAwal}_${payrollRun.periodeAkhir}.pdf`
+      
+      await generatePDF(completeContent, fileName)
+      
+      toast({
+        title: "Success",
+        description: "PDF lengkap payroll dengan kwitansi berhasil diunduh"
+      })
+    } catch (error: any) {
+      console.error('❌ generateCompletePayrollPDF error:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Gagal membuat PDF lengkap",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Export payroll to PDF
   const exportToPDF = async (payrollRun: PayrollRun) => {
     setLoading(true)
@@ -2628,6 +2681,305 @@ export function PayrollCalculator() {
         : `Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`
       await generatePDF(kwitansiContent, kwitansiFileName)
     }
+  }
+
+  // Generate Complete Payroll HTML (Summary + All Individual Kwitansi)
+  const generateCompletePayrollHTML = (payrollData: any, totalBruto: number, totalNeto: number, totalDeductions: number) => {
+    const summaryHTML = generateSimplePayrollRecapHTML(payrollData, totalBruto, totalNeto, totalDeductions)
+    
+    // Extract just the content part from summary (removing html/head/body tags)
+    const summaryContent = summaryHTML.match(/<body[^>]*>(.*?)<\/body>/s)?.[1] || summaryHTML
+    
+    // Generate individual kwitansi for each employee
+    const kwitansiPages = payrollData.payrollLines.map((line: any) => {
+      const kwitansiHTML = generateSimpleKwitansiHTML(payrollData, line)
+      // Extract just the content part (removing html/head/body tags)
+      return kwitansiHTML.match(/<body[^>]*>(.*?)<\/body>/s)?.[1] || kwitansiHTML
+    }).join('<div style="page-break-before: always;"></div>')
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Payroll Complete - ${payrollData.periodeAwal} to ${payrollData.periodeAkhir}</title>
+        <style>
+          @page { 
+            size: A4 portrait; 
+            margin: 15mm; 
+          }
+          body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            font-size: 12px; 
+            background: #fff; 
+            line-height: 1.4;
+          }
+          
+          /* Summary Page Styles */
+          .payroll-header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 3px solid #2563eb; 
+            padding-bottom: 20px; 
+          }
+          .company-logo { 
+            font-size: 28px; 
+            font-weight: bold; 
+            color: #1e40af; 
+            margin-bottom: 10px; 
+          }
+          .report-title { 
+            font-size: 24px; 
+            font-weight: bold; 
+            margin-bottom: 8px; 
+            color: #1e293b; 
+          }
+          .period-info { 
+            font-size: 14px; 
+            color: #64748b; 
+            margin-bottom: 5px; 
+          }
+          
+          .summary-card { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            padding: 25px; 
+            border-radius: 12px; 
+            margin: 20px 0; 
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+          }
+          .summary-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: #1e40af; 
+            margin-bottom: 15px; 
+          }
+          .summary-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+          }
+          .summary-item { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0;
+            text-align: center;
+          }
+          .summary-label { 
+            font-size: 12px; 
+            color: #64748b; 
+            margin-bottom: 5px; 
+          }
+          .summary-value { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: #1e293b; 
+          }
+          .summary-value.total { color: #059669; }
+          .summary-value.deduction { color: #dc2626; }
+          
+          .employee-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 25px 0; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .employee-table th { 
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+            color: white; 
+            padding: 12px 8px; 
+            font-weight: 600;
+            text-align: left;
+            font-size: 11px;
+          }
+          .employee-table td { 
+            border: 1px solid #e2e8f0; 
+            padding: 10px 8px; 
+            background: #fff;
+            font-size: 11px;
+          }
+          .employee-table tr:nth-child(even) td { background: #f8fafc; }
+          .amount-cell { 
+            text-align: right; 
+            font-family: 'Courier New', monospace; 
+            font-weight: 600;
+          }
+          
+          /* Kwitansi Page Styles */
+          .kwitansi-header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 3px solid #2563eb; 
+            padding-bottom: 20px; 
+          }
+          .kwitansi-title { 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            color: #1e293b; 
+          }
+          .doc-number { 
+            font-size: 12px; 
+            color: #64748b; 
+          }
+          
+          .employee-info { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 25px; 
+            border: 1px solid #cbd5e1;
+          }
+          .employee-info h3 { 
+            margin: 0 0 15px 0; 
+            color: #1e40af; 
+            font-size: 16px; 
+          }
+          .info-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+          }
+          .info-item { 
+            display: flex; 
+          }
+          .info-label { 
+            font-weight: 600; 
+            color: #475569; 
+            min-width: 120px; 
+          }
+          .info-value { 
+            color: #1e293b; 
+            font-weight: 500; 
+          }
+          
+          .payment-details { 
+            margin-bottom: 25px; 
+          }
+          .section-title { 
+            font-size: 16px; 
+            font-weight: bold; 
+            color: #1e40af; 
+            margin-bottom: 15px; 
+            padding-bottom: 8px; 
+            border-bottom: 2px solid #e2e8f0; 
+          }
+          
+          .kwitansi-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .kwitansi-table th { 
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+            color: white; 
+            padding: 12px; 
+            font-weight: 600;
+            text-align: left;
+          }
+          .kwitansi-table td { 
+            border: 1px solid #e2e8f0; 
+            padding: 10px 12px; 
+            background: #fff;
+          }
+          .kwitansi-table tr:nth-child(even) td { 
+            background: #f8fafc; 
+          }
+          
+          .earnings { 
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important; 
+          }
+          .deductions { 
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%) !important; 
+          }
+          .total-section { 
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important; 
+            font-weight: bold; 
+            font-size: 14px;
+          }
+          .total-neto { 
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%) !important; 
+            color: white !important; 
+            font-size: 16px !important; 
+            font-weight: bold !important; 
+          }
+          
+          .bank-transfer { 
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin: 25px 0; 
+            border: 1px solid #f59e0b;
+          }
+          .bank-transfer h3 { 
+            margin: 0 0 15px 0; 
+            color: #92400e; 
+            font-size: 16px; 
+          }
+          .bank-info { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+          }
+          
+          .signature-section { 
+            margin-top: 40px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 50px; 
+          }
+          .signature-box { 
+            text-align: center; 
+            padding: 20px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background: #f8fafc;
+          }
+          .signature-title { 
+            font-weight: bold; 
+            margin-bottom: 60px; 
+            color: #475569; 
+          }
+          .signature-line { 
+            border-top: 1px solid #64748b; 
+            padding-top: 10px; 
+            font-weight: 500; 
+          }
+          
+          .footer-note { 
+            margin-top: 30px; 
+            padding: 15px; 
+            background: #f1f5f9; 
+            border-radius: 8px; 
+            font-size: 10px; 
+            color: #64748b; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Summary Page -->
+        ${summaryContent}
+        
+        <!-- Individual Kwitansi Pages -->
+        <div style="page-break-before: always;"></div>
+        ${kwitansiPages}
+      </body>
+      </html>
+    `
   }
 
   // Generate Enhanced Kwitansi HTML for Individual Employee
@@ -4537,6 +4889,11 @@ export function PayrollCalculator() {
                       <DropdownMenuItem onClick={() => exportToPDF(run)}>
                         <FileText className="h-4 w-4 mr-2" />
                         Export PDF Detail
+                        </DropdownMenuItem>
+                      
+                      <DropdownMenuItem onClick={() => generateCompletePayrollPDF(run)}>
+                        <Receipt className="h-4 w-4 mr-2" />
+                        PDF Lengkap + Kwitansi
                         </DropdownMenuItem>
                   
                                             <DropdownMenuItem 
