@@ -611,9 +611,23 @@ class ApiService {
     periodeAwal: string
     periodeAkhir: string
     createdBy: string
+    customFileName?: string
+    notes?: string
     employeeOverrides?: Array<{
       employeeId: string
       hariKerja: number
+      overtimeHours?: number
+      overtimeRate?: number
+      overtimeAmount?: number
+      normalHours?: number
+      holidayHours?: number
+      nightFirstHour?: number
+      nightAdditionalHours?: number
+      customHourlyRate?: number
+      cashbon?: number
+      selectedStandardComponents?: string[]
+      selectedAdditionalComponents?: string[]
+      customComponents?: any[]
     }>
   }): Promise<ApiResponse<PayrollRun>> {
     console.log('🆕 createPayrollRun called with:', data)

@@ -121,7 +121,10 @@ export async function POST(request: NextRequest) {
     
   try {
     const body = await request.json()
+    console.log('📨 POST /api/payroll received body:', JSON.stringify(body, null, 2))
+    
     const validatedData = payrollRunSchema.parse(body)
+    console.log('✅ Data validation successful:', validatedData)
 
     // Get active employees
     const employees = await prisma.employee.findMany({
@@ -335,38 +338,31 @@ export async function POST(request: NextRequest) {
 
     // Create payroll run with transaction
     const payrollRun = await prisma.$transaction(async (tx) => {
-      // Ensure user exists for foreign key constraint
+      // Skip user creation since User table relations are disabled
       const userId = validatedData.createdBy || 'system'
-      try {
-        await tx.user.upsert({
-          where: { id: userId },
-          update: {},
-          create: {
-            id: userId,
-            name: 'System User',
-            email: `${userId}@system.local`,
-            password: 'system',
-            role: 'ADMIN'
-          }
-        })
-      } catch (error) {
-        // User might already exist, continue
-      }
+      console.log('💾 Creating payroll with userId:', userId)
+      console.log('📊 Payroll calculations:', payrollCalculations.length)
 
       // Create payroll run
+      const payrollRunData = {
+        periodeAwal: validatedData.periodeAwal,
+        periodeAkhir: validatedData.periodeAkhir,
+        createdBy: userId,
+        status: 'DRAFT',
+        customFileName: validatedData.customFileName,
+        notes: validatedData.notes
+      }
+      console.log('📝 Creating payroll run with data:', payrollRunData)
+      
       const newPayrollRun = await tx.payrollRun.create({
-        data: {
-          periodeAwal: validatedData.periodeAwal,
-          periodeAkhir: validatedData.periodeAkhir,
-          createdBy: userId,
-          status: 'DRAFT',
-          customFileName: validatedData.customFileName,
-          notes: validatedData.notes
-        }
+        data: payrollRunData
       })
+      console.log('✅ Payroll run created:', newPayrollRun.id)
 
       // Create payroll lines
+      console.log('📋 Creating payroll lines for', payrollCalculations.length, 'employees')
       for (const calc of payrollCalculations) {
+        console.log('👤 Creating payroll line for:', calc.employeeName)
         const payrollLine = await tx.payrollLine.create({
           data: {
             payrollRunId: newPayrollRun.id,
