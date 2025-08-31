@@ -110,19 +110,33 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
+  try {
+    console.log('🔗 POST /api/payroll endpoint hit')
+    console.log('🌍 Environment variables check:')
+    console.log('- DATABASE_URL exists:', !!process.env.DATABASE_URL)
+    console.log('- NODE_ENV:', process.env.NODE_ENV)
+    
     const prisma = getPrismaClient();
+    console.log('🔧 Prisma client status:', prisma ? 'Available' : 'Not available')
+    
     if (!prisma) {
+      console.error('❌ Database connection not available - DATABASE_URL missing or invalid')
       return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
+        { 
+          success: false, 
+          error: 'Database connection not available',
+          details: 'DATABASE_URL environment variable is missing or invalid'
+        },
         { status: 503 }
       )
     }
 
-    
   try {
+    console.log('📥 Parsing request body...')
     const body = await request.json()
     console.log('📨 POST /api/payroll received body:', JSON.stringify(body, null, 2))
     
+    console.log('🔍 Starting data validation...')
     const validatedData = payrollRunSchema.parse(body)
     console.log('✅ Data validation successful:', validatedData)
 
@@ -437,6 +451,24 @@ export async function POST(request: NextRequest) {
         error: 'Gagal membuat payroll',
         details: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
+      },
+      { status: 500 }
+    )
+  }
+  } catch (topError) {
+    // Top-level error handler - catches errors before reaching main logic
+    console.error('🔥 TOP-LEVEL ERROR in POST /api/payroll:', topError)
+    console.error('🔥 Error name:', topError instanceof Error ? topError.name : 'Unknown')
+    console.error('🔥 Error message:', topError instanceof Error ? topError.message : 'Unknown')
+    console.error('🔥 Error stack:', topError instanceof Error ? topError.stack : 'No stack')
+    
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Critical error in payroll API',
+        details: topError instanceof Error ? topError.message : 'Unknown top-level error',
+        stack: topError instanceof Error ? topError.stack : undefined,
+        type: 'TOP_LEVEL_ERROR'
       },
       { status: 500 }
     )
