@@ -15,7 +15,15 @@ export async function GET(
     const { id } = await params
 
     const payrollRun = await prisma.payrollRun.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        payrollLines: {
+          include: {
+            employee: true,
+            components: true
+          }
+        }
+      }
     })
 
     if (!payrollRun) {

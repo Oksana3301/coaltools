@@ -165,6 +165,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate payroll for each employee
+    console.log('🧮 Starting payroll calculations for', employees.length, 'employees')
+    console.log('📋 Employee overrides provided:', validatedData.employeeOverrides?.length || 0)
+    
     const payrollCalculations = employees.map(employee => {
       // Check if there's an override for working days and other details
       const override = validatedData.employeeOverrides?.find(
@@ -349,6 +352,16 @@ export async function POST(request: NextRequest) {
         components
       }
     })
+
+    console.log('🧮 Payroll calculations completed:', payrollCalculations.length, 'employees')
+    console.log('📊 Calculation details:', payrollCalculations.map(calc => ({
+      employeeId: calc.employeeId,
+      employeeName: calc.employeeName,
+      hariKerja: calc.hariKerja,
+      bruto: calc.bruto,
+      neto: calc.neto,
+      componentsCount: calc.components.length
+    })))
 
     // Create payroll run with transaction
     const payrollRun = await prisma.$transaction(async (tx) => {
