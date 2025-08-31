@@ -1774,20 +1774,32 @@ export function PayrollCalculator() {
   const generatePayrollRecap = async (payrollRun: PayrollRun) => {
     setLoading(true)
     try {
-      const calculations = selectedEmployees
-        .map(emp => calculateEmployeePayroll(emp))
-        .filter(calc => calc !== null)
+      console.log('🔵 generatePayrollRecap called for payroll:', payrollRun.id)
+      
+      // Get detailed payroll data from API
+      const response = await apiService.getPayrollRun(payrollRun.id!)
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch payroll data')
+      }
 
-      if (calculations.length === 0) {
+      const payrollData = response.data
+      console.log('🔵 Fetched payroll data:', payrollData)
+
+      if (!payrollData.payrollLines || payrollData.payrollLines.length === 0) {
         toast({
-          title: "Error", 
-          description: "Tidak ada data untuk dibuat PDF",
+          title: "Info", 
+          description: "Tidak ada data karyawan untuk dibuat PDF",
           variant: "destructive"
         })
         return
       }
 
-      const recapContent = generatePayrollRecapHTML(payrollRun, calculations)
+      // Calculate totals from actual payroll lines
+      const totalBruto = payrollData.payrollLines.reduce((sum: number, line: any) => sum + (parseFloat(line.bruto) || 0), 0)
+      const totalNeto = payrollData.payrollLines.reduce((sum: number, line: any) => sum + (parseFloat(line.neto) || 0), 0)
+      const totalDeductions = totalBruto - totalNeto
+
+      const recapContent = generateSimplePayrollRecapHTML(payrollData, totalBruto, totalNeto, totalDeductions)
       const fileName = payrollRun.customFileName 
         ? `${payrollRun.customFileName}_Recap.pdf`
         : `Payroll_Recap_${payrollRun.periodeAwal}_${payrollRun.periodeAkhir}.pdf`
@@ -1799,6 +1811,7 @@ export function PayrollCalculator() {
         description: "PDF Recap berhasil diunduh"
       })
     } catch (error: any) {
+      console.error('❌ generatePayrollRecap error:', error)
       toast({
         title: "Error",
         description: error.message || "Gagal membuat PDF Recap",
@@ -1813,29 +1826,37 @@ export function PayrollCalculator() {
   const generateEmployeeKwitansi = async (payrollRun: PayrollRun, employeeId: string) => {
     setLoading(true)
     try {
-      const calculation = selectedEmployees
-        .map(emp => calculateEmployeePayroll(emp))
-        .find(calc => calc?.employeeId === employeeId)
+      console.log('🟢 generateEmployeeKwitansi called for employee:', employeeId)
+      
+      // Get detailed payroll data from API
+      const response = await apiService.getPayrollRun(payrollRun.id!)
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch payroll data')
+      }
 
-      if (!calculation) {
+      const payrollData = response.data
+      const employeeLine = payrollData.payrollLines?.find((line: any) => line.employeeId === employeeId)
+      
+      if (!employeeLine) {
         toast({
           title: "Error",
-          description: "Data karyawan tidak ditemukan",
+          description: "Data karyawan tidak ditemukan dalam payroll ini",
           variant: "destructive"
         })
         return
       }
 
-      const kwitansiContent = generateEmployeeKwitansiHTML(payrollRun, calculation)
-      const fileName = `Kwitansi_${calculation.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`
+      const kwitansiContent = generateSimpleKwitansiHTML(payrollData, employeeLine)
+      const fileName = `Kwitansi_${employeeLine.employeeName?.replace(/\s+/g, '_') || 'Unknown'}_${payrollRun.periodeAwal}.pdf`
       
       await generatePDF(kwitansiContent, fileName)
       
       toast({
         title: "Success", 
-        description: `Kwitansi ${calculation.employee.nama} berhasil diunduh`
+        description: `Kwitansi ${employeeLine.employeeName || 'Karyawan'} berhasil diunduh`
       })
     } catch (error: any) {
+      console.error('❌ generateEmployeeKwitansi error:', error)
       toast({
         title: "Error",
         description: error.message || "Gagal membuat kwitansi",
@@ -2156,6 +2177,198 @@ export function PayrollCalculator() {
         variant: "destructive"
       })
     }
+  }
+
+  // Generate Simple HTML for Payroll Recap PDF
+  const generateSimplePayrollRecapHTML = (payrollData: any, totalBruto: number, totalNeto: number, totalDeductions: number) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payroll Recap - ${payrollData.periodeAwal} to ${payrollData.periodeAkhir}</title>
+        <style>
+          @page { size: A4 landscape; margin: 15mm; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .company-name { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+          .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+          .summary { display: flex; justify-content: space-around; margin-bottom: 20px; }
+          .summary-item { text-align: center; padding: 10px; border: 1px solid #ddd; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+          th { background: #f0f0f0; font-weight: bold; }
+          .amount { text-align: right; }
+          .total-row { background: #e0e0e0; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
+          <div class="title">PAYROLL RECAP</div>
+          <div>Periode: ${payrollData.periodeAwal} s/d ${payrollData.periodeAkhir}</div>
+        </div>
+
+        <div class="summary">
+          <div class="summary-item">
+            <div>Total Karyawan</div>
+            <div><strong>${payrollData.payrollLines?.length || 0}</strong></div>
+          </div>
+          <div class="summary-item">
+            <div>Total Bruto</div>
+            <div><strong>${formatCurrency(totalBruto)}</strong></div>
+          </div>
+          <div class="summary-item">
+            <div>Total Potongan</div>
+            <div><strong>${formatCurrency(totalDeductions)}</strong></div>
+          </div>
+          <div class="summary-item">
+            <div>Total Neto</div>
+            <div><strong>${formatCurrency(totalNeto)}</strong></div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Karyawan</th>
+              <th>Jabatan</th>
+              <th>Hari Kerja</th>
+              <th>Bruto</th>
+              <th>Neto</th>
+              <th>Bank</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payrollData.payrollLines?.map((line: any, index: number) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${line.employeeName || '-'}</td>
+                <td>${line.employee?.jabatan || '-'}</td>
+                <td class="amount">${line.hariKerja || '-'}</td>
+                <td class="amount">${formatCurrency(parseFloat(line.bruto) || 0)}</td>
+                <td class="amount">${formatCurrency(parseFloat(line.neto) || 0)}</td>
+                <td>${line.employee?.bankName || '-'}<br/>${line.employee?.bankAccount || '-'}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="7">Tidak ada data</td></tr>'}
+            <tr class="total-row">
+              <td colspan="4">TOTAL</td>
+              <td class="amount">${formatCurrency(totalBruto)}</td>
+              <td class="amount">${formatCurrency(totalNeto)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top: 20px; font-size: 10px; color: #666;">
+          Dibuat pada: ${new Date().toLocaleString('id-ID')}<br/>
+          ${payrollData.notes ? `Catatan: ${payrollData.notes}` : ''}
+        </div>
+      </body>
+      </html>
+    `
+  }
+
+  // Generate Simple Kwitansi HTML
+  const generateSimpleKwitansiHTML = (payrollData: any, employeeLine: any) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Kwitansi Gaji - ${employeeLine.employeeName || 'Karyawan'}</title>
+        <style>
+          @page { size: A4 portrait; margin: 20mm; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .company-name { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+          .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+          .employee-info { margin-bottom: 20px; padding: 15px; background: #f5f5f5; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #333; padding: 8px; }
+          th { background: #f0f0f0; font-weight: bold; }
+          .amount { text-align: right; }
+          .total-row { background: #e0e0e0; font-weight: bold; }
+          .bank-info { margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; }
+          .signature { margin-top: 40px; display: flex; justify-content: space-between; }
+          .signature-box { width: 200px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
+          <div class="title">KWITANSI PEMBAYARAN GAJI</div>
+          <div>Periode: ${payrollData.periodeAwal} s/d ${payrollData.periodeAkhir}</div>
+        </div>
+
+        <div class="employee-info">
+          <strong>Informasi Karyawan:</strong><br/>
+          Nama: ${employeeLine.employeeName || '-'}<br/>
+          Jabatan: ${employeeLine.employee?.jabatan || '-'}<br/>
+          Site: ${employeeLine.employee?.site || '-'}<br/>
+          Hari Kerja: ${employeeLine.hariKerja || '-'} hari
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Komponen</th>
+              <th>Jumlah</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Gaji Pokok</td>
+              <td class="amount">${formatCurrency(parseFloat(employeeLine.upahHarian) * parseFloat(employeeLine.hariKerja) || 0)}</td>
+            </tr>
+            ${employeeLine.components?.map((comp: any) => `
+              <tr>
+                <td>${comp.componentName}</td>
+                <td class="amount">${formatCurrency(parseFloat(comp.amount) || 0)}</td>
+              </tr>
+            `).join('') || ''}
+            <tr class="total-row">
+              <td><strong>TOTAL BRUTO</strong></td>
+              <td class="amount"><strong>${formatCurrency(parseFloat(employeeLine.bruto) || 0)}</strong></td>
+            </tr>
+            ${parseFloat(employeeLine.cashbon) > 0 ? `
+              <tr>
+                <td>Cashbon</td>
+                <td class="amount">(${formatCurrency(parseFloat(employeeLine.cashbon) || 0)})</td>
+              </tr>
+            ` : ''}
+            <tr class="total-row">
+              <td><strong>TOTAL YANG DITERIMA</strong></td>
+              <td class="amount"><strong>${formatCurrency(parseFloat(employeeLine.neto) || 0)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="bank-info">
+          <strong>Informasi Transfer Bank:</strong><br/>
+          Bank: ${employeeLine.employee?.bankName || 'Belum diisi'}<br/>
+          No. Rekening: ${employeeLine.employee?.bankAccount || 'Belum diisi'}<br/>
+          Atas Nama: ${employeeLine.employeeName || '-'}<br/>
+          <strong>Jumlah Transfer: ${formatCurrency(parseFloat(employeeLine.neto) || 0)}</strong>
+        </div>
+
+        <div class="signature">
+          <div class="signature-box">
+            <div style="margin-bottom: 60px;"><strong>Yang Menerima</strong></div>
+            <div style="border-top: 1px solid #333; padding-top: 10px;">${employeeLine.employeeName || '-'}</div>
+          </div>
+          <div class="signature-box">
+            <div style="margin-bottom: 60px;"><strong>Hormat Kami</strong></div>
+            <div style="border-top: 1px solid #333; padding-top: 10px;">PT. Global Lestari Alam</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #666;">
+          Dokumen ini dibuat pada: ${new Date().toLocaleString('id-ID')}<br/>
+          Kwitansi ini merupakan bukti pembayaran yang sah.
+        </div>
+      </body>
+      </html>
+    `
   }
 
   // Generate HTML for Payroll Recap PDF
@@ -4283,7 +4496,7 @@ export function PayrollCalculator() {
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         Terakhir diubah: {new Date(run.updatedAt).toLocaleString('id-ID')}
-                      </div>
+                </div>
                     )}
                   </div>
                   {run.notes && (
@@ -4292,124 +4505,100 @@ export function PayrollCalculator() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {getStatusBadge(run.status)}
                   
-                  {/* Edit button - only for DRAFT status */}
-                  {run.status === 'DRAFT' && (
+                  {/* Primary Actions - Clean Icons */}
+                  <div className="flex gap-1">
                   <Button
                     size="sm"
                     variant="outline"
-                      onClick={() => editPayrollRun(run)}
-                      className="text-blue-600 hover:text-blue-700"
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  )}
-                  
-                  {/* View button - always available */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => viewPayrollRun(run)}
+                      onClick={() => viewPayrollRun(run)}
+                      title="Lihat Detail"
                   >
-                    <FileText className="h-4 w-4 mr-1" />
-                    Lihat
+                      <FileText className="h-4 w-4" />
                   </Button>
                   
-                  {/* Rename Button */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowRenameDialog({
-                      payrollRun: run,
-                      currentName: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
-                    })}
-                    className="text-orange-600 hover:text-orange-700"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Rename
-                  </Button>
+                    {run.status === 'DRAFT' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => editPayrollRun(run)}
+                        className="text-blue-600 hover:text-blue-700"
+                        title="Edit Payroll"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   
-                  {/* PDF Recap Button */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => generatePayrollRecap(run)}
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    <FileText className="h-4 w-4 mr-1" />
-                    PDF Recap
-                  </Button>
-                  
-                  {/* Export Dropdown */}
+                  {/* Actions Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        <Download className="h-4 w-4 mr-1" />
-                        Export
+                      <Button size="sm" variant="outline" title="More Actions">
+                        <Settings className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => setShowRenameDialog({
+                        payrollRun: run,
+                        currentName: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
+                      })}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Rename File
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuItem onClick={() => generatePayrollRecap(run)}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        PDF Recap
+                      </DropdownMenuItem>
+                      
                       <DropdownMenuItem onClick={() => exportToExcel(run)}>
                         <Download className="h-4 w-4 mr-2" />
                         Export Excel
                       </DropdownMenuItem>
+                      
                       <DropdownMenuItem onClick={() => exportToPDF(run)}>
                         <FileText className="h-4 w-4 mr-2" />
                         Export PDF Detail
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        </DropdownMenuItem>
                   
-                  {/* Individual Kwitansi Dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700">
-                        <Receipt className="h-4 w-4 mr-1" />
-                        Kwitansi
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {employees.slice(0, 5).map(employee => (
-                        <DropdownMenuItem 
-                          key={employee.id}
-                          onClick={() => generateEmployeeKwitansi(run, employee.id)}
-                        >
-                          <Receipt className="h-4 w-4 mr-2" />
-                          {employee.nama}
-                        </DropdownMenuItem>
-                      ))}
-                      {employees.length > 5 && (
-                        <DropdownMenuItem disabled>
-                          <span className="text-xs text-gray-500">
-                            +{employees.length - 5} karyawan lainnya
-                          </span>
-                        </DropdownMenuItem>
+                                            <DropdownMenuItem 
+                        onClick={() => setShowDeleteDialog({
+                          type: 'payrollRun',
+                          id: run.id!,
+                          name: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`,
+                          status: run.status
+                        })}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                      
+                      {/* Individual Kwitansi untuk 5 karyawan pertama */}
+                      {run.payrollLines && run.payrollLines.length > 0 && (
+                        <>
+                          <div className="border-t my-1"></div>
+                          <div className="px-2 py-1 text-xs font-medium text-gray-500">Kwitansi Individual:</div>
+                          {run.payrollLines.slice(0, 5).map((line: any) => (
+                            <DropdownMenuItem 
+                              key={line.id}
+                              onClick={() => generateEmployeeKwitansi(run, line.employeeId)}
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              {line.employeeName || 'Unknown'}
+                            </DropdownMenuItem>
+                          ))}
+                          {run.payrollLines.length > 5 && (
+                            <div className="px-2 py-1 text-xs text-gray-500">
+                              +{run.payrollLines.length - 5} lainnya
+                            </div>
+                          )}
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  
-                  {/* Delete button - available for all status with confirmation */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowDeleteDialog({
-                      type: 'payrollRun',
-                      id: run.id!,
-                      name: `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`,
-                      status: run.status
-                    })}
-                    disabled={deletingPayrollRun === run.id}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    {deletingPayrollRun === run.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
               </div>
             ))}
