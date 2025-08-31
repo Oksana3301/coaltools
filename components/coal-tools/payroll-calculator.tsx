@@ -740,7 +740,9 @@ export function PayrollCalculator() {
   }
 
   // Menghitung total overtime amount berdasarkan ketentuan baru
-  const calculateOvertimeAmount = (employee: Employee, overtimeDetail: OvertimeDetail) => {
+  const calculateOvertimeAmount = (employee: Employee, overtimeDetail?: OvertimeDetail) => {
+    if (!overtimeDetail) return 0
+    
     let total = 0
     
     // Menghitung hourly rate: Gaji pokok / 173 (sesuai peraturan)
@@ -748,14 +750,14 @@ export function PayrollCalculator() {
     const hourlyRate = overtimeDetail.customHourlyRate || Math.round(gajiPokok / 173)
     
     // 1. Lembur normal (hari kerja biasa): 1.5x hourly rate
-    total += overtimeDetail.normalHours * hourlyRate * 1.5
+    total += (overtimeDetail.normalHours || 0) * hourlyRate * 1.5
     
     // 2. Lembur hari libur/minggu/tanggal merah: 2x hourly rate
-    total += overtimeDetail.holidayHours * hourlyRate * 2
+    total += (overtimeDetail.holidayHours || 0) * hourlyRate * 2
     
     // 3. Lembur malam: jam pertama 1.5x, jam berikutnya 2x
-    total += overtimeDetail.nightFirstHour * hourlyRate * 1.5
-    total += overtimeDetail.nightAdditionalHours * hourlyRate * 2
+    total += (overtimeDetail.nightFirstHour || 0) * hourlyRate * 1.5
+    total += (overtimeDetail.nightAdditionalHours || 0) * hourlyRate * 2
     
     return Math.round(total)
   }
@@ -1338,13 +1340,17 @@ export function PayrollCalculator() {
   }
 
   const calculateEmployeePayroll = (employeePayroll: EmployeePayrollForm) => {
-    const employee = employees.find(emp => emp.id === employeePayroll.employeeId)
-    if (!employee) return null
+    try {
+      const employee = employees.find(emp => emp.id === employeePayroll.employeeId)
+      if (!employee) {
+        console.warn('Employee not found:', employeePayroll.employeeId)
+        return null
+      }
 
-    const hariKerja = employeePayroll.hariKerja
-    const baseUpah = employee.kontrakUpahHarian * hariKerja
-    const uangMakan = employee.defaultUangMakan * hariKerja
-    const uangBbm = employee.defaultUangBbm * hariKerja
+      const hariKerja = employeePayroll.hariKerja || 0
+      const baseUpah = (employee.kontrakUpahHarian || 0) * hariKerja
+      const uangMakan = (employee.defaultUangMakan || 0) * hariKerja
+      const uangBbm = (employee.defaultUangBbm || 0) * hariKerja
     
     let bruto = baseUpah + uangMakan + uangBbm
     let totalEarnings = 0
@@ -1354,10 +1360,10 @@ export function PayrollCalculator() {
     // Calculate earnings from selected components
     const selectedComponents = [
       ...standardComponents.filter(comp => 
-        employeePayroll.selectedStandardComponents.includes(comp.id)
+        (employeePayroll.selectedStandardComponents || []).includes(comp.id)
       ),
       ...additionalComponents.filter(comp => 
-        employeePayroll.selectedAdditionalComponents.includes(comp.id)
+        (employeePayroll.selectedAdditionalComponents || []).includes(comp.id)
       ),
       ...customPayComponents.filter(comp => comp.nama) // Only custom components with names
     ]
@@ -1377,13 +1383,13 @@ export function PayrollCalculator() {
 
     // Add overtime if any - menggunakan sistem overtime baru
     const newOvertimeAmount = calculateOvertimeAmount(employee, employeePayroll.overtimeDetail)
-    const legacyOvertimeAmount = employeePayroll.overtimeHours * employeePayroll.overtimeRate
+    const legacyOvertimeAmount = (employeePayroll.overtimeHours || 0) * (employeePayroll.overtimeRate || 1.5)
     
     // Prioritas: gunakan new overtime jika ada data, fallback ke legacy
-    const hasNewOvertimeData = employeePayroll.overtimeDetail.normalHours > 0 || 
-                              employeePayroll.overtimeDetail.holidayHours > 0 ||
-                              employeePayroll.overtimeDetail.nightFirstHour > 0 ||
-                              employeePayroll.overtimeDetail.nightAdditionalHours > 0
+    const hasNewOvertimeData = (employeePayroll.overtimeDetail?.normalHours || 0) > 0 || 
+                              (employeePayroll.overtimeDetail?.holidayHours || 0) > 0 ||
+                              (employeePayroll.overtimeDetail?.nightFirstHour || 0) > 0 ||
+                              (employeePayroll.overtimeDetail?.nightAdditionalHours || 0) > 0
     
     const overtimeAmount = hasNewOvertimeData ? newOvertimeAmount : legacyOvertimeAmount
     totalEarnings += overtimeAmount
@@ -1411,12 +1417,12 @@ export function PayrollCalculator() {
       uangBbm,
       overtimeAmount,
       overtimeDetail: {
-        ...employeePayroll.overtimeDetail,
-        hourlyRate: employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173),
-        normalAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.normalHours * 1.5,
-        holidayAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.holidayHours * 2,
-        nightFirstAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.nightFirstHour * 1.5,
-        nightAdditionalAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.nightAdditionalHours * 2
+        ...(employeePayroll.overtimeDetail || {}),
+        hourlyRate: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)),
+        normalAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.normalHours || 0) * 1.5,
+        holidayAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.holidayHours || 0) * 2,
+        nightFirstAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.nightFirstHour || 0) * 1.5,
+        nightAdditionalAmount: (employeePayroll.overtimeDetail?.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * (employeePayroll.overtimeDetail?.nightAdditionalHours || 0) * 2
       },
       totalEarnings,
       bruto,
@@ -1429,6 +1435,11 @@ export function PayrollCalculator() {
         ...comp,
         amount: calculateComponentAmount(comp, employee, hariKerja, bruto)
       }))
+    }
+    } catch (error: any) {
+      console.error('❌ Error calculating employee payroll:', error)
+      console.error('Employee data:', employeePayroll)
+      return null
     }
   }
 
