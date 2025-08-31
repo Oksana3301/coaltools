@@ -279,6 +279,16 @@ export interface PayrollLine {
   neto: number
   status: 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED'
   notes?: string
+  // Overtime details
+  overtimeHours?: number
+  overtimeRate?: number
+  overtimeAmount?: number
+  normalHours?: number
+  holidayHours?: number
+  nightFirstHour?: number
+  nightAdditionalHours?: number
+  customHourlyRate?: number
+  cashbon?: number
   createdAt?: string
   updatedAt?: string
   employee?: Employee

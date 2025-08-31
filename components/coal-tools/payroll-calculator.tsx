@@ -153,7 +153,7 @@ export function PayrollCalculator() {
   // UI states
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false)
   const [isPayComponentFormOpen, setIsPayComponentFormOpen] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState<{ type: string; id: string; name: string } | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState<{ type: string; id: string; name: string; status?: string } | null>(null)
   const [deletingPayrollRun, setDeletingPayrollRun] = useState<string | null>(null)
   const [showQuickSetupDialog, setShowQuickSetupDialog] = useState<'tax' | 'overtime' | null>(null)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -446,31 +446,66 @@ export function PayrollCalculator() {
       customFileName: payrollRun.customFileName || ''
     })
     
-    // Load payroll lines back to selected employees
+    // Load payroll lines back to selected employees dengan data lengkap
     const employeeData = payrollRun.payrollLines?.map(line => ({
       employeeId: line.employeeId,
       hariKerja: line.hariKerja,
-      overtimeHours: 0,
-      overtimeRate: 0,
+      // Restore overtime data
+      overtimeHours: line.overtimeHours || 0,
+      overtimeRate: line.overtimeRate || 0,
       overtimeDetail: {
-        normalHours: 0,
-        holidayHours: 0,
-        nightFirstHour: 0,
-        nightAdditionalHours: 0
+        normalHours: line.normalHours || 0,
+        holidayHours: line.holidayHours || 0,
+        nightFirstHour: line.nightFirstHour || 0,
+        nightAdditionalHours: line.nightAdditionalHours || 0,
+        customHourlyRate: line.customHourlyRate
       },
       cashbon: line.cashbon || 0,
-      notes: '',
-      selectedStandardComponents: [],
-      selectedAdditionalComponents: []
+      notes: line.notes || '',
+      // Restore components - extract from PayrollLineComponent
+      selectedStandardComponents: line.components?.filter(comp => 
+        standardComponents.some(sc => sc.id === comp.componentId)
+      ).map(comp => comp.componentId) || [],
+      selectedAdditionalComponents: line.components?.filter(comp => 
+        additionalComponents.some(ac => ac.id === comp.componentId)
+      ).map(comp => comp.componentId) || []
     })) || []
     
+    // Restore custom components dari payroll line components yang tidak ada di standard/additional
+    const usedComponentIds = [
+      ...standardComponents.map(c => c.id),
+      ...additionalComponents.map(c => c.id)
+    ].filter(id => id)
+    
+    const customComponents = payrollRun.payrollLines?.reduce((acc, line) => {
+      const lineCustomComps = line.components?.filter(comp => 
+        !usedComponentIds.includes(comp.componentId)
+      ).map(comp => ({
+        nama: comp.componentName,
+        tipe: comp.amount > 0 ? 'EARNING' : 'DEDUCTION' as const,
+        taxable: comp.taxable,
+        metode: 'FLAT' as const,
+        basis: 'UPAH_HARIAN' as const,
+        nominal: Math.abs(comp.amount),
+        order: 0
+      })) || []
+      
+      return [...acc, ...lineCustomComps]
+    }, [] as any[]) || []
+    
+    // Remove duplicates by name
+    const uniqueCustomComponents = customComponents.filter((comp, index, self) =>
+      index === self.findIndex(c => c.nama === comp.nama)
+    )
+    
     setSelectedEmployees(employeeData)
+    setCustomPayComponents(uniqueCustomComponents)
     setCurrentPayrollRun(payrollRun) // Keep reference for updating
     setCurrentStep(2) // Go back to edit mode
     
     toast({
       title: "Mode Edit Aktif",
-      description: "Anda dapat mengedit payroll ini. Klik 'Hitung Payroll' untuk menyimpan perubahan."
+      description: "Data payroll telah dimuat. Anda dapat mengedit dan simpan perubahan."
     })
   }
 
@@ -713,10 +748,27 @@ export function PayrollCalculator() {
           periodeAkhir: payrollPeriod.periodeAkhir,
           customFileName: payrollPeriod.customFileName || '',
           notes: payrollPeriod.notes || '',
-          employeeOverrides: selectedEmployees.map(emp => ({
-            employeeId: emp.employeeId,
-            hariKerja: emp.hariKerja
-          }))
+          employeeOverrides: selectedEmployees.map(emp => {
+            const calculation = calculateEmployeePayroll(emp)
+            return {
+              employeeId: emp.employeeId,
+              hariKerja: emp.hariKerja,
+              // Overtime details
+              overtimeHours: emp.overtimeHours,
+              overtimeRate: emp.overtimeRate,
+              overtimeAmount: calculation?.overtimeAmount || 0,
+              normalHours: emp.overtimeDetail.normalHours,
+              holidayHours: emp.overtimeDetail.holidayHours,
+              nightFirstHour: emp.overtimeDetail.nightFirstHour,
+              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
+              customHourlyRate: emp.overtimeDetail.customHourlyRate,
+              cashbon: emp.cashbon,
+              // Components
+              selectedStandardComponents: emp.selectedStandardComponents,
+              selectedAdditionalComponents: emp.selectedAdditionalComponents,
+              customComponents: customPayComponents.filter(comp => comp.nama)
+            }
+          })
         })
       } else {
         // Create new payroll
@@ -726,10 +778,27 @@ export function PayrollCalculator() {
           createdBy: CURRENT_USER_ID,
           customFileName: payrollPeriod.customFileName || '',
           notes: payrollPeriod.notes || '',
-          employeeOverrides: selectedEmployees.map(emp => ({
-            employeeId: emp.employeeId,
-            hariKerja: emp.hariKerja
-          }))
+          employeeOverrides: selectedEmployees.map(emp => {
+            const calculation = calculateEmployeePayroll(emp)
+            return {
+              employeeId: emp.employeeId,
+              hariKerja: emp.hariKerja,
+              // Overtime details
+              overtimeHours: emp.overtimeHours,
+              overtimeRate: emp.overtimeRate,
+              overtimeAmount: calculation?.overtimeAmount || 0,
+              normalHours: emp.overtimeDetail.normalHours,
+              holidayHours: emp.overtimeDetail.holidayHours,
+              nightFirstHour: emp.overtimeDetail.nightFirstHour,
+              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
+              customHourlyRate: emp.overtimeDetail.customHourlyRate,
+              cashbon: emp.cashbon,
+              // Components
+              selectedStandardComponents: emp.selectedStandardComponents,
+              selectedAdditionalComponents: emp.selectedAdditionalComponents,
+              customComponents: customPayComponents.filter(comp => comp.nama)
+            }
+          })
         })
       }
 
@@ -2680,26 +2749,25 @@ export function PayrollCalculator() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   
-                  {/* Delete button - only for DRAFT status */}
-                  {run.status === 'DRAFT' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowDeleteDialog({
-                        type: 'payrollRun',
-                        id: run.id!,
-                        name: `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
-                      })}
-                      disabled={deletingPayrollRun === run.id}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      {deletingPayrollRun === run.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
+                  {/* Delete button - available for all status with confirmation */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog({
+                      type: 'payrollRun',
+                      id: run.id!,
+                      name: `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`,
+                      status: run.status
+                    })}
+                    disabled={deletingPayrollRun === run.id}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    {deletingPayrollRun === run.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
             ))}
@@ -2720,26 +2788,36 @@ export function PayrollCalculator() {
                   <p><strong>Hard Delete:</strong> Komponen akan dihapus permanen (tidak dapat dikembalikan)</p>
                 </div>
               )}
+              {showDeleteDialog?.type === 'payrollRun' && showDeleteDialog?.status !== 'DRAFT' && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800 font-medium">⚠️ PERINGATAN PENTING!</p>
+                  <p className="text-sm text-red-700 mt-1">
+                    Payroll ini berstatus <strong>{showDeleteDialog.status}</strong>. 
+                    Menghapus payroll yang sudah disetujui dapat mempengaruhi laporan keuangan dan audit.
+                  </p>
+                  <p className="text-sm text-red-600 mt-2 font-medium">
+                    Tindakan ini TIDAK DAPAT DIBATALKAN!
+                  </p>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowDeleteDialog(null)}>
               Batal
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                if (showDeleteDialog) {
-                  if (showDeleteDialog.type === 'payComponent') {
+            {showDeleteDialog?.type === 'payComponent' && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (showDeleteDialog) {
                     handleDeleteComponent(showDeleteDialog.id, false) // Soft delete
-                  } else {
-                    handleDeletePayrollRun(showDeleteDialog.id, false) // Soft delete
                   }
-                }
-              }}
-            >
-              {showDeleteDialog?.type === 'payComponent' ? 'Nonaktifkan' : 'Soft Delete'}
-            </Button>
+                }}
+              >
+                Nonaktifkan
+              </Button>
+            )}
             <Button 
               variant="destructive" 
               onClick={() => {
@@ -2752,7 +2830,11 @@ export function PayrollCalculator() {
                 }
               }}
             >
-              {showDeleteDialog?.type === 'payComponent' ? 'Hapus Permanen' : 'Hard Delete'}
+              {showDeleteDialog?.type === 'payComponent' 
+                ? 'Hapus Permanen' 
+                : showDeleteDialog?.status === 'DRAFT' 
+                  ? 'Hapus Payroll' 
+                  : 'HAPUS PERMANEN (BERBAHAYA)'}
             </Button>
           </div>
         </DialogContent>
