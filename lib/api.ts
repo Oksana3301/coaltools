@@ -631,6 +631,21 @@ class ApiService {
     }>
   }): Promise<ApiResponse<PayrollRun>> {
     console.log('🆕 createPayrollRun called with:', data)
+    
+    // First try simplified endpoint to isolate the issue
+    console.log('🧪 Testing with simplified endpoint first...')
+    try {
+      const simpleResult = await this.fetchApi('/payroll-simple', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      })
+      console.log('✅ Simplified endpoint worked:', simpleResult)
+    } catch (simpleError) {
+      console.error('❌ Even simplified endpoint failed:', simpleError)
+      throw new Error(`Simplified endpoint failed: ${simpleError instanceof Error ? simpleError.message : 'Unknown error'}`)
+    }
+    
+    // If simplified worked, try original endpoint
     try {
       const result = await this.fetchApi<PayrollRun>('/payroll', {
         method: 'POST',
