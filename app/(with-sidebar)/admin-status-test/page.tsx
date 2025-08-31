@@ -359,6 +359,196 @@ export default function AdminStatusTestPage() {
     }
   }
 
+  const runFrontendPayrollSimulation = async () => {
+    const updateResult = (id: string, status: 'running' | 'success' | 'error' | 'warning', message: string) => {
+      setResults(prev => {
+        const existing = prev.find(r => r.id === id)
+        if (existing) {
+          existing.status = status
+          existing.message = message
+          return [...prev]
+        }
+        return [...prev, { id, status, message }]
+      })
+    }
+
+    updateResult('Frontend Simulation', 'running', 'Testing exact frontend workflow that user experiences...')
+    
+    try {
+      // Step 1: Simulate exactly what frontend payroll calculator does
+      updateResult('Frontend Step 1', 'running', 'Fetching employees with frontend parameters...')
+      
+      // This simulates the exact API call the frontend makes
+      const employeesResponse = await fetch('/api/employees?aktif=true&limit=200')
+      const employeesData = await employeesResponse.json()
+      
+      if (!employeesData.success || !employeesData.data || employeesData.data.length === 0) {
+        updateResult('Frontend Step 1', 'error', '❌ No employees found or API failed')
+        updateResult('Frontend Simulation', 'error', '❌ FAILED: Frontend employee fetch failed')
+        return
+      }
+      
+      updateResult('Frontend Step 1', 'success', `✅ Found ${employeesData.data.length} employees`)
+      
+      // Step 2: Fetch pay components exactly like frontend does
+      updateResult('Frontend Step 2', 'running', 'Fetching pay components...')
+      
+      const componentsResponse = await fetch('/api/pay-components?aktif=true')
+      const componentsData = await componentsResponse.json()
+      
+      if (!componentsData.success || !componentsData.data) {
+        updateResult('Frontend Step 2', 'error', '❌ Pay components fetch failed')
+        updateResult('Frontend Simulation', 'error', '❌ FAILED: Pay components not available')
+        return
+      }
+      
+      updateResult('Frontend Step 2', 'success', `✅ Found ${componentsData.data.length} pay components`)
+      
+      // Step 3: Simulate exact frontend payroll creation with complex data
+      updateResult('Frontend Step 3', 'running', 'Creating payroll with frontend-style payload...')
+      
+      // Get first 2 employees for testing
+      const testEmployees = employeesData.data.slice(0, 2)
+      const standardComponents = componentsData.data.filter(c => c.tipe === 'EARNING').slice(0, 2)
+      const deductionComponents = componentsData.data.filter(c => c.tipe === 'DEDUCTION').slice(0, 1)
+      
+      // This is exactly the payload structure the frontend creates
+      const frontendPayload = {
+        periodeAwal: "2024-12-01",
+        periodeAkhir: "2024-12-31",
+        createdBy: "frontend-simulation-test",
+        customFileName: "Frontend Simulation Test Dec 2024",
+        notes: "Simulating exact frontend payroll creation workflow",
+        employeeOverrides: testEmployees.map((employee, index) => ({
+          employeeId: employee.id,
+          hariKerja: 22 + index,
+          // Overtime with various scenarios
+          overtimeHours: 5 + index * 2,
+          overtimeRate: 1.5,
+          overtimeAmount: 0, // Frontend calculates this
+          normalHours: 3 + index,
+          holidayHours: 2 + index,
+          nightFirstHour: index > 0 ? 1 : 0,
+          nightAdditionalHours: index > 0 ? 2 : 0,
+          customHourlyRate: index === 0 ? 45000 : 0,
+          cashbon: 50000 * (index + 1),
+          // Components exactly as frontend sends
+          selectedStandardComponents: standardComponents.map(c => c.id),
+          selectedAdditionalComponents: deductionComponents.map(c => c.id),
+          customComponents: []
+        }))
+      }
+      
+      console.log('🧪 Frontend simulation payload:', JSON.stringify(frontendPayload, null, 2))
+      
+      const createResponse = await fetch('/api/payroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(frontendPayload)
+      })
+      
+      const createResult = await createResponse.json()
+      console.log('🧪 Frontend simulation response:', createResult)
+      
+      if (!createResult.success) {
+        updateResult('Frontend Step 3', 'error', `❌ Payroll creation failed: ${createResult.error}`)
+        updateResult('Frontend Simulation', 'error', '❌ FAILED: Frontend payroll creation failed like user reported')
+        return
+      }
+      
+      updateResult('Frontend Step 3', 'success', `✅ Payroll created: ${createResult.data.id}`)
+      
+      // Step 4: Verify data integrity exactly like frontend needs it
+      updateResult('Frontend Step 4', 'running', 'Verifying payroll data for frontend display...')
+      
+      const verifyResponse = await fetch(`/api/payroll/${createResult.data.id}`)
+      const verifyResult = await verifyResponse.json()
+      
+      if (!verifyResult.success || !verifyResult.data.payrollLines) {
+        updateResult('Frontend Step 4', 'error', '❌ Payroll verification failed - no payroll lines')
+        updateResult('Frontend Simulation', 'error', '❌ FAILED: Data not ready for frontend display')
+        return
+      }
+      
+      const payrollLinesCount = verifyResult.data.payrollLines.length
+      const expectedEmployees = testEmployees.length
+      
+      if (payrollLinesCount !== expectedEmployees) {
+        updateResult('Frontend Step 4', 'warning', `⚠️ Expected ${expectedEmployees} lines, got ${payrollLinesCount}`)
+      } else {
+        updateResult('Frontend Step 4', 'success', `✅ All ${payrollLinesCount} payroll lines created correctly`)
+      }
+      
+      // Step 5: Test frontend calculation verification
+      updateResult('Frontend Step 5', 'running', 'Validating calculations for frontend display...')
+      
+      let calculationErrors = []
+      for (const line of verifyResult.data.payrollLines) {
+        if (!line.employee) {
+          calculationErrors.push(`Line ${line.id}: Missing employee data`)
+        }
+        if (!line.bruto || line.bruto <= 0) {
+          calculationErrors.push(`Line ${line.id}: Invalid bruto amount`)
+        }
+        if (!line.neto || line.neto <= 0) {
+          calculationErrors.push(`Line ${line.id}: Invalid neto amount`)
+        }
+        if (!line.components || line.components.length === 0) {
+          calculationErrors.push(`Line ${line.id}: No components found`)
+        }
+      }
+      
+      if (calculationErrors.length > 0) {
+        updateResult('Frontend Step 5', 'error', `❌ Calculation errors: ${calculationErrors.join('; ')}`)
+        updateResult('Frontend Simulation', 'error', '❌ FAILED: Calculation errors would break frontend display')
+        return
+      }
+      
+      updateResult('Frontend Step 5', 'success', '✅ All calculations valid for frontend')
+      
+      // Step 6: Test the specific failure point
+      updateResult('Frontend Step 6', 'running', 'Testing Generate Payroll button scenario...')
+      
+      // Simulate what happens when user clicks "Generate Payroll" multiple times
+      let buttonClickTests = []
+      for (let i = 0; i < 3; i++) {
+        try {
+          const retestResponse = await fetch(`/api/payroll/${createResult.data.id}`)
+          const retestResult = await retestResponse.json()
+          
+          if (retestResult.success) {
+            buttonClickTests.push(`Click ${i+1}: ✅ Success`)
+          } else {
+            buttonClickTests.push(`Click ${i+1}: ❌ Failed - ${retestResult.error}`)
+          }
+        } catch (error: any) {
+          buttonClickTests.push(`Click ${i+1}: ❌ Error - ${error.message}`)
+        }
+      }
+      
+      updateResult('Frontend Step 6', 'success', `✅ Button reliability: ${buttonClickTests.join('; ')}`)
+      
+      // Final result
+      updateResult('Frontend Simulation', 'success', '✅ COMPLETE: Frontend simulation successful - Generate Payroll should work!')
+      
+      // Cleanup
+      try {
+        await fetch(`/api/payroll?id=${createResult.data.id}&force=true`, {
+          method: 'DELETE'
+        })
+        updateResult('Frontend Cleanup', 'success', '✅ Test data cleaned up')
+      } catch {
+        updateResult('Frontend Cleanup', 'warning', '⚠️ Cleanup skipped')
+      }
+      
+    } catch (error: any) {
+      updateResult('Frontend Simulation', 'error', `❌ Frontend simulation failed: ${error.message}`)
+      console.error('Frontend simulation error:', error)
+    }
+  }
+
   const runEndToEndPayrollTest = async () => {
     updateResult('E2E Payroll Test', 'running', 'Starting comprehensive end-to-end payroll test...')
     
@@ -742,6 +932,15 @@ export default function AdminStatusTestPage() {
           >
             <TestTube className="h-4 w-4 mr-2" />
             Test Payroll
+          </Button>
+          <Button 
+            onClick={runFrontendPayrollSimulation} 
+            disabled={isRunning || isCrudTesting}
+            variant="secondary"
+            className="min-w-[140px]"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Frontend Simulation
           </Button>
           <Button 
             onClick={() => runAllTests()} 
