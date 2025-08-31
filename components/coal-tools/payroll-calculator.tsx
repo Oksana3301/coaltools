@@ -1432,6 +1432,25 @@ export function PayrollCalculator() {
     nextStep()
   }
 
+  // Utility function to ensure data is ready
+  const ensureDataReady = async () => {
+    console.log('🔄 Ensuring data is ready...')
+    
+    // Check if employees are loaded
+    if (employees.length === 0) {
+      console.log('📥 Loading employees...')
+      await loadInitialData()
+    }
+    
+    // Check if pay components are loaded
+    if (payComponents.length === 0) {
+      console.log('📥 Loading pay components...')
+      await loadInitialData()
+    }
+    
+    console.log('✅ Data ready check complete')
+  }
+
   // Step 6: Generate Payroll
   const generatePayroll = async () => {
     console.log('🚀 generatePayroll called')
@@ -1439,10 +1458,25 @@ export function PayrollCalculator() {
       selectedEmployees: selectedEmployees.length,
       payrollPeriod,
       currentPayrollRun: currentPayrollRun?.id,
-      customPayComponents: customPayComponents.length
+      customPayComponents: customPayComponents.length,
+      employees: employees.length,
+      payComponents: payComponents.length
     })
     
-    // Validation
+    // Ensure all required data is loaded
+    try {
+      await ensureDataReady()
+    } catch (dataError) {
+      console.error('❌ Failed to ensure data ready:', dataError)
+      toast({
+        title: "Error Loading Data",
+        description: "Gagal memuat data yang diperlukan. Silakan refresh halaman.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    // Enhanced validation
     if (!payrollPeriod.periodeAwal || !payrollPeriod.periodeAkhir) {
       toast({
         title: "Error Validation",
@@ -1456,6 +1490,27 @@ export function PayrollCalculator() {
       toast({
         title: "Error Validation", 
         description: "Minimal pilih satu karyawan",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    // Validate employees have required data
+    const invalidEmployees = selectedEmployees.filter(emp => !emp.employeeId)
+    if (invalidEmployees.length > 0) {
+      toast({
+        title: "Error Validation",
+        description: "Beberapa karyawan tidak memiliki ID yang valid",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    // Validate current user ID
+    if (!CURRENT_USER_ID) {
+      toast({
+        title: "Error Validation",
+        description: "User ID tidak valid. Silakan login ulang.",
         variant: "destructive"
       })
       return
@@ -1573,26 +1628,69 @@ export function PayrollCalculator() {
       }
 
       if (response.success) {
+        console.log('✅ Payroll generation successful:', response.data)
         setCurrentPayrollRun(response.data!)
+        
+        // Update success message
+        const isUpdate = currentPayrollRun?.id
         toast({
-          title: currentPayrollRun?.id ? "Payroll berhasil diupdate" : "Payroll berhasil dibuat",
-          description: currentPayrollRun?.id 
+          title: isUpdate ? "Payroll berhasil diupdate" : "Payroll berhasil dibuat",
+          description: isUpdate 
             ? "Perubahan payroll telah disimpan" 
             : "Payroll telah dibuat dan siap untuk disetujui"
         })
         
         // Reload payroll runs
-        const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
-        if (payrollRunsRes.success) {
-          setPayrollRuns(payrollRunsRes.data || [])
+        try {
+          const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+          if (payrollRunsRes.success) {
+            setPayrollRuns(payrollRunsRes.data || [])
+            console.log('✅ Payroll runs refreshed')
+          }
+        } catch (refreshError) {
+          console.warn('⚠️ Failed to refresh payroll runs:', refreshError)
+          // Don't fail the whole operation if refresh fails
         }
+        
+        // Show next steps
+        setTimeout(() => {
+          toast({
+            title: "Langkah Selanjutnya",
+            description: "Payroll siap untuk direview dan disetujui. Periksa tab 'Riwayat Payroll' untuk detailnya."
+          })
+        }, 2000)
+      } else {
+        console.error('❌ API returned success=false:', response)
+        throw new Error(response.error || 'Respon API tidak valid')
       }
     } catch (error: any) {
+      console.error('❌ generatePayroll final error:', error)
+      console.error('❌ Error stack:', error.stack)
+      
+      // More user-friendly error messages
+      let errorMessage = "Gagal membuat payroll"
+      if (error.message) {
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = "Koneksi internet bermasalah. Silakan periksa koneksi dan coba lagi."
+        } else if (error.message.includes('validation')) {
+          errorMessage = "Data tidak valid. Silakan periksa input data."
+        } else if (error.message.includes('Database')) {
+          errorMessage = "Masalah database. Silakan coba lagi dalam beberapa saat."
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Gagal membuat payroll",
+        title: "Generate Payroll Gagal",
+        description: errorMessage,
         variant: "destructive"
       })
+      
+      // Reset state on error to allow retry
+      if (error.message?.includes('not found') || error.message?.includes('PAYROLL_NOT_FOUND')) {
+        setCurrentPayrollRun(null)
+      }
     } finally {
       setLoading(false)
     }
