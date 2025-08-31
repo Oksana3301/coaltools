@@ -1442,6 +1442,25 @@ export function PayrollCalculator() {
       customPayComponents: customPayComponents.length
     })
     
+    // Validation
+    if (!payrollPeriod.periodeAwal || !payrollPeriod.periodeAkhir) {
+      toast({
+        title: "Error Validation",
+        description: "Periode awal dan akhir harus diisi",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    if (selectedEmployees.length === 0) {
+      toast({
+        title: "Error Validation", 
+        description: "Minimal pilih satu karyawan",
+        variant: "destructive"
+      })
+      return
+    }
+    
     setLoading(true)
     try {
       let response
@@ -1500,35 +1519,57 @@ export function PayrollCalculator() {
       
       // Create new payroll if no valid existing payroll
       if (!response) {
-        // Create new payroll
-        response = await apiService.createPayrollRun({
+        console.log('🆕 Creating new payroll with data:')
+        console.log('- periodeAwal:', payrollPeriod.periodeAwal)
+        console.log('- periodeAkhir:', payrollPeriod.periodeAkhir) 
+        console.log('- createdBy:', CURRENT_USER_ID)
+        console.log('- customFileName:', payrollPeriod.customFileName)
+        console.log('- notes:', payrollPeriod.notes)
+        console.log('- selectedEmployees count:', selectedEmployees.length)
+        
+        const createPayload = {
           periodeAwal: payrollPeriod.periodeAwal,
           periodeAkhir: payrollPeriod.periodeAkhir,
           createdBy: CURRENT_USER_ID,
           customFileName: payrollPeriod.customFileName || '',
           notes: payrollPeriod.notes || '',
-          employeeOverrides: selectedEmployees.map(emp => {
-            const calculation = calculateEmployeePayroll(emp)
-            return {
+          employeeOverrides: selectedEmployees.map((emp, index) => {
+            console.log(`📋 Processing employee ${index + 1}:`, {
               employeeId: emp.employeeId,
               hariKerja: emp.hariKerja,
-              // Overtime details
               overtimeHours: emp.overtimeHours,
-              overtimeRate: emp.overtimeRate,
+              overtimeDetail: emp.overtimeDetail
+            })
+            
+            const calculation = calculateEmployeePayroll(emp)
+            const employeeOverride = {
+              employeeId: emp.employeeId,
+              hariKerja: emp.hariKerja || 0,
+              // Overtime details
+              overtimeHours: emp.overtimeHours || 0,
+              overtimeRate: emp.overtimeRate || 1.5,
               overtimeAmount: calculation?.overtimeAmount || 0,
-              normalHours: emp.overtimeDetail.normalHours,
-              holidayHours: emp.overtimeDetail.holidayHours,
-              nightFirstHour: emp.overtimeDetail.nightFirstHour,
-              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
-              customHourlyRate: emp.overtimeDetail.customHourlyRate,
-              cashbon: emp.cashbon,
+              normalHours: emp.overtimeDetail?.normalHours || 0,
+              holidayHours: emp.overtimeDetail?.holidayHours || 0,
+              nightFirstHour: emp.overtimeDetail?.nightFirstHour || 0,
+              nightAdditionalHours: emp.overtimeDetail?.nightAdditionalHours || 0,
+              customHourlyRate: emp.overtimeDetail?.customHourlyRate || 0,
+              cashbon: emp.cashbon || 0,
               // Components
-              selectedStandardComponents: emp.selectedStandardComponents,
-              selectedAdditionalComponents: emp.selectedAdditionalComponents,
-              customComponents: customPayComponents.filter(comp => comp.nama)
+              selectedStandardComponents: emp.selectedStandardComponents || [],
+              selectedAdditionalComponents: emp.selectedAdditionalComponents || [],
+              customComponents: customPayComponents.filter(comp => comp.nama) || []
             }
+            
+            console.log(`✅ Employee ${index + 1} override:`, employeeOverride)
+            return employeeOverride
           })
-        })
+        }
+        
+        console.log('📤 Final create payload:', JSON.stringify(createPayload, null, 2))
+        
+        // Create new payroll
+        response = await apiService.createPayrollRun(createPayload)
       }
 
       if (response.success) {
