@@ -568,10 +568,10 @@ class ApiService {
   }
 
   // Update pay component
-  async updatePayComponent(data: Partial<PayComponent> & { id: string }): Promise<ApiResponse<PayComponent>> {
+  async updatePayComponent(id: string, data: Partial<PayComponent>): Promise<ApiResponse<PayComponent>> {
     return this.fetchApi<PayComponent>('/pay-components', {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify({ id, ...data })
     })
   }
 
