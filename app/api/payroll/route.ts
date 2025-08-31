@@ -459,18 +459,24 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
+    console.log('🔄 PUT /api/payroll endpoint hit')
     const prisma = getPrismaClient();
     if (!prisma) {
+      console.error('❌ Database not available in PUT endpoint')
       return NextResponse.json(
         { success: false, error: 'Database connection not available' },
         { status: 503 }
       )
     }
 
-    
   try {
+    console.log('📥 Parsing PUT request body...')
     const body = await request.json()
-    const { id, status, approvedBy, payrollLines, ...updateData } = body
+    console.log('📨 PUT /api/payroll received body:', JSON.stringify(body, null, 2))
+    
+    const { id, status, approvedBy, payrollLines, employeeOverrides, ...updateData } = body
+    console.log('📋 Extracted data - id:', id, 'updateData keys:', Object.keys(updateData))
+    console.log('📋 employeeOverrides length:', employeeOverrides?.length || 0)
 
     if (!id) {
       return NextResponse.json(
@@ -539,11 +545,16 @@ export async function PUT(request: NextRequest) {
       message: 'Payroll berhasil diupdate'
     })
   } catch (error) {
-    console.error('Error updating payroll run:', error)
+    console.error('🔥 Error updating payroll run:', error)
+    console.error('🔥 Error name:', error instanceof Error ? error.name : 'Unknown')
+    console.error('🔥 Error message:', error instanceof Error ? error.message : 'Unknown')
+    console.error('🔥 Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengupdate payroll'
+        error: 'Gagal mengupdate payroll',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     )
