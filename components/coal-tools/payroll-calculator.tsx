@@ -74,11 +74,27 @@ interface PayrollPeriodForm {
   notes: string
 }
 
+// Interface untuk detail lembur
+interface OvertimeDetail {
+  // Lembur normal (hari kerja biasa)
+  normalHours: number
+  // Lembur hari libur/minggu/tanggal merah
+  holidayHours: number
+  // Lembur malam (jam pertama 1.5x, selebihnya 2x)
+  nightFirstHour: number
+  nightAdditionalHours: number
+  // Custom overtime rate per hour (basis gaji pokok / 173)
+  customHourlyRate?: number
+}
+
 interface EmployeePayrollForm {
   employeeId: string
   hariKerja: number
+  // Legacy overtime fields (masih dipertahankan untuk kompatibilitas)
   overtimeHours: number
   overtimeRate: number
+  // New detailed overtime
+  overtimeDetail: OvertimeDetail
   cashbon: number
   notes: string
   selectedStandardComponents: string[]
@@ -324,6 +340,13 @@ export function PayrollCalculator() {
           hariKerja: 22,
           overtimeHours: 0,
           overtimeRate: employee.kontrakUpahHarian * 1.5,
+          overtimeDetail: {
+            normalHours: 0,
+            holidayHours: 0,
+            nightFirstHour: 0,
+            nightAdditionalHours: 0,
+            customHourlyRate: Math.round(employee.kontrakUpahHarian * 22 / 173) // Gaji pokok/173
+          },
           cashbon: 0,
           notes: '',
           selectedStandardComponents: [],
@@ -343,6 +366,44 @@ export function PayrollCalculator() {
           : emp
       )
     )
+  }
+
+  // Helper function untuk update overtime detail
+  const updateEmployeeOvertimeDetail = (employeeId: string, field: keyof OvertimeDetail, value: number) => {
+    setSelectedEmployees(prev => 
+      prev.map(emp => 
+        emp.employeeId === employeeId 
+          ? { 
+              ...emp, 
+              overtimeDetail: {
+                ...emp.overtimeDetail,
+                [field]: value
+              }
+            }
+          : emp
+      )
+    )
+  }
+
+  // Menghitung total overtime amount berdasarkan ketentuan baru
+  const calculateOvertimeAmount = (employee: Employee, overtimeDetail: OvertimeDetail) => {
+    let total = 0
+    
+    // Menghitung hourly rate: Gaji pokok / 173 (sesuai peraturan)
+    const gajiPokok = employee.kontrakUpahHarian * 22 // Gaji pokok per bulan
+    const hourlyRate = overtimeDetail.customHourlyRate || Math.round(gajiPokok / 173)
+    
+    // 1. Lembur normal (hari kerja biasa): 1.5x hourly rate
+    total += overtimeDetail.normalHours * hourlyRate * 1.5
+    
+    // 2. Lembur hari libur/minggu/tanggal merah: 2x hourly rate
+    total += overtimeDetail.holidayHours * hourlyRate * 2
+    
+    // 3. Lembur malam: jam pertama 1.5x, jam berikutnya 2x
+    total += overtimeDetail.nightFirstHour * hourlyRate * 1.5
+    total += overtimeDetail.nightAdditionalHours * hourlyRate * 2
+    
+    return Math.round(total)
   }
 
   // Step 4: Pay Components
@@ -499,8 +560,17 @@ export function PayrollCalculator() {
       }
     })
 
-    // Add overtime if any
-    const overtimeAmount = employeePayroll.overtimeHours * employeePayroll.overtimeRate
+    // Add overtime if any - menggunakan sistem overtime baru
+    const newOvertimeAmount = calculateOvertimeAmount(employee, employeePayroll.overtimeDetail)
+    const legacyOvertimeAmount = employeePayroll.overtimeHours * employeePayroll.overtimeRate
+    
+    // Prioritas: gunakan new overtime jika ada data, fallback ke legacy
+    const hasNewOvertimeData = employeePayroll.overtimeDetail.normalHours > 0 || 
+                              employeePayroll.overtimeDetail.holidayHours > 0 ||
+                              employeePayroll.overtimeDetail.nightFirstHour > 0 ||
+                              employeePayroll.overtimeDetail.nightAdditionalHours > 0
+    
+    const overtimeAmount = hasNewOvertimeData ? newOvertimeAmount : legacyOvertimeAmount
     totalEarnings += overtimeAmount
     taxableAmount += overtimeAmount
 
@@ -525,6 +595,14 @@ export function PayrollCalculator() {
       uangMakan,
       uangBbm,
       overtimeAmount,
+      overtimeDetail: {
+        ...employeePayroll.overtimeDetail,
+        hourlyRate: employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173),
+        normalAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.normalHours * 1.5,
+        holidayAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.holidayHours * 2,
+        nightFirstAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.nightFirstHour * 1.5,
+        nightAdditionalAmount: (employeePayroll.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173)) * employeePayroll.overtimeDetail.nightAdditionalHours * 2
+      },
       totalEarnings,
       bruto,
       totalDeductions,
@@ -1143,10 +1221,40 @@ export function PayrollCalculator() {
             </tr>
             ${calculation.overtimeAmount > 0 ? `
               <tr>
-                <td>Lembur</td>
+                <td>Lembur Total</td>
                 <td>-</td>
                 <td style="text-align: right">${formatCurrency(calculation.overtimeAmount)}</td>
               </tr>
+              ${calculation.overtimeDetail && (calculation.overtimeDetail.normalHours > 0 || calculation.overtimeDetail.holidayHours > 0 || calculation.overtimeDetail.nightFirstHour > 0 || calculation.overtimeDetail.nightAdditionalHours > 0) ? `
+                ${calculation.overtimeDetail.normalHours > 0 ? `
+                  <tr style="font-size: 11px; color: #666;">
+                    <td style="padding-left: 20px;">• Normal ${calculation.overtimeDetail.normalHours}h × ${formatCurrency(calculation.overtimeDetail.hourlyRate)} × 1.5</td>
+                    <td>-</td>
+                    <td style="text-align: right">${formatCurrency(calculation.overtimeDetail.normalAmount)}</td>
+                  </tr>
+                ` : ''}
+                ${calculation.overtimeDetail.holidayHours > 0 ? `
+                  <tr style="font-size: 11px; color: #666;">
+                    <td style="padding-left: 20px;">• Libur ${calculation.overtimeDetail.holidayHours}h × ${formatCurrency(calculation.overtimeDetail.hourlyRate)} × 2</td>
+                    <td>-</td>
+                    <td style="text-align: right">${formatCurrency(calculation.overtimeDetail.holidayAmount)}</td>
+                  </tr>
+                ` : ''}
+                ${calculation.overtimeDetail.nightFirstHour > 0 ? `
+                  <tr style="font-size: 11px; color: #666;">
+                    <td style="padding-left: 20px;">• Malam 1 ${calculation.overtimeDetail.nightFirstHour}h × ${formatCurrency(calculation.overtimeDetail.hourlyRate)} × 1.5</td>
+                    <td>-</td>
+                    <td style="text-align: right">${formatCurrency(calculation.overtimeDetail.nightFirstAmount)}</td>
+                  </tr>
+                ` : ''}
+                ${calculation.overtimeDetail.nightAdditionalHours > 0 ? `
+                  <tr style="font-size: 11px; color: #666;">
+                    <td style="padding-left: 20px;">• Malam + ${calculation.overtimeDetail.nightAdditionalHours}h × ${formatCurrency(calculation.overtimeDetail.hourlyRate)} × 2</td>
+                    <td>-</td>
+                    <td style="text-align: right">${formatCurrency(calculation.overtimeDetail.nightAdditionalAmount)}</td>
+                  </tr>
+                ` : ''}
+              ` : ''}
             ` : ''}
             ${calculation.components
               .filter((comp: any) => comp.tipe === 'EARNING' && comp.amount > 0)
@@ -1544,12 +1652,110 @@ export function PayrollCalculator() {
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs">Overtime (Jam)</Label>
+                                <Label className="text-xs">Overtime Legacy (Jam)</Label>
                                 <Input
                                   type="number"
                                   value={selectedData.overtimeHours}
                                   onChange={(e) => employee.id && updateEmployeePayroll(employee.id, 'overtimeHours', parseInt(e.target.value) || 0)}
                                   className="h-8 text-sm"
+                                  placeholder="Kosongkan untuk pakai sistem baru"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* New Detailed Overtime System */}
+                            <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-blue-600" />
+                                <Label className="text-sm font-semibold text-blue-800">
+                                  Perhitungan Lembur Detail
+                                </Label>
+                              </div>
+                              
+                              {/* Display Hourly Rate */}
+                              <div className="p-2 bg-white rounded border text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Rate per jam (Gaji pokok/173):</span>
+                                  <span className="font-semibold text-blue-700">
+                                    Rp {formatCurrency(selectedData.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173))}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <Tabs defaultValue="normal" className="w-full">
+                                <TabsList className="grid w-full grid-cols-3 h-8">
+                                  <TabsTrigger value="normal" className="text-xs">Normal</TabsTrigger>
+                                  <TabsTrigger value="holiday" className="text-xs">Libur</TabsTrigger>
+                                  <TabsTrigger value="night" className="text-xs">Malam</TabsTrigger>
+                                </TabsList>
+                                
+                                <TabsContent value="normal" className="space-y-2 mt-2">
+                                  <div>
+                                    <Label className="text-xs text-green-700">Lembur Normal (1.5x)</Label>
+                                    <div className="text-xs text-gray-600 mb-1">Hari kerja biasa</div>
+                                    <Input
+                                      type="number"
+                                      value={selectedData.overtimeDetail.normalHours}
+                                      onChange={(e) => employee.id && updateEmployeeOvertimeDetail(employee.id, 'normalHours', parseInt(e.target.value) || 0)}
+                                      className="h-8 text-sm"
+                                      placeholder="Jam lembur normal"
+                                    />
+                                  </div>
+                                </TabsContent>
+                                
+                                <TabsContent value="holiday" className="space-y-2 mt-2">
+                                  <div>
+                                    <Label className="text-xs text-red-700">Lembur Hari Libur (2x)</Label>
+                                    <div className="text-xs text-gray-600 mb-1">Minggu/tanggal merah/libur nasional</div>
+                                    <Input
+                                      type="number"
+                                      value={selectedData.overtimeDetail.holidayHours}
+                                      onChange={(e) => employee.id && updateEmployeeOvertimeDetail(employee.id, 'holidayHours', parseInt(e.target.value) || 0)}
+                                      className="h-8 text-sm"
+                                      placeholder="Jam lembur hari libur"
+                                    />
+                                  </div>
+                                </TabsContent>
+                                
+                                <TabsContent value="night" className="space-y-2 mt-2">
+                                  <div className="space-y-2">
+                                    <div>
+                                      <Label className="text-xs text-purple-700">Lembur Malam - Jam Pertama (1.5x)</Label>
+                                      <div className="text-xs text-gray-600 mb-1">Maksimal 1 jam</div>
+                                      <Input
+                                        type="number"
+                                        max="1"
+                                        value={selectedData.overtimeDetail.nightFirstHour}
+                                        onChange={(e) => employee.id && updateEmployeeOvertimeDetail(employee.id, 'nightFirstHour', Math.min(parseInt(e.target.value) || 0, 1))}
+                                        className="h-8 text-sm"
+                                        placeholder="0 atau 1 jam"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs text-purple-700">Lembur Malam - Jam Berikutnya (2x)</Label>
+                                      <div className="text-xs text-gray-600 mb-1">Setelah jam pertama</div>
+                                      <Input
+                                        type="number"
+                                        value={selectedData.overtimeDetail.nightAdditionalHours}
+                                        onChange={(e) => employee.id && updateEmployeeOvertimeDetail(employee.id, 'nightAdditionalHours', parseInt(e.target.value) || 0)}
+                                        className="h-8 text-sm"
+                                        placeholder="Jam tambahan malam"
+                                      />
+                                    </div>
+                                  </div>
+                                </TabsContent>
+                              </Tabs>
+                              
+                              {/* Custom Hourly Rate */}
+                              <div>
+                                <Label className="text-xs text-orange-700">Custom Rate per Jam (Opsional)</Label>
+                                <div className="text-xs text-gray-600 mb-1">Kosongkan untuk menggunakan rate otomatis</div>
+                                <Input
+                                  type="number"
+                                  value={selectedData.overtimeDetail.customHourlyRate || ''}
+                                  onChange={(e) => employee.id && updateEmployeeOvertimeDetail(employee.id, 'customHourlyRate', parseInt(e.target.value) || 0)}
+                                  className="h-8 text-sm"
+                                  placeholder={`Default: ${formatCurrency(Math.round((employee.kontrakUpahHarian * 22) / 173))}`}
                                 />
                               </div>
                             </div>
@@ -1646,9 +1852,25 @@ export function PayrollCalculator() {
                                       <span className="text-gray-600">Uang BBM:</span>
                                       <span className="ml-2 font-semibold">{formatCurrency(calculation.uangBbm)}</span>
                                     </div>
-                                    <div>
-                                      <span className="text-gray-600">Overtime:</span>
+                                    <div className="col-span-2">
+                                      <span className="text-gray-600">Overtime Total:</span>
                                       <span className="ml-2 font-semibold">{formatCurrency(calculation.overtimeAmount)}</span>
+                                      {calculation.overtimeDetail && (calculation.overtimeDetail.normalHours > 0 || calculation.overtimeDetail.holidayHours > 0 || calculation.overtimeDetail.nightFirstHour > 0 || calculation.overtimeDetail.nightAdditionalHours > 0) && (
+                                        <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                          {calculation.overtimeDetail.normalHours > 0 && (
+                                            <div>• Normal {calculation.overtimeDetail.normalHours}h × {formatCurrency(calculation.overtimeDetail.hourlyRate)} × 1.5 = {formatCurrency(calculation.overtimeDetail.normalAmount)}</div>
+                                          )}
+                                          {calculation.overtimeDetail.holidayHours > 0 && (
+                                            <div>• Libur {calculation.overtimeDetail.holidayHours}h × {formatCurrency(calculation.overtimeDetail.hourlyRate)} × 2 = {formatCurrency(calculation.overtimeDetail.holidayAmount)}</div>
+                                          )}
+                                          {calculation.overtimeDetail.nightFirstHour > 0 && (
+                                            <div>• Malam 1 {calculation.overtimeDetail.nightFirstHour}h × {formatCurrency(calculation.overtimeDetail.hourlyRate)} × 1.5 = {formatCurrency(calculation.overtimeDetail.nightFirstAmount)}</div>
+                                          )}
+                                          {calculation.overtimeDetail.nightAdditionalHours > 0 && (
+                                            <div>• Malam + {calculation.overtimeDetail.nightAdditionalHours}h × {formatCurrency(calculation.overtimeDetail.hourlyRate)} × 2 = {formatCurrency(calculation.overtimeDetail.nightAdditionalAmount)}</div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                     {calculation.components
                                       .filter(comp => comp.amount > 0)
@@ -1971,9 +2193,27 @@ export function PayrollCalculator() {
                                   <span>{formatCurrency(calc!.uangBbm)}</span>
                                 </div>
                                 {calc!.overtimeAmount > 0 && (
-                                  <div className="flex justify-between">
-                                    <span>Overtime:</span>
-                                    <span>{formatCurrency(calc!.overtimeAmount)}</span>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span>Overtime Total:</span>
+                                      <span>{formatCurrency(calc!.overtimeAmount)}</span>
+                                    </div>
+                                    {calc!.overtimeDetail && (calc!.overtimeDetail.normalHours > 0 || calc!.overtimeDetail.holidayHours > 0 || calc!.overtimeDetail.nightFirstHour > 0 || calc!.overtimeDetail.nightAdditionalHours > 0) && (
+                                      <div className="text-xs text-gray-500 space-y-1 ml-4">
+                                        {calc!.overtimeDetail.normalHours > 0 && (
+                                          <div>• Normal: {calc!.overtimeDetail.normalHours}h × {formatCurrency(calc!.overtimeDetail.hourlyRate)} × 1.5 = {formatCurrency(calc!.overtimeDetail.normalAmount)}</div>
+                                        )}
+                                        {calc!.overtimeDetail.holidayHours > 0 && (
+                                          <div>• Libur: {calc!.overtimeDetail.holidayHours}h × {formatCurrency(calc!.overtimeDetail.hourlyRate)} × 2 = {formatCurrency(calc!.overtimeDetail.holidayAmount)}</div>
+                                        )}
+                                        {calc!.overtimeDetail.nightFirstHour > 0 && (
+                                          <div>• Malam 1: {calc!.overtimeDetail.nightFirstHour}h × {formatCurrency(calc!.overtimeDetail.hourlyRate)} × 1.5 = {formatCurrency(calc!.overtimeDetail.nightFirstAmount)}</div>
+                                        )}
+                                        {calc!.overtimeDetail.nightAdditionalHours > 0 && (
+                                          <div>• Malam +: {calc!.overtimeDetail.nightAdditionalHours}h × {formatCurrency(calc!.overtimeDetail.hourlyRate)} × 2 = {formatCurrency(calc!.overtimeDetail.nightAdditionalAmount)}</div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                                 {calc!.components
