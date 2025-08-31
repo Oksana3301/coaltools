@@ -11,7 +11,19 @@ const payrollRunSchema = z.object({
   notes: z.string().optional(),
   employeeOverrides: z.array(z.object({
     employeeId: z.string(),
-    hariKerja: z.number().min(0).max(31)
+    hariKerja: z.number().min(0).max(31),
+    overtimeHours: z.number().optional(),
+    overtimeRate: z.number().optional(),
+    overtimeAmount: z.number().optional(),
+    normalHours: z.number().optional(),
+    holidayHours: z.number().optional(),
+    nightFirstHour: z.number().optional(),
+    nightAdditionalHours: z.number().optional(),
+    customHourlyRate: z.number().optional(),
+    cashbon: z.number().optional(),
+    selectedStandardComponents: z.array(z.string()).optional(),
+    selectedAdditionalComponents: z.array(z.string()).optional(),
+    customComponents: z.array(z.any()).optional()
   })).optional()
 })
 
@@ -123,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate payroll for each employee
     const payrollCalculations = employees.map(employee => {
-      // Check if there's an override for working days
+      // Check if there's an override for working days and other details
       const override = validatedData.employeeOverrides?.find(
         o => o.employeeId === employee.id
       )
@@ -138,15 +150,48 @@ export async function POST(request: NextRequest) {
                   (uangMakanHarian * hariKerja) + 
                   (uangBbmHarian * hariKerja)
       
+      // Add overtime if provided in override
+      let overtimeAmount = 0
+      if (override) {
+        // Use detailed overtime calculation if available
+        if (override.normalHours || override.holidayHours || override.nightFirstHour || override.nightAdditionalHours) {
+          const hourlyRate = override.customHourlyRate || Math.round((upahHarian * 22) / 173)
+          overtimeAmount += (override.normalHours || 0) * hourlyRate * 1.5
+          overtimeAmount += (override.holidayHours || 0) * hourlyRate * 2  
+          overtimeAmount += (override.nightFirstHour || 0) * hourlyRate * 1.5
+          overtimeAmount += (override.nightAdditionalHours || 0) * hourlyRate * 2
+        } else if (override.overtimeHours && override.overtimeRate) {
+          // Use legacy overtime calculation
+          overtimeAmount = override.overtimeHours * override.overtimeRate
+        } else if (override.overtimeAmount) {
+          // Use direct overtime amount
+          overtimeAmount = override.overtimeAmount
+        }
+      }
+      
+      bruto += overtimeAmount
+      
       let totalEarnings = 0
       let totalDeductions = 0
       let taxableAmount = bruto
+      
+      // Add cashbon to deductions if provided
+      if (override?.cashbon) {
+        totalDeductions += override.cashbon
+      }
 
       const components: any[] = []
+      
+      // Process selected components from override if available
+      const selectedComponentIds = [
+        ...(override?.selectedStandardComponents || []),
+        ...(override?.selectedAdditionalComponents || [])
+      ]
 
-      // Calculate earning components
+      // Calculate earning components (only if selected in override, otherwise use all)
       payComponents
         .filter(comp => comp.tipe === 'EARNING')
+        .filter(comp => selectedComponentIds.length === 0 || selectedComponentIds.includes(comp.id))
         .forEach(comp => {
           let amount = 0
           
@@ -190,9 +235,10 @@ export async function POST(request: NextRequest) {
       const pajakRate = 0  // No automatic tax rate
       const pajakNominal = 0  // No automatic tax - use pay components for tax configuration
 
-      // Calculate deduction components
+      // Calculate deduction components (only if selected in override, otherwise use all)
       payComponents
         .filter(comp => comp.tipe === 'DEDUCTION')
+        .filter(comp => selectedComponentIds.length === 0 || selectedComponentIds.includes(comp.id))
         .forEach(comp => {
           let amount = 0
           
@@ -223,6 +269,30 @@ export async function POST(request: NextRequest) {
           totalDeductions += amount
         })
 
+      // Process custom components from override
+      if (override?.customComponents) {
+        override.customComponents.forEach((customComp: any) => {
+          if (customComp.nama) {
+            const amount = customComp.nominal || 0
+            if (customComp.tipe === 'EARNING') {
+              totalEarnings += amount
+              if (customComp.taxable) {
+                taxableAmount += amount
+              }
+            } else {
+              totalDeductions += amount
+            }
+            
+            components.push({
+              componentId: `custom_${customComp.nama}`,
+              componentName: customComp.nama,
+              amount: customComp.tipe === 'DEDUCTION' ? -amount : amount,
+              taxable: customComp.taxable || false
+            })
+          }
+        })
+      }
+
       const neto = bruto - pajakNominal - totalDeductions
 
       return {
@@ -232,6 +302,15 @@ export async function POST(request: NextRequest) {
         upahHarian,
         uangMakanHarian,
         uangBbmHarian,
+        overtimeHours: override?.overtimeHours || 0,
+        overtimeRate: override?.overtimeRate || 1.5,
+        overtimeAmount,
+        normalHours: override?.normalHours || 0,
+        holidayHours: override?.holidayHours || 0,
+        nightFirstHour: override?.nightFirstHour || 0,
+        nightAdditionalHours: override?.nightAdditionalHours || 0,
+        customHourlyRate: override?.customHourlyRate || 0,
+        cashbon: override?.cashbon || 0,
         bruto,
         pajakRate,
         pajakNominal,

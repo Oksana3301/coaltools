@@ -3203,7 +3203,7 @@ export function PayrollCalculator() {
               {currentPayrollRun.payrollLines?.map((line) => (
                 <div key={line.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <h4 className="font-medium">{line.employeeName}</h4>
+                    <h4 className="font-medium">{line.employeeName || line.employee?.nama || 'Unknown Employee'}</h4>
                     <p className="text-sm text-muted-foreground">
                       {line.hariKerja} hari • Bruto: {formatCurrency(calculateLineBruto(line))} • Neto: {formatCurrency(calculateLineNeto(line))}
                     </p>
