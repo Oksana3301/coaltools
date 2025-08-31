@@ -72,6 +72,7 @@ interface PayrollPeriodForm {
   periodeAwal: string
   periodeAkhir: string
   notes: string
+  customFileName: string
 }
 
 // Interface untuk detail lembur
@@ -136,7 +137,8 @@ export function PayrollCalculator() {
   const [payrollPeriod, setPayrollPeriod] = useState<PayrollPeriodForm>({
     periodeAwal: '',
     periodeAkhir: '',
-    notes: ''
+    notes: '',
+    customFileName: ''
   })
   
   const [selectedEmployees, setSelectedEmployees] = useState<EmployeePayrollForm[]>([])
@@ -434,6 +436,53 @@ export function PayrollCalculator() {
     setCustomPayComponents(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Payroll History CRUD Functions
+  const editPayrollRun = (payrollRun: PayrollRun) => {
+    // Load payroll data back to form for editing
+    setPayrollPeriod({
+      periodeAwal: payrollRun.periodeAwal,
+      periodeAkhir: payrollRun.periodeAkhir,
+      notes: payrollRun.notes || '',
+      customFileName: payrollRun.customFileName || ''
+    })
+    
+    // Load payroll lines back to selected employees
+    const employeeData = payrollRun.payrollLines?.map(line => ({
+      employeeId: line.employeeId,
+      hariKerja: line.hariKerja,
+      overtimeHours: 0,
+      overtimeRate: 0,
+      overtimeDetail: {
+        normalHours: 0,
+        holidayHours: 0,
+        nightFirstHour: 0,
+        nightAdditionalHours: 0
+      },
+      cashbon: line.cashbon || 0,
+      notes: '',
+      selectedStandardComponents: [],
+      selectedAdditionalComponents: []
+    })) || []
+    
+    setSelectedEmployees(employeeData)
+    setCurrentPayrollRun(payrollRun) // Keep reference for updating
+    setCurrentStep(2) // Go back to edit mode
+    
+    toast({
+      title: "Mode Edit Aktif",
+      description: "Anda dapat mengedit payroll ini. Klik 'Hitung Payroll' untuk menyimpan perubahan."
+    })
+  }
+
+  const viewPayrollRun = (payrollRun: PayrollRun) => {
+    setCurrentPayrollRun(payrollRun)
+    // Show detailed view - this will trigger the Step 6 view
+    toast({
+      title: "Menampilkan Detail Payroll",
+      description: `Payroll periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`
+    })
+  }
+
   // Quick setup functions for tax and overtime
   const addQuickTaxComponent = () => {
     setShowQuickSetupDialog('tax')
@@ -654,21 +703,43 @@ export function PayrollCalculator() {
   const generatePayroll = async () => {
     setLoading(true)
     try {
-      const response = await apiService.createPayrollRun({
-        periodeAwal: payrollPeriod.periodeAwal,
-        periodeAkhir: payrollPeriod.periodeAkhir,
-        createdBy: CURRENT_USER_ID,
-        employeeOverrides: selectedEmployees.map(emp => ({
-          employeeId: emp.employeeId,
-          hariKerja: emp.hariKerja
-        }))
-      })
+      let response
+      
+      // Check if we're editing an existing payroll
+      if (currentPayrollRun && currentPayrollRun.id) {
+        // Update existing payroll
+        response = await apiService.updatePayrollRun(currentPayrollRun.id, {
+          periodeAwal: payrollPeriod.periodeAwal,
+          periodeAkhir: payrollPeriod.periodeAkhir,
+          customFileName: payrollPeriod.customFileName || '',
+          notes: payrollPeriod.notes || '',
+          employeeOverrides: selectedEmployees.map(emp => ({
+            employeeId: emp.employeeId,
+            hariKerja: emp.hariKerja
+          }))
+        })
+      } else {
+        // Create new payroll
+        response = await apiService.createPayrollRun({
+          periodeAwal: payrollPeriod.periodeAwal,
+          periodeAkhir: payrollPeriod.periodeAkhir,
+          createdBy: CURRENT_USER_ID,
+          customFileName: payrollPeriod.customFileName || '',
+          notes: payrollPeriod.notes || '',
+          employeeOverrides: selectedEmployees.map(emp => ({
+            employeeId: emp.employeeId,
+            hariKerja: emp.hariKerja
+          }))
+        })
+      }
 
       if (response.success) {
         setCurrentPayrollRun(response.data!)
         toast({
-          title: "Payroll berhasil dibuat",
-          description: "Payroll telah dibuat dan siap untuk disetujui"
+          title: currentPayrollRun?.id ? "Payroll berhasil diupdate" : "Payroll berhasil dibuat",
+          description: currentPayrollRun?.id 
+            ? "Perubahan payroll telah disimpan" 
+            : "Payroll telah dibuat dan siap untuk disetujui"
         })
         
         // Reload payroll runs
@@ -1005,7 +1076,10 @@ export function PayrollCalculator() {
       // Generate Laporan Payroll
       if (type === 'both' || type === 'laporan') {
         const laporanContent = generateLaporanHTML(currentPayrollRun, calculations, summary)
-        await generatePDF(laporanContent, `Laporan_Payroll_${currentPayrollRun.periodeAwal}_${currentPayrollRun.periodeAkhir}.pdf`)
+        const laporanFileName = currentPayrollRun.customFileName 
+          ? `${currentPayrollRun.customFileName}_Laporan.pdf`
+          : `Laporan_Payroll_${currentPayrollRun.periodeAwal}_${currentPayrollRun.periodeAkhir}.pdf`
+        await generatePDF(laporanContent, laporanFileName)
       }
 
       // Generate Kwitansi for each employee
@@ -1136,7 +1210,10 @@ export function PayrollCalculator() {
   const generateKwitansiPDFs = async (payrollRun: PayrollRun, calculations: any[]) => {
     for (const calc of calculations) {
       const kwitansiContent = generateKwitansiHTML(payrollRun, calc!)
-      await generatePDF(kwitansiContent, `Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`)
+      const kwitansiFileName = payrollRun.customFileName 
+        ? `${payrollRun.customFileName}_Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}.pdf`
+        : `Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`
+      await generatePDF(kwitansiContent, kwitansiFileName)
     }
   }
 
@@ -1312,6 +1389,33 @@ export function PayrollCalculator() {
             </tr>
               </tbody>
             </table>
+
+        ${calculation.employee.bankName && calculation.employee.bankAccount ? `
+          <div style="margin: 30px 0; padding: 15px; border: 2px solid #333; background: #f9f9f9;">
+            <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #333;">INFORMASI TRANSFER BANK</h3>
+            <table style="width: 100%; font-size: 12px;">
+              <tr>
+                <td width="30%"><strong>Nama Bank</strong></td>
+                <td width="70%">: ${calculation.employee.bankName}</td>
+              </tr>
+              <tr>
+                <td><strong>Nomor Rekening</strong></td>
+                <td>: ${calculation.employee.bankAccount}</td>
+              </tr>
+              <tr>
+                <td><strong>Atas Nama</strong></td>
+                <td>: ${calculation.employee.nama}</td>
+              </tr>
+              <tr>
+                <td><strong>Jumlah Transfer</strong></td>
+                <td>: <strong>${formatCurrency(calculation.neto)}</strong></td>
+              </tr>
+            </table>
+            <div style="margin-top: 10px; padding: 8px; background: #e8f5e8; border-left: 4px solid #4CAF50; font-size: 11px;">
+              <strong>Catatan:</strong> Transfer akan dilakukan setelah payroll disetujui. Pastikan nomor rekening benar.
+            </div>
+          </div>
+        ` : ''}
 
         <div class="signature-section">
           <div class="signature-box">
@@ -1594,6 +1698,19 @@ export function PayrollCalculator() {
                   placeholder="Catatan tambahan untuk periode ini..."
                   rows={3}
                 />
+              </div>
+              <div>
+                <Label htmlFor="customFileName">Nama File Custom (Opsional)</Label>
+                <Input
+                  id="customFileName"
+                  value={payrollPeriod.customFileName}
+                  onChange={(e) => setPayrollPeriod(prev => ({ ...prev, customFileName: e.target.value.slice(0, 1000) }))}
+                  placeholder="Nama custom untuk file payroll (max 1000 karakter)"
+                  maxLength={1000}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  {payrollPeriod.customFileName.length}/1000 karakter. Kosongkan untuk menggunakan nama default.
+                </div>
               </div>
               <div className="flex justify-end">
                 <Button onClick={handlePeriodSubmit} disabled={!payrollPeriod.periodeAwal || !payrollPeriod.periodeAkhir}>
@@ -2498,20 +2615,42 @@ export function PayrollCalculator() {
               <div key={run.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
                   <span className="font-medium">
-                    {run.periodeAwal} - {run.periodeAkhir}
+                    {run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`}
                   </span>
                   <div className="text-sm text-muted-foreground">
+                    Periode: {run.periodeAwal} - {run.periodeAkhir} • 
                     {run.payrollLines?.length || 0} karyawan • 
                     Total: {formatCurrency(run.payrollLines?.reduce((sum, line) => sum + line.neto, 0) || 0)}
                   </div>
+                  {run.notes && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      📝 {run.notes}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {getStatusBadge(run.status)}
+                  
+                  {/* Edit button - only for DRAFT status */}
+                  {run.status === 'DRAFT' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => editPayrollRun(run)}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  
+                  {/* View button - always available */}
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setCurrentPayrollRun(run)}
+                    onClick={() => viewPayrollRun(run)}
                   >
+                    <FileText className="h-4 w-4 mr-1" />
                     Lihat
                   </Button>
                   
@@ -2541,23 +2680,26 @@ export function PayrollCalculator() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowDeleteDialog({
-                      type: 'payrollRun',
-                      id: run.id!,
-                      name: `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
-                    })}
-                    disabled={deletingPayrollRun === run.id}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    {deletingPayrollRun === run.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
+                  {/* Delete button - only for DRAFT status */}
+                  {run.status === 'DRAFT' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowDeleteDialog({
+                        type: 'payrollRun',
+                        id: run.id!,
+                        name: `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
+                      })}
+                      disabled={deletingPayrollRun === run.id}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      {deletingPayrollRun === run.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

@@ -248,6 +248,8 @@ export interface PayrollRun {
   approvedBy?: string
   createdAt?: string
   updatedAt?: string
+  customFileName?: string // Custom filename max 1000 characters
+  notes?: string
   creator?: {
     id: string
     name: string
