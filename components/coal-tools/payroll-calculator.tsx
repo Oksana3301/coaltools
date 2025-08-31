@@ -4368,51 +4368,7 @@ export function PayrollCalculator() {
           )}
           
           <div className="flex flex-col gap-2">
-
-            
-            {/* Generate Payroll Button */}
-            <Button
-              onClick={generatePayroll}
-              disabled={loading || savingData || selectedEmployees.length === 0}
-              size="lg"
-              className="shadow-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
-            >
-              {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              ) : (
-                <Calculator className="h-5 w-5 mr-2" />
-              )}
-              {loading ? 'Generating...' : 'Generate Payroll'}
-            </Button>
-            
-            {/* Quick Save Button */}
-            <Button
-              onClick={quickSaveData}
-              disabled={savingData || !currentPayrollRun}
-              size="lg"
-              className="shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
-              title="Quick Save (Ctrl+S / Cmd+S)"
-            >
-              {savingData ? (
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              ) : (
-                <Save className="h-5 w-5 mr-2" />
-              )}
-              {savingData ? 'Saving...' : 'Quick Save'}
-            </Button>
-            
-            {/* Save with Settings Button */}
-            <Button
-              onClick={() => setShowSaveDialog(true)}
-              disabled={savingData || !currentPayrollRun}
-              variant="outline"
-              size="lg"
-              className="shadow-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
-              title="Save As (Ctrl+Shift+S / Cmd+Shift+S)"
-            >
-              <Settings className="h-5 w-5 mr-2" />
-              Save As
-            </Button>
+            {/* Floating action buttons section - buttons removed per user request */}
           </div>
         </div>
       )}
