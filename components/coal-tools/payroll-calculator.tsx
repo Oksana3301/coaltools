@@ -998,38 +998,59 @@ export function PayrollCalculator() {
       const totalAmount = calculations.reduce((sum, calc) => sum + calc.neto, 0)
       
       if (currentPayrollRun && currentPayrollRun.id) {
-        // Update existing
-        const updateData = {
-          id: currentPayrollRun.id,
-          periodeAwal: payrollPeriod.periodeAwal,
-          periodeAkhir: payrollPeriod.periodeAkhir,
-          customFileName: fileName,
-          notes: payrollPeriod.notes || '',
-          employeeOverrides: selectedEmployees.map(emp => {
-            const calculation = calculateEmployeePayroll(emp)
-            return {
-              employeeId: emp.employeeId,
-              hariKerja: emp.hariKerja,
-              overtimeHours: emp.overtimeHours,
-              overtimeRate: emp.overtimeRate,
-              overtimeAmount: calculation?.overtimeAmount || 0,
-              normalHours: emp.overtimeDetail.normalHours,
-              holidayHours: emp.overtimeDetail.holidayHours,
-              nightFirstHour: emp.overtimeDetail.nightFirstHour,
-              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
-              customHourlyRate: emp.overtimeDetail.customHourlyRate,
-              cashbon: emp.cashbon,
-              selectedStandardComponents: emp.selectedStandardComponents,
-              selectedAdditionalComponents: emp.selectedAdditionalComponents,
-              customComponents: customPayComponents.filter(comp => comp.nama)
-            }
-          })
-        };
-        
-        console.log('📝 Update payload:', JSON.stringify(updateData, null, 2));
-        response = await apiService.updatePayrollRun(updateData);
-        console.log('✅ Update response:', response);
-      } else {
+        console.log('🔄 Quick save - attempting to update existing payroll:', currentPayrollRun.id)
+        try {
+          // Verify payroll exists before attempting update
+          const verifyResponse = await apiService.getPayrollRun(currentPayrollRun.id)
+          if (!verifyResponse.success) {
+            console.log('⚠️ Quick save - payroll not found, creating new instead:', currentPayrollRun.id)
+            setCurrentPayrollRun(null)
+            throw new Error('PAYROLL_NOT_FOUND')
+          }
+          
+          // Update existing
+          const updateData = {
+            id: currentPayrollRun.id,
+            periodeAwal: payrollPeriod.periodeAwal,
+            periodeAkhir: payrollPeriod.periodeAkhir,
+            customFileName: fileName,
+            notes: payrollPeriod.notes || '',
+            employeeOverrides: selectedEmployees.map(emp => {
+              const calculation = calculateEmployeePayroll(emp)
+              return {
+                employeeId: emp.employeeId,
+                hariKerja: emp.hariKerja,
+                overtimeHours: emp.overtimeHours,
+                overtimeRate: emp.overtimeRate,
+                overtimeAmount: calculation?.overtimeAmount || 0,
+                normalHours: emp.overtimeDetail.normalHours,
+                holidayHours: emp.overtimeDetail.holidayHours,
+                nightFirstHour: emp.overtimeDetail.nightFirstHour,
+                nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
+                customHourlyRate: emp.overtimeDetail.customHourlyRate,
+                cashbon: emp.cashbon,
+                selectedStandardComponents: emp.selectedStandardComponents,
+                selectedAdditionalComponents: emp.selectedAdditionalComponents,
+                customComponents: customPayComponents.filter(comp => comp.nama)
+              }
+            })
+          };
+          
+          console.log('📝 Update payload:', JSON.stringify(updateData, null, 2));
+          response = await apiService.updatePayrollRun(updateData);
+          console.log('✅ Update response:', response);
+        } catch (verifyError: any) {
+          if (verifyError.message === 'PAYROLL_NOT_FOUND' || verifyError.message?.includes('not found')) {
+            console.log('🆕 Quick save - payroll not found, creating new payroll instead')
+            // Fall through to create new payroll
+          } else {
+            throw verifyError
+          }
+        }
+      }
+      
+      // Create new payroll if no valid existing payroll
+      if (!response) {
         // Create new
         response = await apiService.createPayrollRun({
           periodeAwal: payrollPeriod.periodeAwal,
@@ -1148,6 +1169,14 @@ export function PayrollCalculator() {
   const renamePayrollFile = async (payrollRunId: string, newFileName: string, notes?: string) => {
     setRenamingFile(true)
     try {
+      console.log('🏷️ Renaming payroll file:', payrollRunId, 'to:', newFileName)
+      
+      // Verify payroll exists before attempting update
+      const verifyResponse = await apiService.getPayrollRun(payrollRunId)
+      if (!verifyResponse.success) {
+        throw new Error('Payroll tidak ditemukan atau telah dihapus')
+      }
+      
       const response = await apiService.updatePayrollRun({
         id: payrollRunId,
         customFileName: newFileName.trim(),
@@ -1417,38 +1446,60 @@ export function PayrollCalculator() {
     try {
       let response
       
-      // Check if we're editing an existing payroll
+      // Check if we're editing an existing payroll and verify it exists
       if (currentPayrollRun && currentPayrollRun.id) {
-        // Update existing payroll
-        response = await apiService.updatePayrollRun({
-          id: currentPayrollRun.id,
-          periodeAwal: payrollPeriod.periodeAwal,
-          periodeAkhir: payrollPeriod.periodeAkhir,
-          customFileName: payrollPeriod.customFileName || '',
-          notes: payrollPeriod.notes || '',
-          employeeOverrides: selectedEmployees.map(emp => {
-            const calculation = calculateEmployeePayroll(emp)
-            return {
-              employeeId: emp.employeeId,
-              hariKerja: emp.hariKerja,
-              // Overtime details
-              overtimeHours: emp.overtimeHours,
-              overtimeRate: emp.overtimeRate,
-              overtimeAmount: calculation?.overtimeAmount || 0,
-              normalHours: emp.overtimeDetail.normalHours,
-              holidayHours: emp.overtimeDetail.holidayHours,
-              nightFirstHour: emp.overtimeDetail.nightFirstHour,
-              nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
-              customHourlyRate: emp.overtimeDetail.customHourlyRate,
-              cashbon: emp.cashbon,
-              // Components
-              selectedStandardComponents: emp.selectedStandardComponents,
-              selectedAdditionalComponents: emp.selectedAdditionalComponents,
-              customComponents: customPayComponents.filter(comp => comp.nama)
-            }
+        console.log('🔄 Attempting to update existing payroll:', currentPayrollRun.id)
+        try {
+          // Verify payroll exists before attempting update
+          const verifyResponse = await apiService.getPayrollRun(currentPayrollRun.id)
+          if (!verifyResponse.success) {
+            console.log('⚠️ Payroll not found, creating new instead:', currentPayrollRun.id)
+            // Clear invalid currentPayrollRun and create new
+            setCurrentPayrollRun(null)
+            throw new Error('PAYROLL_NOT_FOUND')
+          }
+          
+          // Update existing payroll
+          response = await apiService.updatePayrollRun({
+            id: currentPayrollRun.id,
+            periodeAwal: payrollPeriod.periodeAwal,
+            periodeAkhir: payrollPeriod.periodeAkhir,
+            customFileName: payrollPeriod.customFileName || '',
+            notes: payrollPeriod.notes || '',
+            employeeOverrides: selectedEmployees.map(emp => {
+              const calculation = calculateEmployeePayroll(emp)
+              return {
+                employeeId: emp.employeeId,
+                hariKerja: emp.hariKerja,
+                // Overtime details
+                overtimeHours: emp.overtimeHours,
+                overtimeRate: emp.overtimeRate,
+                overtimeAmount: calculation?.overtimeAmount || 0,
+                normalHours: emp.overtimeDetail.normalHours,
+                holidayHours: emp.overtimeDetail.holidayHours,
+                nightFirstHour: emp.overtimeDetail.nightFirstHour,
+                nightAdditionalHours: emp.overtimeDetail.nightAdditionalHours,
+                customHourlyRate: emp.overtimeDetail.customHourlyRate,
+                cashbon: emp.cashbon,
+                // Components
+                selectedStandardComponents: emp.selectedStandardComponents,
+                selectedAdditionalComponents: emp.selectedAdditionalComponents,
+                customComponents: customPayComponents.filter(comp => comp.nama)
+              }
+            })
           })
-        })
-      } else {
+        } catch (verifyError: any) {
+          if (verifyError.message === 'PAYROLL_NOT_FOUND' || verifyError.message?.includes('not found')) {
+            console.log('🆕 Payroll not found, creating new payroll instead')
+            // Fall through to create new payroll
+          } else {
+            throw verifyError
+          }
+        }
+      }
+      
+      // Create new payroll if no valid existing payroll
+      if (!response) {
         // Create new payroll
         response = await apiService.createPayrollRun({
           periodeAwal: payrollPeriod.periodeAwal,
