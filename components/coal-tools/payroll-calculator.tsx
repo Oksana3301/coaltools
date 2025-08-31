@@ -1341,7 +1341,7 @@ export function PayrollCalculator() {
 
   const calculateEmployeePayroll = (employeePayroll: EmployeePayrollForm) => {
     try {
-      const employee = employees.find(emp => emp.id === employeePayroll.employeeId)
+    const employee = employees.find(emp => emp.id === employeePayroll.employeeId)
       if (!employee) {
         console.warn('Employee not found:', employeePayroll.employeeId)
         return null
@@ -1627,14 +1627,14 @@ export function PayrollCalculator() {
         console.log('- selectedEmployees count:', selectedEmployees.length)
         
         const createPayload = {
-          periodeAwal: payrollPeriod.periodeAwal,
-          periodeAkhir: payrollPeriod.periodeAkhir,
-          createdBy: CURRENT_USER_ID,
+        periodeAwal: payrollPeriod.periodeAwal,
+        periodeAkhir: payrollPeriod.periodeAkhir,
+        createdBy: CURRENT_USER_ID,
           customFileName: payrollPeriod.customFileName || '',
           notes: payrollPeriod.notes || '',
           employeeOverrides: selectedEmployees.map((emp, index) => {
             console.log(`📋 Processing employee ${index + 1}:`, {
-              employeeId: emp.employeeId,
+          employeeId: emp.employeeId,
               hariKerja: emp.hariKerja,
               overtimeHours: emp.overtimeHours,
               overtimeDetail: emp.overtimeDetail
@@ -1686,9 +1686,9 @@ export function PayrollCalculator() {
         
         // Reload payroll runs
         try {
-          const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
-          if (payrollRunsRes.success) {
-            setPayrollRuns(payrollRunsRes.data || [])
+        const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+        if (payrollRunsRes.success) {
+          setPayrollRuns(payrollRunsRes.data || [])
             console.log('✅ Payroll runs refreshed')
           }
         } catch (refreshError) {
@@ -1763,6 +1763,82 @@ export function PayrollCalculator() {
       toast({
         title: "Error",
         description: error.message || "Gagal menyetujui payroll",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Generate PDF Recap for Payroll
+  const generatePayrollRecap = async (payrollRun: PayrollRun) => {
+    setLoading(true)
+    try {
+      const calculations = selectedEmployees
+        .map(emp => calculateEmployeePayroll(emp))
+        .filter(calc => calc !== null)
+
+      if (calculations.length === 0) {
+        toast({
+          title: "Error", 
+          description: "Tidak ada data untuk dibuat PDF",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const recapContent = generatePayrollRecapHTML(payrollRun, calculations)
+      const fileName = payrollRun.customFileName 
+        ? `${payrollRun.customFileName}_Recap.pdf`
+        : `Payroll_Recap_${payrollRun.periodeAwal}_${payrollRun.periodeAkhir}.pdf`
+      
+      await generatePDF(recapContent, fileName)
+      
+      toast({
+        title: "Success",
+        description: "PDF Recap berhasil diunduh"
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal membuat PDF Recap",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Generate Individual Kwitansi for Employee
+  const generateEmployeeKwitansi = async (payrollRun: PayrollRun, employeeId: string) => {
+    setLoading(true)
+    try {
+      const calculation = selectedEmployees
+        .map(emp => calculateEmployeePayroll(emp))
+        .find(calc => calc?.employeeId === employeeId)
+
+      if (!calculation) {
+        toast({
+          title: "Error",
+          description: "Data karyawan tidak ditemukan",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const kwitansiContent = generateEmployeeKwitansiHTML(payrollRun, calculation)
+      const fileName = `Kwitansi_${calculation.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`
+      
+      await generatePDF(kwitansiContent, fileName)
+      
+      toast({
+        title: "Success", 
+        description: `Kwitansi ${calculation.employee.nama} berhasil diunduh`
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal membuat kwitansi",
         variant: "destructive"
       })
     } finally {
@@ -2082,6 +2158,129 @@ export function PayrollCalculator() {
     }
   }
 
+  // Generate HTML for Payroll Recap PDF
+  const generatePayrollRecapHTML = (payrollRun: PayrollRun, calculations: any[]) => {
+    const totalBruto = calculations.reduce((sum, calc) => sum + calc.bruto, 0)
+    const totalNeto = calculations.reduce((sum, calc) => sum + calc.neto, 0)
+    const totalDeductions = calculations.reduce((sum, calc) => sum + calc.totalDeductions + calc.cashbon, 0)
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payroll Recap - ${payrollRun.periodeAwal} to ${payrollRun.periodeAkhir}</title>
+        <style>
+          @page { size: A4 landscape; margin: 15mm; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; font-size: 11px; color: #333; }
+          .header { text-align: center; margin-bottom: 25px; border-bottom: 3px solid #2563eb; padding-bottom: 15px; }
+          .company-name { font-size: 22px; font-weight: bold; color: #1e40af; margin-bottom: 5px; }
+          .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+          .period { font-size: 14px; color: #666; margin-bottom: 10px; }
+          .summary-cards { display: flex; justify-content: space-around; margin-bottom: 20px; gap: 15px; }
+          .summary-card { flex: 1; padding: 15px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 8px; text-align: center; border: 1px solid #cbd5e1; }
+          .summary-card .label { font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+          .summary-card .value { font-size: 16px; font-weight: bold; color: #1e293b; margin-top: 5px; }
+          .summary-card.total { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-color: #60a5fa; }
+          .summary-card.total .value { color: #1d4ed8; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+          th, td { border: 1px solid #d1d5db; padding: 8px 6px; text-align: left; }
+          th { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; font-weight: 600; font-size: 9px; text-transform: uppercase; }
+          .employee-row:nth-child(even) { background: #f8fafc; }
+          .employee-row:hover { background: #e0f2fe; }
+          .amount { text-align: right; font-family: 'Courier New', monospace; font-weight: 500; }
+          .total-row { background: linear-gradient(135deg, #065f46 0%, #059669 100%); color: white; font-weight: bold; }
+          .footer { margin-top: 30px; text-align: center; color: #6b7280; font-size: 9px; }
+          .generated-info { margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 6px; font-size: 9px; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
+          <div class="title">PAYROLL RECAP</div>
+          <div class="period">Periode: ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</div>
+          ${payrollRun.customFileName ? `<div style="font-size: 12px; color: #059669; font-weight: 500;">${payrollRun.customFileName}</div>` : ''}
+        </div>
+
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="label">Total Karyawan</div>
+            <div class="value">${calculations.length}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Total Bruto</div>
+            <div class="value">${formatCurrency(totalBruto)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Total Potongan</div>
+            <div class="value">${formatCurrency(totalDeductions)}</div>
+          </div>
+          <div class="summary-card total">
+            <div class="label">Total Neto</div>
+            <div class="value">${formatCurrency(totalNeto)}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%;">No</th>
+              <th style="width: 20%;">Nama Karyawan</th>
+              <th style="width: 12%;">Jabatan</th>
+              <th style="width: 8%;">Hari Kerja</th>
+              <th style="width: 12%;">Gaji Pokok</th>
+              <th style="width: 10%;">Tunjangan</th>
+              <th style="width: 10%;">Lembur</th>
+              <th style="width: 10%;">Bruto</th>
+              <th style="width: 8%;">Potongan</th>
+              <th style="width: 12%;">Neto</th>
+              <th style="width: 15%;">Bank Transfer</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${calculations.map((calc, index) => `
+              <tr class="employee-row">
+                <td style="text-align: center;">${index + 1}</td>
+                <td style="font-weight: 500;">${calc.employee.nama}</td>
+                <td>${calc.employee.jabatan}</td>
+                <td style="text-align: center;">${calc.hariKerja}</td>
+                <td class="amount">${formatCurrency(calc.baseUpah)}</td>
+                <td class="amount">${formatCurrency(calc.totalEarnings - calc.baseUpah)}</td>
+                <td class="amount">${formatCurrency(calc.overtimeAmount)}</td>
+                <td class="amount" style="font-weight: 600; color: #059669;">${formatCurrency(calc.bruto)}</td>
+                <td class="amount" style="color: #dc2626;">${formatCurrency(calc.totalDeductions + calc.cashbon)}</td>
+                <td class="amount" style="font-weight: bold; color: #1d4ed8;">${formatCurrency(calc.neto)}</td>
+                <td style="font-size: 9px;">
+                  ${calc.employee.bankName}<br/>
+                  ${calc.employee.bankAccount}
+                </td>
+              </tr>
+            `).join('')}
+            <tr class="total-row">
+              <td colspan="7" style="text-align: center; font-weight: bold;">TOTAL</td>
+              <td class="amount">${formatCurrency(totalBruto)}</td>
+              <td class="amount">${formatCurrency(totalDeductions)}</td>
+              <td class="amount">${formatCurrency(totalNeto)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="generated-info">
+          <strong>Informasi Dokumen:</strong><br/>
+          Dibuat pada: ${new Date().toLocaleString('id-ID')}<br/>
+          ${payrollRun.notes ? `Catatan: ${payrollRun.notes}<br/>` : ''}
+          Status: ${payrollRun.status}<br/>
+          Dibuat oleh: ${payrollRun.createdBy}
+        </div>
+
+        <div class="footer">
+          <p>Dokumen ini dibuat secara otomatis oleh sistem payroll PT. Global Lestari Alam</p>
+        </div>
+      </body>
+      </html>
+    `
+  }
+
   const generateLaporanHTML = (payrollRun: PayrollRun, calculations: any[], summary: any) => {
     const totalBruto = calculations.reduce((sum, calc) => sum + calc!.bruto, 0)
     const totalDeductions = calculations.reduce((sum, calc) => sum + calc!.totalDeductions, 0)
@@ -2198,6 +2397,276 @@ export function PayrollCalculator() {
     }
   }
 
+  // Generate Enhanced Kwitansi HTML for Individual Employee
+  const generateEmployeeKwitansiHTML = (payrollRun: PayrollRun, calculation: any) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Kwitansi Gaji - ${calculation.employee.nama}</title>
+        <style>
+          @page { size: A4 portrait; margin: 20mm; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; font-size: 12px; background: #fff; }
+          .kwitansi-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
+          .company-logo { font-size: 24px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
+          .kwitansi-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #1e293b; }
+          .doc-number { font-size: 12px; color: #64748b; }
+          
+          .employee-info { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 25px; 
+            border: 1px solid #cbd5e1;
+          }
+          .employee-info h3 { margin: 0 0 15px 0; color: #1e40af; font-size: 16px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          .info-item { display: flex; }
+          .info-label { font-weight: 600; color: #475569; min-width: 120px; }
+          .info-value { color: #1e293b; font-weight: 500; }
+          
+          .payment-details { margin-bottom: 25px; }
+          .section-title { 
+            font-size: 16px; 
+            font-weight: bold; 
+            color: #1e40af; 
+            margin-bottom: 15px; 
+            padding-bottom: 8px; 
+            border-bottom: 2px solid #e2e8f0; 
+          }
+          
+          .kwitansi-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .kwitansi-table th { 
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+            color: white; 
+            padding: 12px; 
+            font-weight: 600;
+            text-align: left;
+          }
+          .kwitansi-table td { 
+            border: 1px solid #e2e8f0; 
+            padding: 10px 12px; 
+            background: #fff;
+          }
+          .kwitansi-table tr:nth-child(even) td { background: #f8fafc; }
+          
+          .earnings { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important; }
+          .deductions { background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%) !important; }
+          .total-section { 
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important; 
+            font-weight: bold; 
+            font-size: 14px;
+          }
+          
+          .amount-cell { 
+            text-align: right; 
+            font-family: 'Courier New', monospace; 
+            font-weight: 600;
+          }
+          
+          .bank-transfer { 
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin: 25px 0; 
+            border: 1px solid #f59e0b;
+          }
+          .bank-transfer h3 { margin: 0 0 15px 0; color: #92400e; font-size: 16px; }
+          .bank-info { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          
+          .signature-section { 
+            margin-top: 40px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 50px; 
+          }
+          .signature-box { 
+            text-align: center; 
+            padding: 20px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background: #f8fafc;
+          }
+          .signature-title { font-weight: bold; margin-bottom: 60px; color: #475569; }
+          .signature-line { border-top: 1px solid #64748b; padding-top: 10px; font-weight: 500; }
+          
+          .total-neto { 
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%) !important; 
+            color: white !important; 
+            font-size: 16px !important; 
+            font-weight: bold !important; 
+          }
+          
+          .footer-note { 
+            margin-top: 30px; 
+            padding: 15px; 
+            background: #f1f5f9; 
+            border-radius: 8px; 
+            font-size: 10px; 
+            color: #64748b; 
+            text-align: center; 
+          }
+        </style>
+      </head>
+      <body>
+        <div class="kwitansi-header">
+          <div class="company-logo">PT. GLOBAL LESTARI ALAM</div>
+          <div class="kwitansi-title">KWITANSI PEMBAYARAN GAJI</div>
+          <div class="doc-number">No. KWT/${new Date().getFullYear()}/${String(Date.now()).slice(-6)}</div>
+        </div>
+
+        <div class="employee-info">
+          <h3>Informasi Karyawan</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Nama:</span>
+              <span class="info-value">${calculation.employee.nama}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">NIK:</span>
+              <span class="info-value">${calculation.employee.nik || '-'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Jabatan:</span>
+              <span class="info-value">${calculation.employee.jabatan}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Site:</span>
+              <span class="info-value">${calculation.employee.site}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Periode:</span>
+              <span class="info-value">${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Hari Kerja:</span>
+              <span class="info-value">${calculation.hariKerja} hari</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="payment-details">
+          <div class="section-title">Rincian Pembayaran</div>
+          
+          <table class="kwitansi-table">
+            <thead>
+              <tr>
+                <th style="width: 50%;">Komponen</th>
+                <th style="width: 20%;">Kategori</th>
+                <th style="width: 30%;">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="earnings">
+                <td>Gaji Pokok (${calculation.hariKerja} hari)</td>
+                <td>Pendapatan</td>
+                <td class="amount-cell">${formatCurrency(calculation.baseUpah)}</td>
+              </tr>
+              
+              ${calculation.components?.filter(comp => comp.tipe === 'EARNING').map(comp => `
+                <tr class="earnings">
+                  <td>${comp.nama}</td>
+                  <td>Tunjangan</td>
+                  <td class="amount-cell">${formatCurrency(comp.amount)}</td>
+                </tr>
+              `).join('') || ''}
+              
+              ${calculation.overtimeAmount > 0 ? `
+                <tr class="earnings">
+                  <td>Lembur</td>
+                  <td>Tunjangan</td>
+                  <td class="amount-cell">${formatCurrency(calculation.overtimeAmount)}</td>
+                </tr>
+              ` : ''}
+              
+              <tr class="total-section">
+                <td><strong>TOTAL PENDAPATAN</strong></td>
+                <td></td>
+                <td class="amount-cell"><strong>${formatCurrency(calculation.bruto)}</strong></td>
+              </tr>
+              
+              ${calculation.components?.filter(comp => comp.tipe === 'DEDUCTION').map(comp => `
+                <tr class="deductions">
+                  <td>${comp.nama}</td>
+                  <td>Potongan</td>
+                  <td class="amount-cell">${formatCurrency(comp.amount)}</td>
+                </tr>
+              `).join('') || ''}
+              
+              ${calculation.cashbon > 0 ? `
+                <tr class="deductions">
+                  <td>Cashbon</td>
+                  <td>Potongan</td>
+                  <td class="amount-cell">${formatCurrency(calculation.cashbon)}</td>
+                </tr>
+              ` : ''}
+              
+              ${calculation.totalDeductions > 0 ? `
+                <tr class="total-section">
+                  <td><strong>TOTAL POTONGAN</strong></td>
+                  <td></td>
+                  <td class="amount-cell"><strong>${formatCurrency(calculation.totalDeductions + calculation.cashbon)}</strong></td>
+                </tr>
+              ` : ''}
+              
+              <tr class="total-neto">
+                <td><strong>TOTAL YANG DITERIMA</strong></td>
+                <td></td>
+                <td class="amount-cell"><strong>${formatCurrency(calculation.neto)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bank-transfer">
+          <h3>Informasi Transfer Bank</h3>
+          <div class="bank-info">
+            <div class="info-item">
+              <span class="info-label">Bank:</span>
+              <span class="info-value">${calculation.employee.bankName || 'Belum diisi'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">No. Rekening:</span>
+              <span class="info-value">${calculation.employee.bankAccount || 'Belum diisi'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Atas Nama:</span>
+              <span class="info-value">${calculation.employee.nama}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Jumlah Transfer:</span>
+              <span class="info-value" style="font-weight: bold; color: #059669;">${formatCurrency(calculation.neto)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="signature-section">
+          <div class="signature-box">
+            <div class="signature-title">Yang Menerima</div>
+            <div class="signature-line">${calculation.employee.nama}</div>
+          </div>
+          <div class="signature-box">
+            <div class="signature-title">Hormat Kami</div>
+            <div class="signature-line">PT. Global Lestari Alam</div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          Dokumen ini dibuat pada: ${new Date().toLocaleString('id-ID')}<br/>
+          Kwitansi ini merupakan bukti pembayaran yang sah.
+        </div>
+      </body>
+      </html>
+    `
+  }
+
   const generateKwitansiHTML = (payrollRun: PayrollRun, calculation: any) => {
     return `
       <!DOCTYPE html>
@@ -2289,7 +2758,7 @@ export function PayrollCalculator() {
                     <td style="padding-left: 20px;">• Normal ${calculation.overtimeDetail.normalHours}h × ${formatCurrency(calculation.overtimeDetail.hourlyRate)} × 1.5</td>
                     <td>-</td>
                     <td style="text-align: right">${formatCurrency(calculation.overtimeDetail.normalAmount)}</td>
-                  </tr>
+              </tr>
                 ` : ''}
                 ${calculation.overtimeDetail.holidayHours > 0 ? `
                   <tr style="font-size: 11px; color: #666;">
@@ -2781,7 +3250,7 @@ export function PayrollCalculator() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {employees.filter(emp => emp.aktif !== false).map((employee) => {
                   const isSelected = selectedEmployees.some(emp => emp.employeeId === employee.id)
                   const selectedData = selectedEmployees.find(emp => emp.employeeId === employee.id)
@@ -3080,7 +3549,7 @@ export function PayrollCalculator() {
                     </Card>
                   )
                 })}
-                </div>
+              </div>
               )}
               
               <div className="flex justify-between">
@@ -3358,9 +3827,9 @@ export function PayrollCalculator() {
                                 </div>
                                 {calc!.overtimeAmount > 0 && (
                                   <div className="space-y-1">
-                                    <div className="flex justify-between">
+                                  <div className="flex justify-between">
                                       <span>Overtime Total:</span>
-                                      <span>{formatCurrency(calc!.overtimeAmount)}</span>
+                                    <span>{formatCurrency(calc!.overtimeAmount)}</span>
                                     </div>
                                     {calc!.overtimeDetail && (calc!.overtimeDetail.normalHours > 0 || calc!.overtimeDetail.holidayHours > 0 || calc!.overtimeDetail.nightFirstHour > 0 || calc!.overtimeDetail.nightAdditionalHours > 0) && (
                                       <div className="text-xs text-gray-500 space-y-1 ml-4">
@@ -3666,33 +4135,29 @@ export function PayrollCalculator() {
           )}
           
           <div className="flex flex-col gap-2">
-            {/* Test Button for Debugging */}
+
+            
+            {/* Generate Payroll Button */}
             <Button
-              onClick={() => {
-                console.log('🧪 TEST BUTTON CLICKED')
-                console.log('State check:', {
-                  employees: employees.length,
-                  selectedEmployees: selectedEmployees.length,
-                  payrollPeriod,
-                  currentPayrollRun: currentPayrollRun?.id,
-                  savingData,
-                  loading
-                })
-                alert('Test button working! Check console for details.')
-              }}
-              size="sm"
-              variant="outline"
-              className="mb-2"
+              onClick={generatePayroll}
+              disabled={loading || savingData || selectedEmployees.length === 0}
+              size="lg"
+              className="shadow-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
             >
-              🧪 Test
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              ) : (
+                <Calculator className="h-5 w-5 mr-2" />
+              )}
+              {loading ? 'Generating...' : 'Generate Payroll'}
             </Button>
             
             {/* Quick Save Button */}
             <Button
               onClick={quickSaveData}
-              disabled={savingData}
+              disabled={savingData || !currentPayrollRun}
               size="lg"
-              className="shadow-lg bg-blue-600 hover:bg-blue-700 text-white relative group"
+              className="shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
               title="Quick Save (Ctrl+S / Cmd+S)"
             >
               {savingData ? (
@@ -3700,29 +4165,20 @@ export function PayrollCalculator() {
               ) : (
                 <Save className="h-5 w-5 mr-2" />
               )}
-              {savingData ? 'Menyimpan...' : 'Quick Save'}
-              
-              {/* Keyboard shortcut hint */}
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                Ctrl+S
-              </div>
+              {savingData ? 'Saving...' : 'Quick Save'}
             </Button>
             
             {/* Save with Settings Button */}
             <Button
               onClick={() => setShowSaveDialog(true)}
+              disabled={savingData || !currentPayrollRun}
               variant="outline"
               size="lg"
-              className="shadow-lg bg-white hover:bg-gray-50 relative group"
-              title="Save As... (Ctrl+Shift+S / Cmd+Shift+S)"
+              className="shadow-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+              title="Save As (Ctrl+Shift+S / Cmd+Shift+S)"
             >
-              <Settings className="h-4 w-4 mr-2" />
-              Save As...
-              
-              {/* Keyboard shortcut hint */}
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                Ctrl+Shift+S
-              </div>
+              <Settings className="h-5 w-5 mr-2" />
+              Save As
             </Button>
           </div>
         </div>
@@ -3785,13 +4241,13 @@ export function PayrollCalculator() {
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Riwayat Payroll
-              </CardTitle>
-              <CardDescription>
-                Daftar payroll yang pernah dibuat
-              </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Riwayat Payroll
+          </CardTitle>
+          <CardDescription>
+            Daftar payroll yang pernah dibuat
+          </CardDescription>
             </div>
             <Button
               variant="outline" 
@@ -3841,9 +4297,9 @@ export function PayrollCalculator() {
                   
                   {/* Edit button - only for DRAFT status */}
                   {run.status === 'DRAFT' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
+                  <Button
+                    size="sm"
+                    variant="outline"
                       onClick={() => editPayrollRun(run)}
                       className="text-blue-600 hover:text-blue-700"
                     >
@@ -3876,7 +4332,18 @@ export function PayrollCalculator() {
                     Rename
                   </Button>
                   
-                  {/* Export Buttons */}
+                  {/* PDF Recap Button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generatePayrollRecap(run)}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    PDF Recap
+                  </Button>
+                  
+                  {/* Export Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm" variant="outline">
@@ -3885,18 +4352,40 @@ export function PayrollCalculator() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => exportToPDF(run)}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Export PDF
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => exportToExcel(run)}>
                         <Download className="h-4 w-4 mr-2" />
                         Export Excel
                       </DropdownMenuItem>
-                      {run.status === 'DRAFT' && (
-                        <DropdownMenuItem onClick={() => generateKwitansiForAll(run)}>
+                      <DropdownMenuItem onClick={() => exportToPDF(run)}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Export PDF Detail
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
+                  {/* Individual Kwitansi Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700">
+                        <Receipt className="h-4 w-4 mr-1" />
+                        Kwitansi
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {employees.slice(0, 5).map(employee => (
+                        <DropdownMenuItem 
+                          key={employee.id}
+                          onClick={() => generateEmployeeKwitansi(run, employee.id)}
+                        >
                           <Receipt className="h-4 w-4 mr-2" />
-                          Buat Kwitansi
+                          {employee.nama}
+                        </DropdownMenuItem>
+                      ))}
+                      {employees.length > 5 && (
+                        <DropdownMenuItem disabled>
+                          <span className="text-xs text-gray-500">
+                            +{employees.length - 5} karyawan lainnya
+                          </span>
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
@@ -3960,16 +4449,16 @@ export function PayrollCalculator() {
               Batal
             </Button>
             {showDeleteDialog?.type === 'payComponent' && (
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  if (showDeleteDialog) {
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                if (showDeleteDialog) {
                     handleDeleteComponent(showDeleteDialog.id, false) // Soft delete
-                  }
-                }}
-              >
+                }
+              }}
+            >
                 Nonaktifkan
-              </Button>
+            </Button>
             )}
             <Button 
               variant="destructive" 
