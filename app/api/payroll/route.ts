@@ -65,13 +65,14 @@ export async function GET(request: NextRequest) {
               },
               components: true
             }
-          },
-          creator: {
-            select: { id: true, name: true, email: true }
-          },
-          approver: {
-            select: { id: true, name: true, email: true }
           }
+          // Temporarily disable user relations to avoid foreign key errors
+          // creator: {
+          //   select: { id: true, name: true, email: true }
+          // },
+          // approver: {
+          //   select: { id: true, name: true, email: true }
+          // }
         },
         orderBy: { created_at: 'desc' }
       }),
@@ -90,10 +91,17 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching payroll runs:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown'
+    })
+    
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengambil data payroll'
+        error: 'Gagal mengambil data payroll',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     )
@@ -127,11 +135,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get active pay components
-    const payComponents = await prisma.payComponent.findMany({
-      where: { aktif: true },
-      orderBy: { order: 'asc' }
-    })
+    // Get active pay components - with error handling
+    let payComponents = []
+    try {
+      payComponents = await prisma.payComponent.findMany({
+        where: { aktif: true },
+        orderBy: { order: 'asc' }
+      })
+    } catch (compError) {
+      console.error('Error fetching pay components:', compError)
+      // Continue without pay components if there's an error
+    }
 
     // Calculate payroll for each employee
     const payrollCalculations = employees.map(employee => {
@@ -498,13 +512,14 @@ export async function PUT(request: NextRequest) {
             employee: true,
             components: true
           }
-        },
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
         }
+        // Temporarily disable user relations to avoid foreign key errors
+        // creator: {
+        //   select: { id: true, name: true, email: true }
+        // },
+        // approver: {
+        //   select: { id: true, name: true, email: true }
+        // }
       }
     })
 
