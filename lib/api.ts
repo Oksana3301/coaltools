@@ -364,8 +364,15 @@ class ApiService {
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    const fullUrl = `${this.baseUrl}${endpoint}`
+    console.log('🌐 fetchApi called:', {
+      url: fullUrl,
+      method: options.method || 'GET',
+      hasBody: !!options.body
+    })
+    
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(fullUrl, {
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
@@ -373,9 +380,22 @@ class ApiService {
         ...options,
       })
 
+      console.log('📡 Response received:', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText
+      })
+
       const data = await response.json()
+      console.log('📊 Response data:', data)
       
       if (!response.ok) {
+        console.error('❌ Response not ok:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: data
+        })
+        
         // Handle database connection errors specifically
         if (data.code === 'DB_CONNECTION_ERROR') {
           throw new Error('Database connection failed. Please check your internet connection and try again.')
@@ -383,9 +403,15 @@ class ApiService {
         throw new Error(data.error || 'Terjadi kesalahan')
       }
 
+      console.log('✅ fetchApi success')
       return data
     } catch (error) {
-      console.error('API Error:', error)
+      console.error('🔥 fetchApi error:', error)
+      console.error('🔥 Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack'
+      })
       throw error
     }
   }
@@ -630,16 +656,23 @@ class ApiService {
       customComponents?: any[]
     }>
   }): Promise<ApiResponse<PayrollRun>> {
-    console.log('🆕 createPayrollRun called with:', data)
+    console.log('🆕 createPayrollRun called with:', JSON.stringify(data, null, 2))
+    console.log('📊 Payload size:', JSON.stringify(data).length, 'characters')
+    console.log('📊 Employee overrides count:', data.employeeOverrides?.length || 0)
+    
     try {
+      console.log('📤 Making API call to /api/payroll')
       const result = await this.fetchApi<PayrollRun>('/payroll', {
         method: 'POST',
         body: JSON.stringify(data)
       })
-      console.log('📊 createPayrollRun result:', result)
+      console.log('✅ createPayrollRun SUCCESS:', result)
       return result
     } catch (error) {
       console.error('❌ createPayrollRun error:', error)
+      console.error('❌ Error name:', error instanceof Error ? error.name : 'Unknown')
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error))
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack')
       throw error
     }
   }

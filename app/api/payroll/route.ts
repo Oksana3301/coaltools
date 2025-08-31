@@ -115,6 +115,9 @@ export async function POST(request: NextRequest) {
     console.log('🌍 Environment variables check:')
     console.log('- DATABASE_URL exists:', !!process.env.DATABASE_URL)
     console.log('- NODE_ENV:', process.env.NODE_ENV)
+    console.log('🔍 Request headers:', Object.fromEntries(request.headers.entries()))
+    console.log('🔍 Request method:', request.method)
+    console.log('🔍 Request URL:', request.url)
     
     const prisma = getPrismaClient();
     console.log('🔧 Prisma client status:', prisma ? 'Available' : 'Not available')
@@ -444,9 +447,14 @@ export async function POST(request: NextRequest) {
       message: 'Payroll berhasil dibuat'
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating payroll run:', error)
+    console.error('🔥 ERROR creating payroll run:', error)
+    console.error('🔥 Error type:', error instanceof Error ? error.constructor.name : typeof error)
+    console.error('🔥 Error message:', error instanceof Error ? error.message : String(error))
+    console.error('🔥 Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('🔥 Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
     
     if (error instanceof z.ZodError) {
+      console.error('🔥 Zod validation error details:', error.errors)
       return NextResponse.json(
         {
           success: false,
@@ -458,15 +466,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Return detailed error for debugging
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Gagal membuat payroll',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      },
-      { status: 500 }
-    )
+    const errorResponse = {
+      success: false,
+      error: 'Gagal membuat payroll',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      requestInfo: {
+        method: 'POST',
+        url: '/api/payroll'
+      }
+    }
+    
+    console.error('🔥 Sending error response:', JSON.stringify(errorResponse, null, 2))
+    
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
 
