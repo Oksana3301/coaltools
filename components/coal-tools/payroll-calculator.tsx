@@ -972,6 +972,16 @@ export function PayrollCalculator() {
       return
     }
 
+    // Validate basic payroll period data
+    if (!payrollPeriod.periodeAwal || !payrollPeriod.periodeAkhir) {
+      toast({
+        title: "Data Tidak Lengkap",
+        description: "Periode awal dan akhir payroll harus diisi",
+        variant: "destructive"
+      })
+      return
+    }
+
     setSavingData(true)
     try {
       let response
@@ -1056,10 +1066,11 @@ export function PayrollCalculator() {
           description: `${fileName} - ${selectedEmployees.length} karyawan - ${formatCurrency(totalAmount)}`
         })
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Quick save error:', error)
       toast({
-        title: "Error",
-        description: "Gagal menyimpan data payroll",
+        title: "Error Menyimpan Data",
+        description: error.message || "Gagal menyimpan data payroll. Coba lagi.",
         variant: "destructive"
       })
     } finally {
@@ -1069,27 +1080,46 @@ export function PayrollCalculator() {
 
   // Save with custom settings
   const saveWithSettings = async (customSettings: { fileName: string; notes: string }) => {
+    if (!customSettings.fileName.trim()) {
+      toast({
+        title: "Nama File Kosong",
+        description: "Silakan masukkan nama file",
+        variant: "destructive"
+      })
+      return
+    }
+
     const originalFileName = payrollPeriod.customFileName
     const originalNotes = payrollPeriod.notes
     
     // Temporarily update settings
     setPayrollPeriod(prev => ({
       ...prev,
-      customFileName: customSettings.fileName,
-      notes: customSettings.notes
+      customFileName: customSettings.fileName.trim(),
+      notes: customSettings.notes.trim()
     }))
     
     try {
       await quickSaveData()
       setShowSaveDialog(false)
-    } catch (error) {
+      toast({
+        title: "Berhasil Disimpan",
+        description: `File "${customSettings.fileName}" berhasil disimpan`,
+        variant: "default"
+      })
+    } catch (error: any) {
+      console.error('Save with settings error:', error)
       // Restore original values if save failed
       setPayrollPeriod(prev => ({
         ...prev,
         customFileName: originalFileName,
         notes: originalNotes
       }))
-      throw error
+      toast({
+        title: "Error Save As",
+        description: error.message || "Gagal menyimpan dengan pengaturan custom",
+        variant: "destructive"
+      })
     }
   }
 
@@ -1361,7 +1391,8 @@ export function PayrollCalculator() {
       // Check if we're editing an existing payroll
       if (currentPayrollRun && currentPayrollRun.id) {
         // Update existing payroll
-        response = await apiService.updatePayrollRun(currentPayrollRun.id, {
+        response = await apiService.updatePayrollRun({
+          id: currentPayrollRun.id,
           periodeAwal: payrollPeriod.periodeAwal,
           periodeAkhir: payrollPeriod.periodeAkhir,
           customFileName: payrollPeriod.customFileName || '',
