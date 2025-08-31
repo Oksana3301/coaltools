@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-  try {
+    // Main logic starts here
     console.log('📥 Parsing request body...')
     const body = await request.json()
     console.log('📨 POST /api/payroll received body:', JSON.stringify(body, null, 2))
@@ -451,24 +451,6 @@ export async function POST(request: NextRequest) {
         error: 'Gagal membuat payroll',
         details: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
-      },
-      { status: 500 }
-    )
-  }
-  } catch (topError) {
-    // Top-level error handler - catches errors before reaching main logic
-    console.error('🔥 TOP-LEVEL ERROR in POST /api/payroll:', topError)
-    console.error('🔥 Error name:', topError instanceof Error ? topError.name : 'Unknown')
-    console.error('🔥 Error message:', topError instanceof Error ? topError.message : 'Unknown')
-    console.error('🔥 Error stack:', topError instanceof Error ? topError.stack : 'No stack')
-    
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Critical error in payroll API',
-        details: topError instanceof Error ? topError.message : 'Unknown top-level error',
-        stack: topError instanceof Error ? topError.stack : undefined,
-        type: 'TOP_LEVEL_ERROR'
       },
       { status: 500 }
     )
