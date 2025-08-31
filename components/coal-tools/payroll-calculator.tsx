@@ -367,7 +367,8 @@ export function PayrollCalculator() {
   const [standardComponents, setStandardComponents] = useState<PayComponent[]>([])
   const [additionalComponents, setAdditionalComponents] = useState<PayComponent[]>([])
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start with loading true
+  const [isInitialized, setIsInitialized] = useState(false)
   
   // Form states
   const [payrollPeriod, setPayrollPeriod] = useState<PayrollPeriodForm>({
@@ -420,7 +421,11 @@ export function PayrollCalculator() {
     const autoSaveTimer = setTimeout(() => {
       // Only auto-save if we have existing payroll run (in edit mode)
       if (currentPayrollRun && currentPayrollRun.id) {
-        quickSaveData()
+        try {
+          quickSaveData()
+        } catch (error) {
+          console.error('Auto-save error:', error)
+        }
       }
     }, 10000) // Auto-save after 10 seconds of no changes
 
@@ -454,11 +459,24 @@ export function PayrollCalculator() {
   const loadInitialData = async () => {
     setLoading(true)
     try {
+      console.log('🔄 Loading initial data...')
+      
       const [employeesRes, payComponentsRes, payrollRunsRes] = await Promise.all([
-        apiService.getEmployees({ aktif: 'true', limit: 200 }), // Only active employees
-        apiService.getPayComponents(),
-        apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+        apiService.getEmployees({ aktif: 'true', limit: 200 }).catch(err => {
+          console.error('❌ Employee API error:', err)
+          return { success: false, error: err.message, data: [] }
+        }),
+        apiService.getPayComponents().catch(err => {
+          console.error('❌ Pay components API error:', err)
+          return { success: false, error: err.message, data: [] }
+        }),
+        apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 }).catch(err => {
+          console.error('❌ Payroll runs API error:', err)
+          return { success: false, error: err.message, data: [] }
+        })
       ])
+      
+      console.log('📊 API responses:', { employeesRes, payComponentsRes, payrollRunsRes })
 
       console.log('Employees response:', employeesRes) // Debug log
       
@@ -499,15 +517,30 @@ export function PayrollCalculator() {
       } else {
         console.error('Failed to load payroll runs:', payrollRunsRes.error)
       }
-    } catch (error) {
-      console.error('Error loading initial data:', error)
+    } catch (error: any) {
+      console.error('❌ Error loading initial data:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      
+      // Set default values to prevent component crashes
+      setEmployees([])
+      setPayComponents([])
+      setStandardComponents([])
+      setAdditionalComponents([])
+      setPayrollRuns([])
+      
       toast({
-        title: "Error",
-        description: "Gagal memuat data. Coba refresh halaman.",
+        title: "Error Loading Data",
+        description: `Gagal memuat data awal: ${error.message || 'Unknown error'}. Silakan refresh halaman.`,
         variant: "destructive"
       })
     } finally {
       setLoading(false)
+      setIsInitialized(true)
+      console.log('✅ Initial data loading completed')
     }
   }
 
@@ -2386,6 +2419,21 @@ export function PayrollCalculator() {
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
         {badge.label}
       </span>
+    )
+  }
+
+  // Show loading screen during initialization
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <div>
+            <h3 className="text-lg font-medium">Memuat Kalkulator Gaji</h3>
+            <p className="text-muted-foreground">Sedang memuat data karyawan dan komponen gaji...</p>
+          </div>
+        </div>
+      </div>
     )
   }
 
