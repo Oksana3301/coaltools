@@ -409,6 +409,12 @@ export function PayrollCalculator() {
   // Rename file states
   const [showRenameDialog, setShowRenameDialog] = useState<{ payrollRun: PayrollRun; currentName: string } | null>(null)
   const [renamingFile, setRenamingFile] = useState(false)
+  
+  // Quick actions dialog states
+  const [showPDFConfigDialog, setShowPDFConfigDialog] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showHelpDialog, setShowHelpDialog] = useState(false)
+  const [selectedPayrollForPDF, setSelectedPayrollForPDF] = useState<PayrollRun | null>(null)
 
   // Load initial data
   useEffect(() => {
@@ -5219,6 +5225,94 @@ export function PayrollCalculator() {
           open={showTutorial}
           onOpenChange={setShowTutorial}
         />
+      )}
+
+      {/* PDF Config Dialog */}
+      {showPDFConfigDialog && (
+        <Dialog open={showPDFConfigDialog} onOpenChange={setShowPDFConfigDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Konfigurasi PDF</DialogTitle>
+              <DialogDescription>
+                Preview dan konfigurasi template PDF untuk payroll
+              </DialogDescription>
+            </DialogHeader>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                Fitur PDF configuration akan segera tersedia. 
+                Untuk sementara, Anda dapat menggunakan fitur export PDF yang sudah ada.
+              </p>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setShowPDFConfigDialog(false)}>
+                Tutup
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Import Dialog */}
+      {showImportDialog && (
+        <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Import Data</DialogTitle>
+              <DialogDescription>
+                Import data karyawan atau payroll dari file Excel/CSV
+              </DialogDescription>
+            </DialogHeader>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                Fitur import data akan segera tersedia. 
+                Untuk sementara, Anda dapat menambahkan data karyawan secara manual.
+              </p>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setShowImportDialog(false)}>
+                Tutup
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Help Dialog */}
+      {showHelpDialog && (
+        <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Bantuan & Tutorial</DialogTitle>
+              <DialogDescription>
+                Panduan penggunaan sistem payroll calculator
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">🚀 Quick Start</h4>
+                <p className="text-sm text-blue-700">
+                  1. Buat payroll baru dengan mengklik "Buat Payroll Baru"<br/>
+                  2. Kelola data karyawan di tab "Kelola Karyawan"<br/>
+                  3. Setup komponen gaji sesuai kebutuhan<br/>
+                  4. Hitung dan simpan payroll
+                </p>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">💡 Tips</h4>
+                <p className="text-sm text-green-700">
+                  • Gunakan fitur auto-save untuk menyimpan perubahan otomatis<br/>
+                  • Export ke PDF untuk laporan yang profesional<br/>
+                  • Backup data secara berkala
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setShowHelpDialog(false)}>
+                Tutup
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
