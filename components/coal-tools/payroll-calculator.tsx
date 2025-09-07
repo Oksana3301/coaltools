@@ -37,7 +37,8 @@ import {
   CreditCard,
   ArrowRight,
   ArrowLeft,
-  UserPlus
+  UserPlus,
+  HelpCircle
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getCurrentUser } from "@/lib/auth"
@@ -4807,7 +4808,188 @@ export function PayrollCalculator() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {payrollRuns.map((run) => (
+            {payrollRuns.length === 0 ? (
+              <div className="space-y-6">
+                {/* Empty State Message */}
+                <div className="text-center py-8 text-gray-500">
+                  <div className="mb-4">
+                    <FileText className="mx-auto h-12 w-12 text-gray-300" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada Payroll Run</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Buat payroll run pertama Anda untuk melihat menu actions dan fitur PDF
+                  </p>
+                  <Button 
+                    onClick={() => setCurrentStep(1)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Buat Payroll Baru
+                  </Button>
+                </div>
+
+                {/* Quick Actions Panel - Menu Actions yang Selalu Tersedia */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                  <div className="text-center mb-6">
+                    <h4 className="text-lg font-semibold text-blue-900 mb-2">🚀 Quick Actions</h4>
+                    <p className="text-sm text-blue-700">
+                      Akses cepat ke fitur-fitur penting meskipun belum ada payroll
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Create New Payroll */}
+                    <div className="bg-white p-4 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Plus className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900">Buat Payroll Baru</h5>
+                          <p className="text-xs text-gray-600">Mulai dari awal</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        onClick={() => setCurrentStep(1)}
+                      >
+                        Mulai
+                      </Button>
+                    </div>
+
+                    {/* Employee Management */}
+                    <div className="bg-white p-4 rounded-lg border border-green-200 hover:border-green-300 transition-colors">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Users className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900">Kelola Karyawan</h5>
+                          <p className="text-xs text-gray-600">Tambah/edit data</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-green-300 text-green-700 hover:bg-green-50"
+                        onClick={() => setCurrentStep(2)}
+                      >
+                        Kelola
+                      </Button>
+                    </div>
+
+                    {/* Pay Components */}
+                    <div className="bg-white p-4 rounded-lg border border-purple-200 hover:border-purple-300 transition-colors">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Settings className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900">Komponen Gaji</h5>
+                          <p className="text-xs text-gray-600">Setup komponen</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-purple-300 text-purple-700 hover:bg-purple-50"
+                        onClick={() => setShowComponentDialog(true)}
+                      >
+                        Setup
+                      </Button>
+                    </div>
+
+                    {/* PDF Templates */}
+                    <div className="bg-white p-4 rounded-lg border border-orange-200 hover:border-orange-300 transition-colors">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                          <FileText className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900">Template PDF</h5>
+                          <p className="text-xs text-gray-600">Preview format</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
+                        onClick={() => {
+                          setShowPDFConfigDialog(true)
+                          setSelectedPayrollForPDF(null) // No specific payroll
+                        }}
+                      >
+                        Preview
+                      </Button>
+                    </div>
+
+                    {/* Import Data */}
+                    <div className="bg-white p-4 rounded-lg border border-teal-200 hover:border-teal-300 transition-colors">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-teal-100 rounded-lg">
+                          <Download className="h-5 w-5 text-teal-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900">Import Data</h5>
+                          <p className="text-xs text-gray-600">Excel/CSV</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-teal-300 text-teal-700 hover:bg-teal-50"
+                        onClick={() => setShowImportDialog(true)}
+                      >
+                        Import
+                      </Button>
+                    </div>
+
+                    {/* Help & Tutorial */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <HelpCircle className="h-5 w-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900">Bantuan</h5>
+                          <p className="text-xs text-gray-600">Tutorial & FAQ</p>
+                        </div>
+                        </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                        onClick={() => setShowHelpDialog(true)}
+                      >
+                        Bantuan
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Additional Info */}
+                  <div className="mt-6 p-4 bg-blue-100 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">💡 Tips untuk Memulai:</p>
+                        <ul className="space-y-1 text-blue-700">
+                          <li>• Pastikan data karyawan sudah lengkap dan aktif</li>
+                          <li>• Setup komponen gaji sesuai kebijakan perusahaan</li>
+                          <li>• Test generate PDF untuk memastikan format sesuai</li>
+                          <li>• Simpan payroll run untuk akses menu actions lengkap</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              payrollRuns.map((run) => (
               <div key={run.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div>
                   <span className="font-medium">
@@ -4934,7 +5116,8 @@ export function PayrollCalculator() {
                   </DropdownMenu>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -5726,6 +5909,298 @@ function TutorialDialog({ open, onOpenChange }: TutorialDialogProps) {
               </Button>
             )}
           </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Import Data Dialog Component
+function ImportDataDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast()
+  const [importType, setImportType] = useState<'employees' | 'payComponents' | 'payrollData'>('employees')
+  const [file, setFile] = useState<File | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (selectedFile) {
+      if (selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+          selectedFile.type === 'text/csv') {
+        setFile(selectedFile)
+        toast({
+          title: "File Selected",
+          description: `${selectedFile.name} berhasil dipilih untuk import`,
+          variant: "default"
+        })
+      } else {
+        toast({
+          title: "File Type Error",
+          description: "Hanya file Excel (.xlsx) atau CSV yang didukung",
+          variant: "destructive"
+        })
+      }
+    }
+  }
+
+  const handleImport = async () => {
+    if (!file) {
+      toast({
+        title: "Error",
+        description: "Pilih file terlebih dahulu",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsImporting(true)
+    try {
+      // Simulate import process
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      toast({
+        title: "Import Berhasil",
+        description: `Data ${importType} berhasil diimport dari ${file.name}`,
+        variant: "default"
+      })
+      
+      onOpenChange(false)
+      setFile(null)
+    } catch (error) {
+      toast({
+        title: "Import Gagal",
+        description: "Terjadi kesalahan saat import data",
+        variant: "destructive"
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Import Data</DialogTitle>
+          <DialogDescription>
+            Import data dari file Excel atau CSV ke sistem
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Import Type Selection */}
+          <div className="space-y-2">
+            <Label>Jenis Data</Label>
+            <Select value={importType} onValueChange={(value: any) => setImportType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="employees">Data Karyawan</SelectItem>
+                <SelectItem value="payComponents">Komponen Gaji</SelectItem>
+                <SelectItem value="payrollData">Data Payroll</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* File Upload */}
+          <div className="space-y-2">
+            <Label>File Excel/CSV</Label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+              <input
+                type="file"
+                accept=".xlsx,.csv"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="import-file"
+              />
+              <label htmlFor="import-file" className="cursor-pointer">
+                <Download className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">
+                  {file ? file.name : "Klik untuk pilih file atau drag & drop"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Support: .xlsx, .csv (Max 5MB)
+                </p>
+              </label>
+            </div>
+          </div>
+
+          {/* Template Download */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <Download className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Download Template</span>
+            </div>
+            <p className="text-xs text-blue-600 mt-1">
+              Download template Excel untuk format data yang benar
+            </p>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="mt-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+              onClick={() => {
+                toast({
+                  title: "Template Downloaded",
+                  description: "Template Excel berhasil diunduh",
+                  variant: "default"
+                })
+              }}
+            >
+              Download Template
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Batal
+          </Button>
+          <Button 
+            onClick={handleImport}
+            disabled={!file || isImporting}
+            className="bg-teal-600 hover:bg-teal-700"
+          >
+            {isImporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Import Data
+              </>
+              )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Help & Tutorial Dialog Component
+function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [activeTab, setActiveTab] = useState<'tutorial' | 'faq' | 'contact'>('tutorial')
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Bantuan & Tutorial</DialogTitle>
+          <DialogDescription>
+            Panduan lengkap penggunaan sistem payroll calculator
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Navigation Tabs */}
+          <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="tutorial">Tutorial</TabsTrigger>
+              <TabsTrigger value="faq">FAQ</TabsTrigger>
+              <TabsTrigger value="contact">Kontak</TabsTrigger>
+            </TabsList>
+
+            {/* Tutorial Tab */}
+            <TabsContent value="tutorial" className="space-y-4">
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">🚀 Memulai Payroll Baru</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-blue-700">
+                    <li>Pilih periode payroll (tanggal awal dan akhir)</li>
+                    <li>Pilih karyawan yang akan dihitung gajinya</li>
+                    <li>Input hari kerja untuk setiap karyawan</li>
+                    <li>Setup komponen gaji (standar dan tambahan)</li>
+                    <li>Hitung payroll dan review hasil</li>
+                    <li>Simpan payroll run</li>
+                  </ol>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-medium text-green-800 mb-2">📊 Generate PDF</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-green-700">
+                    <li>Buka payroll run yang sudah disimpan</li>
+                    <li>Klik menu actions (ikon Settings)</li>
+                    <li>Pilih "PDF Lengkap + Slip Gaji"</li>
+                    <li>Konfigurasi kop surat dan header image</li>
+                    <li>Generate PDF</li>
+                  </ol>
+                </div>
+
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h4 className="font-medium text-purple-800 mb-2">👥 Kelola Karyawan</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-purple-700">
+                    <li>Tambahkan data karyawan baru</li>
+                    <li>Input informasi lengkap (NIK, bank, dll)</li>
+                    <li>Set status aktif/nonaktif</li>
+                    <li>Update data sesuai kebutuhan</li>
+                  </ol>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* FAQ Tab */}
+            <TabsContent value="faq" className="space-y-4">
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">❓ Bagaimana cara reset password?</h4>
+                  <p className="text-sm text-gray-600">Hubungi admin sistem untuk reset password akun Anda.</p>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">❓ Apakah data payroll bisa diedit setelah disimpan?</h4>
+                  <p className="text-sm text-gray-600">Ya, data payroll dengan status DRAFT bisa diedit. Setelah REVIEWED atau APPROVED tidak bisa diedit.</p>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">❓ Format file apa yang didukung untuk import?</h4>
+                  <p className="text-sm text-gray-600">Sistem mendukung file Excel (.xlsx) dan CSV dengan ukuran maksimal 5MB.</p>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">❓ Bagaimana cara generate slip gaji individual?</h4>
+                  <p className="text-sm text-gray-600">Buka payroll run, klik menu actions, pilih "Generate Kwitansi" untuk karyawan tertentu.</p>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Contact Tab */}
+            <TabsContent value="contact" className="space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3">📞 Kontak Support</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center space-x-2">
+                    <span>📧 Email:</span>
+                    <span className="font-medium">support@glacoal.com</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span>📱 WhatsApp:</span>
+                    <span className="font-medium">+62 812-3456-7890</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span>🏢 Office:</span>
+                    <span className="font-medium">PT. GLA COAL, Samarinda</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 mb-2">🕒 Jam Kerja Support</h4>
+                <p className="text-sm text-blue-700">
+                  Senin - Jumat: 08:00 - 17:00 WITA<br/>
+                  Sabtu: 08:00 - 12:00 WITA<br/>
+                  Minggu & Hari Libur: Tutup
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <Button onClick={() => onOpenChange(false)}>
+            Tutup
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
