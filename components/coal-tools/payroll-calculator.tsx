@@ -551,7 +551,10 @@ export function PayrollCalculator() {
 
   // Step navigation
   const nextStep = () => {
-    if (currentStep < 6) setCurrentStep(currentStep + 1)
+    if (currentStep < 6) {
+      setCurrentStep(currentStep + 1)
+      console.log('🔄 Navigating to step:', currentStep + 1)
+    }
   }
 
   const prevStep = () => {
@@ -3521,7 +3524,7 @@ export function PayrollCalculator() {
       {/* Step Progress */}
       <div className="flex items-center justify-center mb-8">
         <div className="flex items-center space-x-4">
-          {[1, 2, 3, 4, 5].map((step) => (
+          {[1, 2, 3, 4, 5, 6].map((step) => (
             <div key={step} className="flex items-center">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
                 currentStep >= step 
@@ -3530,7 +3533,7 @@ export function PayrollCalculator() {
               }`}>
                 {step}
               </div>
-              {step < 5 && (
+              {step < 6 && (
                 <div className={`w-16 h-1 mx-2 ${
                   currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
                 }`} />
@@ -4552,6 +4555,7 @@ export function PayrollCalculator() {
 
         {/* Step 6: Generate Payroll */}
         {currentStep === 6 && (
+          console.log('🎯 Step 6: Generate Payroll is being rendered'),
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -4575,7 +4579,13 @@ export function PayrollCalculator() {
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Kembali
                   </Button>
-                  <Button onClick={generatePayroll} disabled={loading}>
+                  <Button 
+                    onClick={() => {
+                      console.log('🎯 Generate Payroll button clicked')
+                      generatePayroll()
+                    }} 
+                    disabled={loading}
+                  >
                     {loading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
