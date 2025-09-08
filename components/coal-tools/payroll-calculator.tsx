@@ -872,7 +872,7 @@ export function PayrollCalculator() {
 
   const viewPayrollRun = (payrollRun: PayrollRun) => {
     setCurrentPayrollRun(payrollRun)
-    // Show detailed view - this will trigger the Step 6 view
+    setCurrentStep(6) // Navigate to Step 6 to show detailed view
     toast({
       title: "Menampilkan Detail Payroll",
       description: `Payroll periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`
