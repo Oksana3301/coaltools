@@ -134,6 +134,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Test database connection before proceeding
+    try {
+      await prisma.$connect()
+      console.log('✅ Database connection test successful')
+    } catch (dbError) {
+      console.error('❌ Database connection test failed:', dbError)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Database connection failed',
+          details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+        },
+        { status: 503 }
+      )
+    }
+
     // Main logic starts here
     console.log('📥 Parsing request body...')
     const body = await request.json()
@@ -144,9 +160,20 @@ export async function POST(request: NextRequest) {
     console.log('✅ Data validation successful:', validatedData)
 
     // Get active employees
-    const employees = await prisma.employee.findMany({
-      where: { aktif: true }
-    })
+    let employees = []
+    try {
+      employees = await prisma.employee.findMany({
+        where: { aktif: true }
+      })
+      console.log('✅ Found', employees.length, 'active employees')
+    } catch (empError) {
+      console.error('❌ Error fetching employees:', empError)
+      return NextResponse.json({
+        success: false,
+        error: 'Gagal mengambil data karyawan',
+        details: empError instanceof Error ? empError.message : 'Unknown error'
+      }, { status: 500 })
+    }
 
     if (employees.length === 0) {
       return NextResponse.json({
@@ -367,7 +394,9 @@ export async function POST(request: NextRequest) {
     })))
 
     // Create payroll run with transaction
-    const payrollRun = await prisma.$transaction(async (tx) => {
+    let payrollRun
+    try {
+      payrollRun = await prisma.$transaction(async (tx) => {
       // Skip user creation since User table relations are disabled
       const userId = validatedData.createdBy || 'system'
       console.log('💾 Creating payroll with userId:', userId)
@@ -435,11 +464,26 @@ export async function POST(request: NextRequest) {
 
       return newPayrollRun
     })
+    } catch (transactionError) {
+      console.error('❌ Transaction failed:', transactionError)
+      return NextResponse.json({
+        success: false,
+        error: 'Gagal membuat payroll',
+        details: transactionError instanceof Error ? transactionError.message : 'Transaction failed'
+      }, { status: 500 })
+    }
 
     // Fetch the complete payroll run with relations
-    const completePayrollRun = await prisma.payrollRun.findUnique({
-      where: { id: payrollRun.id }
-    })
+    let completePayrollRun
+    try {
+      completePayrollRun = await prisma.payrollRun.findUnique({
+        where: { id: payrollRun.id }
+      })
+    } catch (fetchError) {
+      console.error('❌ Error fetching complete payroll run:', fetchError)
+      // Still return success since payroll was created
+      completePayrollRun = payrollRun
+    }
 
     return NextResponse.json({
       success: true,
