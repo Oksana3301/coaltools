@@ -67,8 +67,6 @@ const getCurrentUserId = () => {
   return "cmemokbd20000ols63e1xr3f6" // Admin user ID from our demo users
 }
 
-const CURRENT_USER_ID = getCurrentUserId()
-
 // Save Dialog Form Component
 interface SaveDialogFormProps {
   currentFileName?: string
@@ -477,7 +475,7 @@ export function PayrollCalculator() {
           console.error('❌ Pay components API error:', err)
           return { success: false, error: err.message, data: [] }
         }),
-        apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 }).catch(err => {
+        apiService.getPayrollRuns({ userId: getCurrentUserId(), limit: 10 }).catch(err => {
           console.error('❌ Payroll runs API error:', err)
           return { success: false, error: err.message, data: [] }
         })
@@ -984,7 +982,7 @@ export function PayrollCalculator() {
   const refreshPayrollData = async () => {
     setLoading(true)
     try {
-      const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+      const payrollRunsRes = await apiService.getPayrollRuns({ userId: getCurrentUserId(), limit: 10 })
       if (payrollRunsRes.success) {
         setPayrollRuns(payrollRunsRes.data || [])
         toast({
@@ -1097,7 +1095,7 @@ export function PayrollCalculator() {
         response = await apiService.createPayrollRun({
           periodeAwal: payrollPeriod.periodeAwal,
           periodeAkhir: payrollPeriod.periodeAkhir,
-          createdBy: CURRENT_USER_ID,
+          createdBy: getCurrentUserId(),
           customFileName: fileName,
           notes: payrollPeriod.notes || '',
           employeeOverrides: selectedEmployees.map(emp => {
@@ -1578,7 +1576,7 @@ export function PayrollCalculator() {
     }
     
     // Validate current user ID
-    if (!CURRENT_USER_ID) {
+    if (!getCurrentUserId()) {
       toast({
         title: "Error Validation",
         description: "User ID tidak valid. Silakan login ulang.",
@@ -1648,7 +1646,7 @@ export function PayrollCalculator() {
         console.log('🆕 Creating new payroll with data:')
         console.log('- periodeAwal:', payrollPeriod.periodeAwal)
         console.log('- periodeAkhir:', payrollPeriod.periodeAkhir) 
-        console.log('- createdBy:', CURRENT_USER_ID)
+        console.log('- createdBy:', getCurrentUserId())
         console.log('- customFileName:', payrollPeriod.customFileName)
         console.log('- notes:', payrollPeriod.notes)
         console.log('- selectedEmployees count:', selectedEmployees.length)
@@ -1656,7 +1654,7 @@ export function PayrollCalculator() {
         const createPayload = {
         periodeAwal: payrollPeriod.periodeAwal,
         periodeAkhir: payrollPeriod.periodeAkhir,
-        createdBy: CURRENT_USER_ID,
+        createdBy: getCurrentUserId(),
           customFileName: payrollPeriod.customFileName || '',
           notes: payrollPeriod.notes || '',
           employeeOverrides: selectedEmployees.map((emp, index) => {
@@ -1713,7 +1711,7 @@ export function PayrollCalculator() {
         
         // Reload payroll runs
         try {
-        const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+        const payrollRunsRes = await apiService.getPayrollRuns({ userId: getCurrentUserId(), limit: 10 })
         if (payrollRunsRes.success) {
           setPayrollRuns(payrollRunsRes.data || [])
             console.log('✅ Payroll runs refreshed')
@@ -1776,7 +1774,7 @@ export function PayrollCalculator() {
       const response = await apiService.updatePayrollRunStatus(
         currentPayrollRun.id!,
         'APPROVED',
-        CURRENT_USER_ID
+        getCurrentUserId()
       )
 
       if (response.success) {
@@ -2142,7 +2140,7 @@ export function PayrollCalculator() {
       const response = await apiService.updatePayrollRunStatus(
         payrollRun.id!,
         'APPROVED',
-        CURRENT_USER_ID
+        getCurrentUserId()
       )
 
       if (response.success) {
@@ -2152,7 +2150,7 @@ export function PayrollCalculator() {
         })
         
         // Reload payroll runs
-        const payrollRunsRes = await apiService.getPayrollRuns({ userId: CURRENT_USER_ID, limit: 10 })
+        const payrollRunsRes = await apiService.getPayrollRuns({ userId: getCurrentUserId(), limit: 10 })
         if (payrollRunsRes.success) {
           setPayrollRuns(payrollRunsRes.data || [])
         }
