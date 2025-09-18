@@ -1,6 +1,19 @@
 "use client"
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import dynamic from 'next/dynamic'
+
+// Dynamic import for the chart content
+const DynamicWaterfallChartContent = dynamic(
+  () => import('./waterfall-chart-content'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full animate-pulse" style={{ height: 300 }}>
+        <div className="w-full h-full bg-gray-200 rounded-lg" />
+      </div>
+    ),
+  }
+)
 
 interface WaterfallDataPoint {
   name: string
@@ -58,36 +71,11 @@ export function WaterfallChart({ data, height = 300 }: WaterfallChartProps) {
   }
 
   return (
-    <div style={{ width: '100%', height }}>
-      <ResponsiveContainer>
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="name" 
-            tick={{ fontSize: 12 }}
-            tickLine={{ stroke: '#e0e0e0' }}
-          />
-          <YAxis 
-            tick={{ fontSize: 12 }}
-            tickLine={{ stroke: '#e0e0e0' }}
-            tickFormatter={formatValue}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          
-          {/* Invisible bars for positioning */}
-          <Bar dataKey="start" fill="transparent" stackId="stack" />
-          
-          {/* Visible bars for changes */}
-          <Bar dataKey="change" stackId="stack">
-            {chartData.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={entry.isPositive ? '#22c55e' : '#ef4444'} 
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <DynamicWaterfallChartContent
+      data={chartData}
+      height={height}
+      formatValue={formatValue}
+      CustomTooltip={CustomTooltip}
+    />
   )
 }

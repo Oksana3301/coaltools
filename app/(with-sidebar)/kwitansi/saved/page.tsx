@@ -66,8 +66,8 @@ export default function SavedKwitansiPage() {
       if (response.success) {
         setKwitansiList(response.data || [])
         setTotalPages(response.pagination?.totalPages || 1)
-        setTotalRecords(response.meta?.totalRecords || 0)
-        setIsAtLimit(response.meta?.isAtLimit || false)
+        setTotalRecords(response.pagination?.total || 0)
+        setIsAtLimit(false)
       } else {
         toast({
           title: "Error",

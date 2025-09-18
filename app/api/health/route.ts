@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPrismaClient, isDatabaseAvailable } from '@/lib/db'
+import { logger } from '@/lib/logger'
 
 export const dynamic = "force-static"
 
@@ -38,7 +39,7 @@ export async function GET() {
       message: 'Health check completed'
     })
   } catch (error) {
-    console.error('Health check error:', error)
+    logger.apiError('/api/health', error)
     return NextResponse.json(
       { 
         success: false, 

@@ -413,6 +413,11 @@ export function PayrollCalculator() {
   const [showImportDialog, setShowImportDialog] = useState(false)
   const [showHelpDialog, setShowHelpDialog] = useState(false)
   const [selectedPayrollForPDF, setSelectedPayrollForPDF] = useState<PayrollRun | null>(null)
+  
+  // Header image states
+  const [headerImage, setHeaderImage] = useState<string | null>(null)
+  const [headerImageFile, setHeaderImageFile] = useState<File | null>(null)
+  const [showHeaderImageDialog, setShowHeaderImageDialog] = useState(false)
 
   // Load initial data
   useEffect(() => {
@@ -464,33 +469,22 @@ export function PayrollCalculator() {
   const loadInitialData = async () => {
     setLoading(true)
     try {
-      console.log('🔄 Loading initial data...')
-      
       const [employeesRes, payComponentsRes, payrollRunsRes] = await Promise.all([
-        apiService.getEmployees({ aktif: 'true', limit: 200 }).catch(err => {
-          console.error('❌ Employee API error:', err)
+        apiService.getEmployees({ aktif: true, limit: 200 }).catch(err => {
           return { success: false, error: err.message, data: [] }
         }),
         apiService.getPayComponents().catch(err => {
-          console.error('❌ Pay components API error:', err)
           return { success: false, error: err.message, data: [] }
         }),
         apiService.getPayrollRuns({ userId: getCurrentUserId(), limit: 10 }).catch(err => {
-          console.error('❌ Payroll runs API error:', err)
           return { success: false, error: err.message, data: [] }
         })
       ])
       
-      console.log('📊 API responses:', { employeesRes, payComponentsRes, payrollRunsRes })
-
-      console.log('Employees response:', employeesRes) // Debug log
-      
       if (employeesRes.success) {
         const activeEmployees = (employeesRes.data || []).filter(emp => emp.aktif !== false)
         setEmployees(activeEmployees)
-        console.log('Active employees loaded:', activeEmployees.length) // Debug log
       } else {
-        console.error('Failed to load employees:', employeesRes.error)
         toast({
           title: "Error",
           description: `Gagal memuat data karyawan: ${employeesRes.error}`,
@@ -545,7 +539,6 @@ export function PayrollCalculator() {
     } finally {
       setLoading(false)
       setIsInitialized(true)
-      console.log('✅ Initial data loading completed')
     }
   }
 
@@ -553,7 +546,6 @@ export function PayrollCalculator() {
   const nextStep = () => {
     if (currentStep < 6) {
       setCurrentStep(currentStep + 1)
-      console.log('🔄 Navigating to step:', currentStep + 1)
     }
   }
 
@@ -573,7 +565,8 @@ export function PayrollCalculator() {
 
       const response = await apiService.createPayComponent({
         ...componentData,
-        order
+        order,
+        aktif: true
       })
 
       if (response.success) {
@@ -707,7 +700,7 @@ export function PayrollCalculator() {
             holidayHours: 0,
             nightFirstHour: 0,
             nightAdditionalHours: 0,
-            customHourlyRate: Math.round(employee.kontrakUpahHarian * 22 / 173) // Gaji pokok/173
+            customHourlyRate: 40000 // Default Rp 40.000
           },
           cashbon: 0,
           notes: '',
@@ -1006,12 +999,6 @@ export function PayrollCalculator() {
 
   // Quick save function for current data
   const quickSaveData = async () => {
-    console.log('🚀 quickSaveData called with:', {
-      selectedEmployees: selectedEmployees.length,
-      payrollPeriod,
-      currentPayrollRun: currentPayrollRun?.id
-    })
-
     if (selectedEmployees.length === 0) {
       toast({
         title: "Tidak Ada Data",
@@ -1038,15 +1025,13 @@ export function PayrollCalculator() {
       
       // Calculate current total
       const calculations = selectedEmployees.map(emp => calculateEmployeePayroll(emp))
-      const totalAmount = calculations.reduce((sum, calc) => sum + calc.neto, 0)
+      const totalAmount = calculations.reduce((sum, calc) => sum + (calc?.neto || 0), 0)
       
       if (currentPayrollRun && currentPayrollRun.id) {
-        console.log('🔄 Quick save - attempting to update existing payroll:', currentPayrollRun.id)
         try {
           // Verify payroll exists before attempting update
           const verifyResponse = await apiService.getPayrollRun(currentPayrollRun.id)
           if (!verifyResponse.success) {
-            console.log('⚠️ Quick save - payroll not found, creating new instead:', currentPayrollRun.id)
             setCurrentPayrollRun(null)
             throw new Error('PAYROLL_NOT_FOUND')
           }
@@ -1079,12 +1064,9 @@ export function PayrollCalculator() {
             })
           };
           
-          console.log('📝 Update payload:', JSON.stringify(updateData, null, 2));
           response = await apiService.updatePayrollRun(updateData);
-          console.log('✅ Update response:', response);
         } catch (verifyError: any) {
           if (verifyError.message === 'PAYROLL_NOT_FOUND' || verifyError.message?.includes('not found')) {
-            console.log('🆕 Quick save - payroll not found, creating new payroll instead')
             // Fall through to create new payroll
           } else {
             throw verifyError
@@ -1123,10 +1105,7 @@ export function PayrollCalculator() {
         })
       }
 
-      console.log('📊 API Response:', response)
-      
       if (response.success && response.data) {
-        console.log('✅ Save successful:', response.data)
         setCurrentPayrollRun(response.data)
         setLastSavedData({
           timestamp: new Date().toISOString(),
@@ -1212,8 +1191,6 @@ export function PayrollCalculator() {
   const renamePayrollFile = async (payrollRunId: string, newFileName: string, notes?: string) => {
     setRenamingFile(true)
     try {
-      console.log('🏷️ Renaming payroll file:', payrollRunId, 'to:', newFileName)
-      
       // Verify payroll exists before attempting update
       const verifyResponse = await apiService.getPayrollRun(payrollRunId)
       if (!verifyResponse.success) {
@@ -1368,10 +1345,10 @@ export function PayrollCalculator() {
     // Calculate earnings from selected components
     const selectedComponents = [
       ...standardComponents.filter(comp => 
-        (employeePayroll.selectedStandardComponents || []).includes(comp.id)
+        comp.id && (employeePayroll.selectedStandardComponents || []).includes(comp.id)
       ),
       ...additionalComponents.filter(comp => 
-        (employeePayroll.selectedAdditionalComponents || []).includes(comp.id)
+        comp.id && (employeePayroll.selectedAdditionalComponents || []).includes(comp.id)
       ),
       ...customPayComponents.filter(comp => comp.nama) // Only custom components with names
     ]
@@ -1506,34 +1483,19 @@ export function PayrollCalculator() {
 
   // Utility function to ensure data is ready
   const ensureDataReady = async () => {
-    console.log('🔄 Ensuring data is ready...')
-    
     // Check if employees are loaded
     if (employees.length === 0) {
-      console.log('📥 Loading employees...')
       await loadInitialData()
     }
     
     // Check if pay components are loaded
     if (payComponents.length === 0) {
-      console.log('📥 Loading pay components...')
       await loadInitialData()
     }
-    
-    console.log('✅ Data ready check complete')
   }
 
   // Step 6: Generate Payroll
   const generatePayroll = async () => {
-    console.log('🚀 generatePayroll called')
-    console.log('Current state:', {
-      selectedEmployees: selectedEmployees.length,
-      payrollPeriod,
-      currentPayrollRun: currentPayrollRun?.id,
-      customPayComponents: customPayComponents.length,
-      employees: employees.length,
-      payComponents: payComponents.length
-    })
     
     // Ensure all required data is loaded
     try {
@@ -1594,12 +1556,10 @@ export function PayrollCalculator() {
       
       // Check if we're editing an existing payroll and verify it exists
       if (currentPayrollRun && currentPayrollRun.id) {
-        console.log('🔄 Attempting to update existing payroll:', currentPayrollRun.id)
         try {
           // Verify payroll exists before attempting update
           const verifyResponse = await apiService.getPayrollRun(currentPayrollRun.id)
           if (!verifyResponse.success) {
-            console.log('⚠️ Payroll not found, creating new instead:', currentPayrollRun.id)
             // Clear invalid currentPayrollRun and create new
             setCurrentPayrollRun(null)
             throw new Error('PAYROLL_NOT_FOUND')
@@ -1611,32 +1571,10 @@ export function PayrollCalculator() {
             periodeAwal: payrollPeriod.periodeAwal,
             periodeAkhir: payrollPeriod.periodeAkhir,
             customFileName: payrollPeriod.customFileName || '',
-            notes: payrollPeriod.notes || '',
-            employeeOverrides: selectedEmployees.map(emp => {
-              const calculation = calculateEmployeePayroll(emp)
-              return {
-                employeeId: emp.employeeId,
-                hariKerja: emp.hariKerja,
-                // Overtime details with null safety
-                overtimeHours: emp.overtimeHours || 0,
-                overtimeRate: emp.overtimeRate || 1.5,
-                overtimeAmount: calculation?.overtimeAmount || 0,
-                normalHours: emp.overtimeDetail?.normalHours || 0,
-                holidayHours: emp.overtimeDetail?.holidayHours || 0,
-                nightFirstHour: emp.overtimeDetail?.nightFirstHour || 0,
-                nightAdditionalHours: emp.overtimeDetail?.nightAdditionalHours || 0,
-                customHourlyRate: emp.overtimeDetail?.customHourlyRate || 0,
-                cashbon: emp.cashbon || 0,
-                // Components with null safety
-                selectedStandardComponents: emp.selectedStandardComponents || [],
-                selectedAdditionalComponents: emp.selectedAdditionalComponents || [],
-                customComponents: customPayComponents.filter(comp => comp.nama)
-              }
-            })
+            notes: payrollPeriod.notes || ''
           })
         } catch (verifyError: any) {
           if (verifyError.message === 'PAYROLL_NOT_FOUND' || verifyError.message?.includes('not found')) {
-            console.log('🆕 Payroll not found, creating new payroll instead')
             // Fall through to create new payroll
           } else {
             throw verifyError
@@ -1646,14 +1584,6 @@ export function PayrollCalculator() {
       
       // Create new payroll if no valid existing payroll
       if (!response) {
-        console.log('🆕 Creating new payroll with data:')
-        console.log('- periodeAwal:', payrollPeriod.periodeAwal)
-        console.log('- periodeAkhir:', payrollPeriod.periodeAkhir) 
-        console.log('- createdBy:', getCurrentUserId())
-        console.log('- customFileName:', payrollPeriod.customFileName)
-        console.log('- notes:', payrollPeriod.notes)
-        console.log('- selectedEmployees count:', selectedEmployees.length)
-        
         const createPayload = {
         periodeAwal: payrollPeriod.periodeAwal,
         periodeAkhir: payrollPeriod.periodeAkhir,
@@ -1661,13 +1591,6 @@ export function PayrollCalculator() {
           customFileName: payrollPeriod.customFileName || '',
           notes: payrollPeriod.notes || '',
           employeeOverrides: selectedEmployees.map((emp, index) => {
-            console.log(`📋 Processing employee ${index + 1}:`, {
-          employeeId: emp.employeeId,
-              hariKerja: emp.hariKerja,
-              overtimeHours: emp.overtimeHours,
-              overtimeDetail: emp.overtimeDetail
-            })
-            
             const calculation = calculateEmployeePayroll(emp)
             const employeeOverride = {
               employeeId: emp.employeeId,
@@ -1688,19 +1611,15 @@ export function PayrollCalculator() {
               customComponents: customPayComponents.filter(comp => comp.nama) || []
             }
             
-            console.log(`✅ Employee ${index + 1} override:`, employeeOverride)
             return employeeOverride
           })
         }
-        
-        console.log('📤 Final create payload:', JSON.stringify(createPayload, null, 2))
         
         // Create new payroll
         response = await apiService.createPayrollRun(createPayload)
       }
 
       if (response.success) {
-        console.log('✅ Payroll generation successful:', response.data)
         setCurrentPayrollRun(response.data!)
         
         // Update success message
@@ -1717,7 +1636,6 @@ export function PayrollCalculator() {
         const payrollRunsRes = await apiService.getPayrollRuns({ userId: getCurrentUserId(), limit: 10 })
         if (payrollRunsRes.success) {
           setPayrollRuns(payrollRunsRes.data || [])
-            console.log('✅ Payroll runs refreshed')
           }
         } catch (refreshError) {
           console.warn('⚠️ Failed to refresh payroll runs:', refreshError)
@@ -1768,7 +1686,7 @@ export function PayrollCalculator() {
     }
   }
 
-  // Approve payroll and generate kwitansi
+  // Approve payroll and generate slip gaji
   const approvePayroll = async () => {
     if (!currentPayrollRun) return
     
@@ -1784,7 +1702,7 @@ export function PayrollCalculator() {
         setCurrentPayrollRun(response.data!)
         toast({
           title: "Payroll disetujui",
-          description: "Kwitansi telah dibuat otomatis untuk setiap karyawan"
+          description: "Slip gaji telah dibuat otomatis untuk setiap karyawan"
         })
       }
     } catch (error: any) {
@@ -1802,8 +1720,6 @@ export function PayrollCalculator() {
   const generatePayrollRecap = async (payrollRun: PayrollRun) => {
     setLoading(true)
     try {
-      console.log('🔵 generatePayrollRecap called for payroll:', payrollRun.id)
-      
       // Get detailed payroll data from API
       const response = await apiService.getPayrollRun(payrollRun.id!)
       if (!response.success || !response.data) {
@@ -1811,7 +1727,6 @@ export function PayrollCalculator() {
       }
 
       const payrollData = response.data
-      console.log('🔵 Fetched payroll data:', payrollData)
 
       if (!payrollData.payrollLines || payrollData.payrollLines.length === 0) {
         toast({
@@ -1850,12 +1765,10 @@ export function PayrollCalculator() {
     }
   }
 
-  // Generate Individual Kwitansi for Employee
-  const generateEmployeeKwitansi = async (payrollRun: PayrollRun, employeeId: string) => {
+  // Generate Individual Slip Gaji for Employee
+  const generateEmployeeSlipGaji = async (payrollRun: PayrollRun, employeeId: string) => {
     setLoading(true)
     try {
-      console.log('🟢 generateEmployeeKwitansi called for employee:', employeeId)
-      
       // Get detailed payroll data from API
       const response = await apiService.getPayrollRun(payrollRun.id!)
       if (!response.success || !response.data) {
@@ -1874,20 +1787,20 @@ export function PayrollCalculator() {
         return
       }
 
-      const kwitansiContent = generateSimpleKwitansiHTML(payrollData, employeeLine)
-      const fileName = `Kwitansi_${employeeLine.employeeName?.replace(/\s+/g, '_') || 'Unknown'}_${payrollRun.periodeAwal}.pdf`
+      const slipGajiContent = generateSimpleSlipGajiHTML(payrollData, employeeLine)
+      const fileName = `SlipGaji_${employeeLine.employeeName?.replace(/\s+/g, '_') || 'Unknown'}_${payrollRun.periodeAwal}.pdf`
       
-      await generatePDF(kwitansiContent, fileName)
+      await generatePDF(slipGajiContent, fileName)
       
       toast({
         title: "Success", 
-        description: `Kwitansi ${employeeLine.employeeName || 'Karyawan'} berhasil diunduh`
+        description: `Slip gaji ${employeeLine.employeeName || 'Karyawan'} berhasil diunduh`
       })
     } catch (error: any) {
-      console.error('❌ generateEmployeeKwitansi error:', error)
+      console.error('❌ generateEmployeeSlipGaji error:', error)
       toast({
         title: "Error",
-        description: error.message || "Gagal membuat kwitansi",
+        description: error.message || "Gagal membuat slip gaji",
         variant: "destructive"
       })
     } finally {
@@ -1895,12 +1808,60 @@ export function PayrollCalculator() {
     }
   }
 
-  // Generate Complete Payroll PDF Package (Summary + All Kwitansi)
+  // Handle Header Image Upload
+  const handleHeaderImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg']
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Format File Tidak Valid",
+        description: "Hanya file PNG, JPEG, dan JPG yang diizinkan",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File Terlalu Besar",
+        description: "Ukuran file maksimal 2MB",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Convert to base64 for preview and storage
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const base64String = e.target?.result as string
+      setHeaderImage(base64String)
+      setHeaderImageFile(file)
+      toast({
+        title: "Header Image Berhasil Diupload",
+        description: `File ${file.name} siap digunakan dalam PDF`
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Remove Header Image
+  const removeHeaderImage = () => {
+    setHeaderImage(null)
+    setHeaderImageFile(null)
+    toast({
+      title: "Header Image Dihapus",
+      description: "Header image telah dihapus dari konfigurasi PDF"
+    })
+  }
+
+  // Generate Complete Payroll PDF Package (Summary + All Slip Gaji)
   const generateCompletePayrollPDF = async (payrollRun: PayrollRun) => {
     setLoading(true)
     try {
-      console.log('🔴 generateCompletePayrollPDF called for payroll:', payrollRun.id)
-      
       // Get detailed payroll data from API
       const response = await apiService.getPayrollRun(payrollRun.id!)
       if (!response.success || !response.data) {
@@ -1908,7 +1869,6 @@ export function PayrollCalculator() {
       }
 
       const payrollData = response.data
-      console.log('🔴 Fetched payroll data:', payrollData)
 
       if (!payrollData.payrollLines || payrollData.payrollLines.length === 0) {
         toast({
@@ -1924,7 +1884,7 @@ export function PayrollCalculator() {
       const totalNeto = payrollData.payrollLines.reduce((sum: number, line: any) => sum + (parseFloat(line.neto) || 0), 0)
       const totalDeductions = totalBruto - totalNeto
 
-      // Generate comprehensive PDF with summary and all kwitansi
+      // Generate comprehensive PDF with summary and all slip gaji
       const completeContent = generateCompletePayrollHTML(payrollData, totalBruto, totalNeto, totalDeductions)
       const fileName = payrollRun.customFileName 
         ? `${payrollRun.customFileName}_Complete.pdf`
@@ -1934,7 +1894,7 @@ export function PayrollCalculator() {
       
       toast({
         title: "Success",
-        description: "PDF lengkap payroll dengan kwitansi berhasil diunduh"
+        description: "PDF lengkap payroll dengan slip gaji berhasil diunduh"
       })
     } catch (error: any) {
       console.error('❌ generateCompletePayrollPDF error:', error)
@@ -1987,7 +1947,7 @@ export function PayrollCalculator() {
           <div class="header">
             <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
             <div class="report-title">LAPORAN PAYROLL KARYAWAN</div>
-            <div class="period">Periode: ${payrollData.periodeAwal} - ${payrollData.periodeAkhir}</div>
+            <div class="period">Periode: ${formatPeriodDate(payrollData.periodeAwal, payrollData.periodeAkhir)}</div>
             <div class="period">Tanggal Cetak: ${currentDate}</div>
           </div>
 
@@ -2136,8 +2096,8 @@ export function PayrollCalculator() {
     }
   }
 
-  // Generate kwitansi for all employees
-  const generateKwitansiForAll = async (payrollRun: PayrollRun) => {
+  // Generate slip gaji for all employees
+  const generateSlipGajiForAll = async (payrollRun: PayrollRun) => {
     setLoading(true)
     try {
       const response = await apiService.updatePayrollRunStatus(
@@ -2148,8 +2108,8 @@ export function PayrollCalculator() {
 
       if (response.success) {
         toast({
-          title: "Kwitansi Dibuat",
-          description: "Kwitansi telah dibuat otomatis untuk semua karyawan"
+          title: "Slip Gaji Dibuat",
+        description: "Slip gaji telah dibuat otomatis untuk semua karyawan"
         })
         
         // Reload payroll runs
@@ -2161,7 +2121,7 @@ export function PayrollCalculator() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Gagal membuat kwitansi",
+        description: error.message || "Gagal membuat slip gaji",
         variant: "destructive"
       })
     } finally {
@@ -2216,9 +2176,19 @@ export function PayrollCalculator() {
     }
   }
 
+  // Helper function to format date period
+  const formatPeriodDate = (startDate: string, endDate: string) => {
+    const formatDate = (dateStr: string) => {
+      const date = new Date(dateStr)
+      const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+      return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+    }
+    return `${formatDate(startDate)} sampai ${formatDate(endDate)}`
+  }
+
   // Generate PDF report
-  // Generate comprehensive PDF reports with both laporan and kwitansi
-  const generatePayrollReports = async (type: 'both' | 'laporan' | 'kwitansi' = 'both') => {
+  // Generate comprehensive PDF reports with both laporan and slip gaji
+  const generatePayrollReports = async (type: 'both' | 'laporan' | 'slip-gaji' = 'both') => {
     if (!currentPayrollRun || selectedEmployees.length === 0) {
       toast({
         title: "Error",
@@ -2241,14 +2211,14 @@ export function PayrollCalculator() {
         await generatePDF(laporanContent, laporanFileName)
       }
 
-      // Generate Kwitansi for each employee
-      if (type === 'both' || type === 'kwitansi') {
-        await generateKwitansiPDFs(currentPayrollRun, calculations)
+      // Generate Slip Gaji for each employee
+      if (type === 'both' || type === 'slip-gaji') {
+        await generateSlipGajiPDFs(currentPayrollRun, calculations)
       }
 
       toast({
         title: "Success",
-        description: `${type === 'both' ? 'Laporan dan Kwitansi' : type === 'laporan' ? 'Laporan' : 'Kwitansi'} berhasil digenerate`,
+        description: `${type === 'both' ? 'Laporan dan Slip Gaji' : type === 'laporan' ? 'Laporan' : 'Slip Gaji'} berhasil digenerate`,
         variant: "default"
       })
     } catch (error) {
@@ -2270,7 +2240,7 @@ export function PayrollCalculator() {
         <style>
           @page { size: A4 landscape; margin: 15mm; }
           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; }
           .company-name { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
           .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
           .summary { display: flex; justify-content: space-around; margin-bottom: 20px; }
@@ -2284,9 +2254,10 @@ export function PayrollCalculator() {
       </head>
       <body>
         <div class="header">
+          ${headerImage ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${headerImage}" style="max-width: 100%; max-height: 120px; object-fit: contain;" /></div>` : ''}
           <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
           <div class="title">PAYROLL RECAP</div>
-          <div>Periode: ${payrollData.periodeAwal} s/d ${payrollData.periodeAkhir}</div>
+          <div>Periode: ${formatPeriodDate(payrollData.periodeAwal, payrollData.periodeAkhir)}</div>
         </div>
 
         <div class="summary">
@@ -2350,17 +2321,17 @@ export function PayrollCalculator() {
     `
   }
 
-  // Generate Simple Kwitansi HTML
-  const generateSimpleKwitansiHTML = (payrollData: any, employeeLine: any) => {
+  // Generate Simple Slip Gaji HTML
+  const generateSimpleSlipGajiHTML = (payrollData: any, employeeLine: any) => {
     return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Kwitansi Gaji - ${employeeLine.employeeName || 'Karyawan'}</title>
+        <title>Slip Gaji - ${employeeLine.employeeName || 'Karyawan'}</title>
         <style>
           @page { size: A4 portrait; margin: 20mm; }
           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 12px; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; }
           .company-name { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
           .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
           .employee-info { margin-bottom: 20px; padding: 15px; background: #f5f5f5; }
@@ -2376,9 +2347,10 @@ export function PayrollCalculator() {
       </head>
       <body>
         <div class="header">
+          ${headerImage ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${headerImage}" style="max-width: 100%; max-height: 120px; object-fit: contain;" /></div>` : ''}
           <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
-          <div class="title">KWITANSI PEMBAYARAN GAJI</div>
-          <div>Periode: ${payrollData.periodeAwal} s/d ${payrollData.periodeAkhir}</div>
+          <div class="title">SLIP GAJI</div>
+          <div>Periode: ${formatPeriodDate(payrollData.periodeAwal, payrollData.periodeAkhir)}</div>
         </div>
 
         <div class="employee-info">
@@ -2434,18 +2406,18 @@ export function PayrollCalculator() {
 
         <div class="signature">
           <div class="signature-box">
-            <div style="margin-bottom: 60px;"><strong>Yang Menerima</strong></div>
-            <div style="border-top: 1px solid #333; padding-top: 10px;">${employeeLine.employeeName || '-'}</div>
+            <div style="margin-bottom: 60px;"><strong>Yang Mengetahui</strong></div>
+            <div style="border-top: 1px solid #333; padding-top: 10px;">ATIKA DEWI SURYANI<br/>Accounting</div>
           </div>
           <div class="signature-box">
-            <div style="margin-bottom: 60px;"><strong>Hormat Kami</strong></div>
-            <div style="border-top: 1px solid #333; padding-top: 10px;">PT. Global Lestari Alam</div>
+            <div style="margin-bottom: 60px;"><strong>Yang Menerima</strong></div>
+            <div style="border-top: 1px solid #333; padding-top: 10px;">${employeeLine.employeeName || '-'}</div>
           </div>
         </div>
 
         <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #666;">
           Dokumen ini dibuat pada: ${new Date().toLocaleString('id-ID')}<br/>
-          Kwitansi ini merupakan bukti pembayaran yang sah.
+          Slip gaji ini merupakan bukti pembayaran yang sah.
         </div>
       </body>
       </html>
@@ -2489,9 +2461,10 @@ export function PayrollCalculator() {
       </head>
       <body>
         <div class="header">
+          ${headerImage ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${headerImage}" style="max-width: 100%; max-height: 120px; object-fit: contain;" /></div>` : ''}
           <div class="company-name">PT. GLOBAL LESTARI ALAM</div>
           <div class="title">PAYROLL RECAP</div>
-          <div class="period">Periode: ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</div>
+          <div class="period">Periode: ${formatPeriodDate(payrollRun.periodeAwal, payrollRun.periodeAkhir)}</div>
           ${payrollRun.customFileName ? `<div style="font-size: 12px; color: #059669; font-weight: 500;">${payrollRun.customFileName}</div>` : ''}
         </div>
 
@@ -2568,7 +2541,7 @@ export function PayrollCalculator() {
         </div>
 
         <div class="footer">
-          <p>Dokumen ini dibuat secara otomatis oleh sistem payroll PT. Global Lestari Alam</p>
+          <p>Dokumen ini dibuat secara otomatis oleh sistem payroll</p>
         </div>
       </body>
       </html>
@@ -2588,7 +2561,7 @@ export function PayrollCalculator() {
         <style>
           @page { size: A4 portrait; margin: 15mm; }
           body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 11px; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; }
           .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
           .subtitle { font-size: 14px; color: #666; margin-bottom: 10px; }
           .period-info { margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 5px; }
@@ -2606,9 +2579,10 @@ export function PayrollCalculator() {
       </head>
       <body>
         <div class="header">
+          ${headerImage ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${headerImage}" style="max-width: 100%; max-height: 120px; object-fit: contain;" /></div>` : ''}
           <div class="title">LAPORAN PAYROLL KARYAWAN</div>
           <div class="subtitle">PT. GLOBAL LESTARI ALAM</div>
-          <div style="font-size: 12px;">Periode: ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</div>
+          <div style="font-size: 12px;">Periode: ${formatPeriodDate(payrollRun.periodeAwal, payrollRun.periodeAkhir)}</div>
         </div>
         
         <div class="period-info">
@@ -2670,10 +2644,13 @@ export function PayrollCalculator() {
         </table>
         
         <div class="footer">
-          <div class="signature-area">
-            <p>Sawahlunto, ${new Date().toLocaleDateString('id-ID')}</p>
-            <br><br><br>
-            <p><strong>ATIKA DEWI SURYANI</strong><br>Manager Keuangan</p>
+          <div style="display: flex; justify-content: flex-end; margin-top: 40px;">
+            <div style="text-align: center; width: 250px;">
+              <p>Sawahlunto, ${new Date().getDate()} ${new Date().toLocaleDateString('id-ID', { month: 'long' })} ${new Date().getFullYear()}</p>
+              <p>Yang Mengetahui,</p>
+              <br><br><br>
+              <p><strong>ATIKA DEWI SURYANI</strong><br>Accounting</p>
+            </div>
           </div>
         </div>
       </body>
@@ -2681,28 +2658,28 @@ export function PayrollCalculator() {
     `
   }
 
-  const generateKwitansiPDFs = async (payrollRun: PayrollRun, calculations: any[]) => {
+  const generateSlipGajiPDFs = async (payrollRun: PayrollRun, calculations: any[]) => {
     for (const calc of calculations) {
-      const kwitansiContent = generateKwitansiHTML(payrollRun, calc!)
-      const kwitansiFileName = payrollRun.customFileName 
-        ? `${payrollRun.customFileName}_Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}.pdf`
-        : `Kwitansi_${calc!.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`
-      await generatePDF(kwitansiContent, kwitansiFileName)
+      const slipGajiContent = generateSimpleSlipGajiHTML(payrollRun, calc!)
+    const slipGajiFileName = payrollRun.customFileName
+      ? `${payrollRun.customFileName}_SlipGaji_${calc!.employee.nama.replace(/\s+/g, '_')}.pdf`
+      : `SlipGaji_${calc!.employee.nama.replace(/\s+/g, '_')}_${payrollRun.periodeAwal}.pdf`
+    await generatePDF(slipGajiContent, slipGajiFileName)
     }
   }
 
-  // Generate Complete Payroll HTML (Summary + All Individual Kwitansi)
+  // Generate Complete Payroll HTML (Summary + All Individual Slip Gaji)
   const generateCompletePayrollHTML = (payrollData: any, totalBruto: number, totalNeto: number, totalDeductions: number) => {
     const summaryHTML = generateSimplePayrollRecapHTML(payrollData, totalBruto, totalNeto, totalDeductions)
     
     // Extract just the content part from summary (removing html/head/body tags)
     const summaryContent = summaryHTML.match(/<body[^>]*>(.*?)<\/body>/s)?.[1] || summaryHTML
     
-    // Generate individual kwitansi for each employee
-    const kwitansiPages = payrollData.payrollLines.map((line: any) => {
-      const kwitansiHTML = generateSimpleKwitansiHTML(payrollData, line)
+    // Generate individual slip gaji for each employee
+    const slipGajiPages = payrollData.payrollLines.map((line: any) => {
+      const slipGajiHTML = generateSimpleSlipGajiHTML(payrollData, line)
       // Extract just the content part (removing html/head/body tags)
-      return kwitansiHTML.match(/<body[^>]*>(.*?)<\/body>/s)?.[1] || kwitansiHTML
+      return slipGajiHTML.match(/<body[^>]*>(.*?)<\/body>/s)?.[1] || slipGajiHTML
     }).join('<div style="page-break-before: always;"></div>')
 
     return `
@@ -2982,25 +2959,25 @@ export function PayrollCalculator() {
         <!-- Summary Page -->
         ${summaryContent}
         
-        <!-- Individual Kwitansi Pages -->
+        <!-- Individual Slip Gaji Pages -->
         <div style="page-break-before: always;"></div>
-        ${kwitansiPages}
+        ${slipGajiPages}
       </body>
       </html>
     `
   }
 
-  // Generate Enhanced Kwitansi HTML for Individual Employee
-  const generateEmployeeKwitansiHTML = (payrollRun: PayrollRun, calculation: any) => {
+  // Generate Enhanced Slip Gaji HTML for Individual Employee
+  const generateEmployeeSlipGajiHTML = (payrollRun: PayrollRun, calculation: any) => {
     return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Kwitansi Gaji - ${calculation.employee.nama}</title>
+        <title>Slip Gaji - ${calculation.employee.nama}</title>
         <style>
           @page { size: A4 portrait; margin: 20mm; }
           body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; font-size: 12px; background: #fff; }
-          .kwitansi-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
+          .kwitansi-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #d1d5db; padding-bottom: 20px; }
           .company-logo { font-size: 24px; font-weight: bold; color: #1e40af; margin-bottom: 8px; }
           .kwitansi-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #1e293b; }
           .doc-number { font-size: 12px; color: #64748b; }
@@ -3110,8 +3087,9 @@ export function PayrollCalculator() {
       </head>
       <body>
         <div class="kwitansi-header">
+          ${headerImage ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${headerImage}" style="max-width: 100%; max-height: 120px; object-fit: contain;" /></div>` : ''}
           <div class="company-logo">PT. GLOBAL LESTARI ALAM</div>
-          <div class="kwitansi-title">KWITANSI PEMBAYARAN GAJI</div>
+          <div class="kwitansi-title">SLIP GAJI</div>
           <div class="doc-number">No. KWT/${new Date().getFullYear()}/${String(Date.now()).slice(-6)}</div>
         </div>
 
@@ -3136,7 +3114,7 @@ export function PayrollCalculator() {
             </div>
             <div class="info-item">
               <span class="info-label">Periode:</span>
-              <span class="info-value">${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</span>
+              <span class="info-value">${formatPeriodDate(payrollRun.periodeAwal, payrollRun.periodeAkhir)}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Hari Kerja:</span>
@@ -3163,7 +3141,7 @@ export function PayrollCalculator() {
                 <td class="amount-cell">${formatCurrency(calculation.baseUpah)}</td>
               </tr>
               
-              ${calculation.components?.filter(comp => comp.tipe === 'EARNING').map(comp => `
+              ${calculation.components?.filter((comp: any) => comp.tipe === 'EARNING').map((comp: any) => `
                 <tr class="earnings">
                   <td>${comp.nama}</td>
                   <td>Tunjangan</td>
@@ -3185,7 +3163,7 @@ export function PayrollCalculator() {
                 <td class="amount-cell"><strong>${formatCurrency(calculation.bruto)}</strong></td>
               </tr>
               
-              ${calculation.components?.filter(comp => comp.tipe === 'DEDUCTION').map(comp => `
+              ${calculation.components?.filter((comp: any) => comp.tipe === 'DEDUCTION').map((comp: any) => `
                 <tr class="deductions">
                   <td>${comp.nama}</td>
                   <td>Potongan</td>
@@ -3242,12 +3220,12 @@ export function PayrollCalculator() {
 
         <div class="signature-section">
           <div class="signature-box">
-            <div class="signature-title">Yang Menerima</div>
-            <div class="signature-line">${calculation.employee.nama}</div>
+            <div class="signature-title">Yang Mengetahui</div>
+            <div class="signature-line">ATIKA DEWI SURYANI<br/>Accounting</div>
           </div>
           <div class="signature-box">
-            <div class="signature-title">Hormat Kami</div>
-            <div class="signature-line">PT. Global Lestari Alam</div>
+            <div class="signature-title">Yang Menerima</div>
+            <div class="signature-line">${calculation.employee.nama}</div>
           </div>
         </div>
 
@@ -3260,12 +3238,12 @@ export function PayrollCalculator() {
     `
   }
 
-  const generateKwitansiHTML = (payrollRun: PayrollRun, calculation: any) => {
+  const generateSlipGajiHTML = (payrollRun: PayrollRun, calculation: any) => {
     return `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Kwitansi Gaji - ${calculation.employee.nama}</title>
+        <title>Slip Gaji - ${calculation.employee.nama}</title>
         <style>
           @page { size: A4 portrait; margin: 20mm; }
           body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 12px; }
@@ -3284,7 +3262,8 @@ export function PayrollCalculator() {
       </head>
       <body>
         <div class="kwitansi-header">
-          <div class="kwitansi-title">KWITANSI PEMBAYARAN GAJI</div>
+          ${headerImage ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${headerImage}" style="max-width: 100%; max-height: 120px; object-fit: contain;" /></div>` : ''}
+          <div class="kwitansi-title">SLIP GAJI</div>
           <div style="font-size: 14px;">PT. GLOBAL LESTARI ALAM</div>
         </div>
 
@@ -3294,7 +3273,7 @@ export function PayrollCalculator() {
               <td width="20%"><strong>Nama Karyawan</strong></td>
               <td width="30%">: ${calculation.employee.nama}</td>
               <td width="20%"><strong>Periode</strong></td>
-              <td width="30%">: ${payrollRun.periodeAwal} s/d ${payrollRun.periodeAkhir}</td>
+              <td width="30%">: ${formatPeriodDate(payrollRun.periodeAwal, payrollRun.periodeAkhir)}</td>
             </tr>
             <tr>
               <td><strong>Jabatan</strong></td>
@@ -3467,10 +3446,10 @@ export function PayrollCalculator() {
             <p><strong>${calculation.employee.nama}</strong></p>
           </div>
           <div class="signature-box">
-            <p>Sawahlunto, ${new Date().toLocaleDateString('id-ID')}</p>
-            <p>Yang Memberikan,</p>
+            <p>Sawahlunto, ${new Date().getDate()} ${new Date().toLocaleDateString('id-ID', { month: 'long' })} ${new Date().getFullYear()}</p>
+            <p>Yang Mengetahui,</p>
             <br><br>
-            <p><strong>ATIKA DEWI SURYANI</strong><br>Manager Keuangan</p>
+            <p><strong>ATIKA DEWI SURYANI</strong><br>Accounting</p>
           </div>
         </div>
       </body>
@@ -3518,6 +3497,16 @@ export function PayrollCalculator() {
           <p className="text-muted-foreground">
             Proses penggajian sederhana dalam satu alur kerja
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowPDFConfigDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Konfigurasi PDF
+          </Button>
         </div>
       </div>
 
@@ -3770,7 +3759,11 @@ export function PayrollCalculator() {
                   {payrollPeriod.customFileName.length}/1000 karakter. Kosongkan untuk menggunakan nama default.
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={prevStep}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Kembali
+                </Button>
                 <Button onClick={handlePeriodSubmit} disabled={!payrollPeriod.periodeAwal || !payrollPeriod.periodeAkhir}>
                   Lanjutkan
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -3902,7 +3895,7 @@ export function PayrollCalculator() {
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Rate per jam (Gaji pokok/173):</span>
                                   <span className="font-semibold text-blue-700">
-                                    Rp {formatCurrency(selectedData.overtimeDetail.customHourlyRate || Math.round((employee.kontrakUpahHarian * 22) / 173))}
+                                    {formatCurrency(selectedData.overtimeDetail.customHourlyRate || 40000)}
                                   </span>
                                 </div>
                               </div>
@@ -3980,7 +3973,7 @@ export function PayrollCalculator() {
                                   value={selectedData.overtimeDetail.customHourlyRate || ''}
                                   onChange={(e) => employee.id && updateEmployeeOvertimeDetail(employee.id, 'customHourlyRate', parseInt(e.target.value) || 0)}
                                   className="h-8 text-sm"
-                                  placeholder={`Default: ${formatCurrency(Math.round((employee.kontrakUpahHarian * 22) / 173))}`}
+                                  placeholder={`Default: ${formatCurrency(40000)}`}
                                 />
                               </div>
                             </div>
@@ -4009,7 +4002,7 @@ export function PayrollCalculator() {
                                         <input
                                           type="checkbox"
                                           id={`std-${employee.id}-${comp.id}`}
-                                          checked={selectedData.selectedStandardComponents?.includes(comp.id) || false}
+                                          checked={comp.id ? selectedData.selectedStandardComponents?.includes(comp.id) || false : false}
                                           onChange={(e) => {
                                             const currentSelected = selectedData.selectedStandardComponents || []
                                             const newSelected = e.target.checked
@@ -4038,7 +4031,7 @@ export function PayrollCalculator() {
                                         <input
                                           type="checkbox"
                                           id={`add-${employee.id}-${comp.id}`}
-                                          checked={selectedData.selectedAdditionalComponents?.includes(comp.id) || false}
+                                          checked={comp.id ? selectedData.selectedAdditionalComponents?.includes(comp.id) || false : false}
                                           onChange={(e) => {
                                             const currentSelected = selectedData.selectedAdditionalComponents || []
                                             const newSelected = e.target.checked
@@ -4519,8 +4512,8 @@ export function PayrollCalculator() {
                         <div className="space-y-2 text-sm">
                           {[...standardComponents, ...additionalComponents, ...customPayComponents.filter(c => c.nama)]
                             .filter(comp => selectedEmployees.some(emp => 
-                              emp.selectedStandardComponents.includes(comp.id!) || 
-                              emp.selectedAdditionalComponents.includes(comp.id!) || 
+                              ((comp as PayComponent).id && emp.selectedStandardComponents.includes((comp as PayComponent).id!)) || 
+                              ((comp as PayComponent).id && emp.selectedAdditionalComponents.includes((comp as PayComponent).id!)) || 
                               customPayComponents.includes(comp as PayComponentForm)
                             ))
                             .map((comp, idx) => (
@@ -4555,7 +4548,6 @@ export function PayrollCalculator() {
 
         {/* Step 6: Generate Payroll */}
         {currentStep === 6 && (
-          console.log('🎯 Step 6: Generate Payroll is being rendered'),
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -4581,7 +4573,6 @@ export function PayrollCalculator() {
                   </Button>
                   <Button 
                     onClick={() => {
-                      console.log('🎯 Generate Payroll button clicked')
                       generatePayroll()
                     }} 
                     disabled={loading}
@@ -4628,7 +4619,7 @@ export function PayrollCalculator() {
                     ) : (
                       <CheckCircle className="h-4 w-4 mr-2" />
                     )}
-                    Setujui & Buat Kwitansi
+                    Setujui & Buat Slip Gaji
                   </Button>
                 )}
                 <div className="flex gap-2">
@@ -4636,9 +4627,9 @@ export function PayrollCalculator() {
                   <Download className="h-4 w-4 mr-2" />
                     Laporan PDF
                   </Button>
-                  <Button variant="outline" onClick={() => generatePayrollReports('kwitansi')}>
+                  <Button variant="outline" onClick={() => generatePayrollReports('slip-gaji')}>
                     <Receipt className="h-4 w-4 mr-2" />
-                    Kwitansi PDF
+                    Slip Gaji PDF
                 </Button>
                   <Button 
                     variant="default" 
@@ -4646,7 +4637,7 @@ export function PayrollCalculator() {
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    Laporan + Kwitansi
+                    Laporan + Slip Gaji
                   </Button>
                 </div>
                 <Button 
@@ -4758,7 +4749,7 @@ export function PayrollCalculator() {
               currentFileName={payrollPeriod.customFileName}
               currentNotes={payrollPeriod.notes}
               employeeCount={selectedEmployees.length}
-              totalAmount={selectedEmployees.length > 0 ? selectedEmployees.map(emp => calculateEmployeePayroll(emp)).reduce((sum, calc) => sum + calc.neto, 0) : 0}
+              totalAmount={selectedEmployees.length > 0 ? selectedEmployees.map(emp => calculateEmployeePayroll(emp)).reduce((sum, calc) => sum + (calc?.neto || 0), 0) : 0}
               onSave={saveWithSettings}
               onCancel={() => setShowSaveDialog(false)}
               isLoading={savingData}
@@ -4792,349 +4783,11 @@ export function PayrollCalculator() {
         </Dialog>
       )}
 
-      {/* Payroll History */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Riwayat Payroll
-          </CardTitle>
-          <CardDescription>
-            Daftar payroll yang pernah dibuat
-          </CardDescription>
-            </div>
-            <Button
-              variant="outline" 
-              size="sm"
-              onClick={refreshPayrollData}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {payrollRuns.length === 0 ? (
-              <div className="space-y-6">
-                {/* Empty State Message */}
-                <div className="text-center py-8 text-gray-500">
-                  <div className="mb-4">
-                    <FileText className="mx-auto h-12 w-12 text-gray-300" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada Payroll Run</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Buat payroll run pertama Anda untuk melihat menu actions dan fitur PDF
-                  </p>
-                  <Button 
-                    onClick={() => setCurrentStep(1)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Buat Payroll Baru
-                  </Button>
-                </div>
 
-                {/* Quick Actions Panel - Menu Actions yang Selalu Tersedia */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                  <div className="text-center mb-6">
-                    <h4 className="text-lg font-semibold text-blue-900 mb-2">🚀 Quick Actions</h4>
-                    <p className="text-sm text-blue-700">
-                      Akses cepat ke fitur-fitur penting meskipun belum ada payroll
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Create New Payroll */}
-                    <div className="bg-white p-4 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Plus className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-900">Buat Payroll Baru</h5>
-                          <p className="text-xs text-gray-600">Mulai dari awal</p>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        onClick={() => setCurrentStep(1)}
-                      >
-                        Mulai
-                      </Button>
-                    </div>
 
-                    {/* Employee Management */}
-                    <div className="bg-white p-4 rounded-lg border border-green-200 hover:border-green-300 transition-colors">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                          <Users className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-900">Kelola Karyawan</h5>
-                          <p className="text-xs text-gray-600">Tambah/edit data</p>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full border-green-300 text-green-700 hover:bg-green-50"
-                        onClick={() => setCurrentStep(2)}
-                      >
-                        Kelola
-                      </Button>
-                    </div>
 
-                    {/* Pay Components */}
-                    <div className="bg-white p-4 rounded-lg border border-purple-200 hover:border-purple-300 transition-colors">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                          <Settings className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-900">Komponen Gaji</h5>
-                          <p className="text-xs text-gray-600">Setup komponen</p>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full border-purple-300 text-purple-700 hover:bg-purple-50"
-                        onClick={() => setShowComponentDialog(true)}
-                      >
-                        Setup
-                      </Button>
-                    </div>
 
-                    {/* PDF Templates */}
-                    <div className="bg-white p-4 rounded-lg border border-orange-200 hover:border-orange-300 transition-colors">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                          <FileText className="h-5 w-5 text-orange-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-900">Template PDF</h5>
-                          <p className="text-xs text-gray-600">Preview format</p>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
-                        onClick={() => {
-                          setShowPDFConfigDialog(true)
-                          setSelectedPayrollForPDF(null) // No specific payroll
-                        }}
-                      >
-                        Preview
-                      </Button>
-                    </div>
 
-                    {/* Import Data */}
-                    <div className="bg-white p-4 rounded-lg border border-teal-200 hover:border-teal-300 transition-colors">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="p-2 bg-teal-100 rounded-lg">
-                          <Download className="h-5 w-5 text-teal-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-900">Import Data</h5>
-                          <p className="text-xs text-gray-600">Excel/CSV</p>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full border-teal-300 text-teal-700 hover:bg-teal-50"
-                        onClick={() => setShowImportDialog(true)}
-                      >
-                        Import
-                      </Button>
-                    </div>
-
-                    {/* Help & Tutorial */}
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <HelpCircle className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-gray-900">Bantuan</h5>
-                          <p className="text-xs text-gray-600">Tutorial & FAQ</p>
-                        </div>
-                        </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
-                        onClick={() => setShowHelpDialog(true)}
-                      >
-                        Bantuan
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Additional Info */}
-                  <div className="mt-6 p-4 bg-blue-100 border border-blue-200 rounded-lg">
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0">
-                        <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">💡 Tips untuk Memulai:</p>
-                        <ul className="space-y-1 text-blue-700">
-                          <li>• Pastikan data karyawan sudah lengkap dan aktif</li>
-                          <li>• Setup komponen gaji sesuai kebijakan perusahaan</li>
-                          <li>• Test generate PDF untuk memastikan format sesuai</li>
-                          <li>• Simpan payroll run untuk akses menu actions lengkap</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              payrollRuns.map((run) => (
-              <div key={run.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <span className="font-medium">
-                    {run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`}
-                  </span>
-                  <div className="text-sm text-muted-foreground">
-                    Periode: {run.periodeAwal} - {run.periodeAkhir} • 
-                    {run.payrollLines?.length || 0} karyawan • 
-                    Total: {formatCurrency(calculatePayrollRunTotal(run))}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1 space-y-1">
-                    <div>Dibuat: {run.createdAt ? new Date(run.createdAt).toLocaleString('id-ID') : '-'}</div>
-                    {run.updatedAt && run.updatedAt !== run.createdAt && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Terakhir diubah: {new Date(run.updatedAt).toLocaleString('id-ID')}
-                </div>
-                    )}
-                  </div>
-                  {run.notes && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      📝 {run.notes}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {getStatusBadge(run.status)}
-                  
-                  {/* Primary Actions - Clean Icons */}
-                  <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                      onClick={() => viewPayrollRun(run)}
-                      title="Lihat Detail"
-                  >
-                      <FileText className="h-4 w-4" />
-                  </Button>
-                  
-                    {run.status === 'DRAFT' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => editPayrollRun(run)}
-                        className="text-blue-600 hover:text-blue-700"
-                        title="Edit Payroll"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {/* Actions Menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="outline" title="More Actions">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => setShowRenameDialog({
-                        payrollRun: run,
-                        currentName: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`
-                      })}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Rename File
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem onClick={() => generatePayrollRecap(run)}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        PDF Recap
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem onClick={() => exportToExcel(run)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Excel
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem onClick={() => exportToPDF(run)}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Export PDF Detail
-                        </DropdownMenuItem>
-                      
-                      <DropdownMenuItem onClick={() => generateCompletePayrollPDF(run)}>
-                        <Receipt className="h-4 w-4 mr-2" />
-                        PDF Lengkap + Kwitansi
-                        </DropdownMenuItem>
-                  
-                                            <DropdownMenuItem 
-                    onClick={() => setShowDeleteDialog({
-                      type: 'payrollRun',
-                      id: run.id!,
-                          name: run.customFileName || `Payroll ${run.periodeAwal} - ${run.periodeAkhir}`,
-                          status: run.status
-                        })}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                      
-                      {/* Individual Kwitansi untuk 5 karyawan pertama */}
-                      {run.payrollLines && run.payrollLines.length > 0 && (
-                        <>
-                          <div className="border-t my-1"></div>
-                          <div className="px-2 py-1 text-xs font-medium text-gray-500">Kwitansi Individual:</div>
-                          {run.payrollLines.slice(0, 5).map((line: any) => (
-                            <DropdownMenuItem 
-                              key={line.id}
-                              onClick={() => generateEmployeeKwitansi(run, line.employeeId)}
-                            >
-                              <Receipt className="h-4 w-4 mr-2" />
-                              {line.employeeName || 'Unknown'}
-                            </DropdownMenuItem>
-                          ))}
-                          {run.payrollLines.length > 5 && (
-                            <div className="px-2 py-1 text-xs text-gray-500">
-                              +{run.payrollLines.length - 5} lainnya
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
@@ -5208,7 +4861,7 @@ export function PayrollCalculator() {
         componentType={componentType}
         editingComponent={editingComponent}
         onSave={editingComponent ? 
-          (data) => handleUpdateComponent(editingComponent.id, data) : 
+          (data) => handleUpdateComponent(editingComponent.id!, data) : 
           handleCreateComponent
         }
         onCancel={() => {
@@ -5245,15 +4898,83 @@ export function PayrollCalculator() {
                 Preview dan konfigurasi template PDF untuk payroll
               </DialogDescription>
             </DialogHeader>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                Fitur PDF configuration akan segera tersedia. 
-                Untuk sementara, Anda dapat menggunakan fitur export PDF yang sudah ada.
-              </p>
+            <div className="space-y-6">
+              {/* Header Image Upload */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Header Image (Opsional)</label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload logo atau header untuk PDF payroll (PNG, JPEG, JPG - Max 2MB)
+                  </p>
+                </div>
+                
+                {headerImage ? (
+                  <div className="space-y-3">
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <img 
+                        src={headerImage} 
+                        alt="Header Preview" 
+                        className="max-w-full max-h-32 object-contain mx-auto"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById('header-image-input')?.click()}
+                      >
+                        Ganti Image
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={removeHeaderImage}
+                      >
+                        Hapus Image
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                    onClick={() => document.getElementById('header-image-input')?.click()}
+                  >
+                    <div className="space-y-2">
+                      <div className="text-gray-400">
+                        <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium text-blue-600">Klik untuk upload</span> atau drag & drop
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        PNG, JPEG, JPG hingga 2MB
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <input
+                  id="header-image-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleHeaderImageUpload}
+                  className="hidden"
+                />
+              </div>
+              
+              {/* Preview Info */}
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Preview:</strong> Header image akan muncul di bagian atas PDF payroll dan kwitansi dengan ukuran maksimal 120px tinggi.
+                </p>
+              </div>
             </div>
+            
             <div className="flex justify-end pt-4">
               <Button onClick={() => setShowPDFConfigDialog(false)}>
-                Tutup
+                Simpan & Tutup
               </Button>
             </div>
           </DialogContent>
@@ -5615,7 +5336,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
             <Label>Nama Komponen</Label>
             <Input
               value={config.name}
-              onChange={(e) => setConfig(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setConfig((prev: any) => ({ ...prev, name: e.target.value }))}
               placeholder={type === 'tax' ? 'Pajak Penghasilan' : 'Lembur/Overtime'}
             />
           </div>
@@ -5624,7 +5345,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
             <Label>Metode Perhitungan</Label>
             <Select 
               value={config.method} 
-              onValueChange={(value) => setConfig(prev => ({ ...prev, method: value }))}
+              onValueChange={(value) => setConfig((prev: any) => ({ ...prev, method: value }))}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -5644,7 +5365,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
                   type="number"
                   step="0.1"
                   value={config.rate}
-                  onChange={(e) => setConfig(prev => ({ ...prev, rate: e.target.value }))}
+                  onChange={(e) => setConfig((prev: any) => ({ ...prev, rate: e.target.value }))}
                   placeholder={type === 'tax' ? '2' : '150'}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
@@ -5659,7 +5380,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
                 <Label>Basis Perhitungan</Label>
                 <Select 
                   value={config.basis} 
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, basis: value }))}
+                  onValueChange={(value) => setConfig((prev: any) => ({ ...prev, basis: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -5678,7 +5399,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
               <Input
                 type="number"
                 value={config.amount}
-                onChange={(e) => setConfig(prev => ({ ...prev, amount: e.target.value }))}
+                onChange={(e) => setConfig((prev: any) => ({ ...prev, amount: e.target.value }))}
                 placeholder="50000"
               />
             </div>
@@ -5690,7 +5411,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
                 type="checkbox"
                 id="taxable"
                 checked={config.taxable}
-                onChange={(e) => setConfig(prev => ({ ...prev, taxable: e.target.checked }))}
+                onChange={(e) => setConfig((prev: any) => ({ ...prev, taxable: e.target.checked }))}
                 className="rounded"
               />
               <Label htmlFor="taxable">Kena Pajak</Label>
@@ -5703,7 +5424,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
               <Input
                 type="number"
                 value={config.minAmount}
-                onChange={(e) => setConfig(prev => ({ ...prev, minAmount: e.target.value }))}
+                onChange={(e) => setConfig((prev: any) => ({ ...prev, minAmount: e.target.value }))}
                 placeholder="0"
               />
             </div>
@@ -5712,7 +5433,7 @@ function QuickSetupDialog({ type, open, onOpenChange, onSetup }: QuickSetupDialo
               <Input
                 type="number"
                 value={config.maxAmount}
-                onChange={(e) => setConfig(prev => ({ ...prev, maxAmount: e.target.value }))}
+                onChange={(e) => setConfig((prev: any) => ({ ...prev, maxAmount: e.target.value }))}
                 placeholder="Tanpa batas"
               />
             </div>

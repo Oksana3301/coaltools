@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 // Schema validation untuk Kas Besar
 const KasBesarSchema = z.object({
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Error fetching kas besar:', error)
+    logger.apiError('/api/kas-besar GET', error)
     
     // Check if it's a database connection error
     if (error instanceof Error && error.message.includes("Can't reach database server")) {
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
         action: 'CREATE',
         tableName: 'kas_besar_expenses',
         recordId: expense.id,
-        newValues: expense,
+        newValues: JSON.stringify(expense),
         userId: validatedData.createdBy
       }
     })
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Error creating kas besar:', error)
+    logger.apiError('/api/kas-besar POST', error)
     return NextResponse.json(
       { success: false, error: 'Gagal membuat kas besar' },
       { status: 500 }
@@ -234,7 +235,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    console.error('Error updating kas besar:', error)
+    logger.apiError('/api/kas-besar PUT', error)
     return NextResponse.json(
       { success: false, error: 'Gagal memperbarui kas besar' },
       { status: 500 }
@@ -300,7 +301,7 @@ export async function DELETE(request: NextRequest) {
         action: 'DELETE',
         tableName: 'kas_besar_expenses',
         recordId: id,
-        oldValues: expense,
+        oldValues: JSON.stringify(expense),
         userId
       }
     })
@@ -310,7 +311,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Kas besar berhasil dihapus'
     })
   } catch (error) {
-    console.error('Error deleting kas besar:', error)
+    logger.apiError('/api/kas-besar DELETE', error)
     return NextResponse.json(
       { success: false, error: 'Gagal menghapus kas besar' },
       { status: 500 }

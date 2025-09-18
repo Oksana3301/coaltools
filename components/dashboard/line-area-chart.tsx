@@ -1,6 +1,19 @@
 "use client"
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import dynamic from 'next/dynamic'
+
+// Dynamic import for the chart content
+const DynamicLineAreaChartContent = dynamic(
+  () => import('./line-area-chart-content'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full animate-pulse" style={{ height: 300 }}>
+        <div className="w-full h-full bg-gray-200 rounded-lg" />
+      </div>
+    ),
+  }
+)
 
 interface LineConfig {
   key: string
@@ -47,37 +60,13 @@ export function LineAreaChart({
   }
 
   return (
-    <div style={{ width: '100%', height }}>
-      <ResponsiveContainer>
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey={xKey} 
-            tick={{ fontSize: 12 }}
-            tickLine={{ stroke: '#e0e0e0' }}
-          />
-          <YAxis 
-            tick={{ fontSize: 12 }}
-            tickLine={{ stroke: '#e0e0e0' }}
-            tickFormatter={formatValue}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend />
-          
-          {lines.map((line) => (
-            <Line
-              key={line.key}
-              type={line.type || 'monotone'}
-              dataKey={line.key}
-              stroke={line.color}
-              strokeWidth={2}
-              dot={{ fill: line.color, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, fill: line.color }}
-              name={line.name}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <DynamicLineAreaChartContent
+      data={data}
+      height={height}
+      xKey={xKey}
+      lines={lines}
+      formatValue={formatValue}
+      CustomTooltip={CustomTooltip}
+    />
   )
 }

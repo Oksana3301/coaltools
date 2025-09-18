@@ -146,16 +146,7 @@ export async function PATCH(
     if (body.action === 'restore') {
       const expense = await prisma.kasKecilExpense.update({
         where: { id: id },
-        data: { deletedAt: null },
-        include: {
-          creator: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
+        data: { deletedAt: null }
       })
       
       return NextResponse.json(expense)

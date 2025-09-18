@@ -67,7 +67,7 @@ const navigation = [
       },
       {
         name: "Kalkulator Gaji",
-        href: "/coal-tools-kalkulatorgaji",
+        href: "/payroll-integrated",
         icon: Calculator,
         description: "Kalkulator gaji karyawan"
       },

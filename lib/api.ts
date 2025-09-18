@@ -365,11 +365,7 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const fullUrl = `${this.baseUrl}${endpoint}`
-    console.log('🌐 fetchApi called:', {
-      url: fullUrl,
-      method: options.method || 'GET',
-      hasBody: !!options.body
-    })
+    // API call initiated
     
     try {
       const response = await fetch(fullUrl, {
@@ -380,21 +376,20 @@ class ApiService {
         ...options,
       })
 
-      console.log('📡 Response received:', {
-        status: response.status,
-        ok: response.ok,
-        statusText: response.statusText
-      })
+      // Response received
 
       const data = await response.json()
-      console.log('📊 Response data:', data)
+      // Response data parsed
       
       if (!response.ok) {
-        console.error('❌ Response not ok:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: data
-        })
+        // Log error for debugging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ Response not ok:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: data
+          })
+        }
         
         // Handle database connection errors specifically
         if (data.code === 'DB_CONNECTION_ERROR') {
@@ -403,15 +398,18 @@ class ApiService {
         throw new Error(data.error || 'Terjadi kesalahan')
       }
 
-      console.log('✅ fetchApi success')
+      // API call successful
       return data
     } catch (error) {
-      console.error('🔥 fetchApi error:', error)
-      console.error('🔥 Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack'
-      })
+      // Log error for debugging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.error('🔥 fetchApi error:', error)
+        console.error('🔥 Error details:', {
+          name: error instanceof Error ? error.name : 'Unknown',
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : 'No stack'
+        })
+      }
       throw error
     }
   }
@@ -656,17 +654,15 @@ class ApiService {
       customComponents?: any[]
     }>
   }): Promise<ApiResponse<PayrollRun>> {
-    console.log('🆕 createPayrollRun called with:', JSON.stringify(data, null, 2))
-    console.log('📊 Payload size:', JSON.stringify(data).length, 'characters')
-    console.log('📊 Employee overrides count:', data.employeeOverrides?.length || 0)
+    // Creating payroll run with provided data
     
     try {
-      console.log('📤 Making API call to /api/payroll')
+      // Making API call to create payroll
       const result = await this.fetchApi<PayrollRun>('/payroll', {
         method: 'POST',
         body: JSON.stringify(data)
       })
-      console.log('✅ createPayrollRun SUCCESS:', result)
+      // Payroll run created successfully
       return result
     } catch (error) {
       console.error('❌ createPayrollRun error:', error)
@@ -679,13 +675,13 @@ class ApiService {
 
   // Update payroll run
   async updatePayrollRun(data: Partial<PayrollRun> & { id: string }): Promise<ApiResponse<PayrollRun>> {
-    console.log('🔄 updatePayrollRun called with:', data)
+    // Updating payroll run
     try {
       const result = await this.fetchApi<PayrollRun>('/payroll', {
         method: 'PUT',
         body: JSON.stringify(data)
       })
-      console.log('📊 updatePayrollRun result:', result)
+      // Payroll run updated successfully
       return result
     } catch (error) {
       console.error('❌ updatePayrollRun error:', error)

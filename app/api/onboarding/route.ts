@@ -148,27 +148,31 @@ export async function POST(request: NextRequest) {
       })
 
       // Upsert runs_profile
+      const createData: any = {
+        userId,
+        fullName: validatedData.runs_profile.full_name,
+        jobTitle: validatedData.runs_profile.job_title,
+        preferredLang: validatedData.runs_profile.preferred_lang,
+        preferredFormats: JSON.stringify(validatedData.runs_profile.preferred_formats),
+        reminderChannel: validatedData.runs_profile.reminder_channel,
+        signatureName: validatedData.runs_profile.signature_name || validatedData.runs_profile.full_name,
+        hasCompletedOnboarding: true,
+      };
+
+      const updateData: any = {
+        fullName: validatedData.runs_profile.full_name,
+        jobTitle: validatedData.runs_profile.job_title,
+        preferredLang: validatedData.runs_profile.preferred_lang,
+        preferredFormats: JSON.stringify(validatedData.runs_profile.preferred_formats),
+        reminderChannel: validatedData.runs_profile.reminder_channel,
+        signatureName: validatedData.runs_profile.signature_name || validatedData.runs_profile.full_name,
+        hasCompletedOnboarding: true,
+      };
+
       const runsProfile = await tx.runsProfile.upsert({
         where: { userId },
-        create: {
-          userId,
-          fullName: validatedData.runs_profile.full_name,
-          jobTitle: validatedData.runs_profile.job_title,
-          preferredLang: validatedData.runs_profile.preferred_lang,
-          preferredFormats: validatedData.runs_profile.preferred_formats,
-          reminderChannel: validatedData.runs_profile.reminder_channel,
-          signatureName: validatedData.runs_profile.signature_name || validatedData.runs_profile.full_name,
-          hasCompletedOnboarding: true,
-        },
-        update: {
-          fullName: validatedData.runs_profile.full_name,
-          jobTitle: validatedData.runs_profile.job_title,
-          preferredLang: validatedData.runs_profile.preferred_lang,
-          preferredFormats: validatedData.runs_profile.preferred_formats,
-          reminderChannel: validatedData.runs_profile.reminder_channel,
-          signatureName: validatedData.runs_profile.signature_name || validatedData.runs_profile.full_name,
-          hasCompletedOnboarding: true,
-        },
+        create: createData,
+        update: updateData,
       })
 
       // Upsert onboarding_answers
@@ -177,28 +181,28 @@ export async function POST(request: NextRequest) {
         create: {
           userId,
           language: validatedData.onboarding_answers.language,
-          reportFormats: validatedData.onboarding_answers.report_formats,
-          commonExpenses: validatedData.onboarding_answers.common_expenses,
+          reportFormats: JSON.stringify(validatedData.onboarding_answers.report_formats),
+          commonExpenses: JSON.stringify(validatedData.onboarding_answers.common_expenses),
           budgetAlerts: validatedData.onboarding_answers.budget_alerts,
           monthlyTargetMt: validatedData.onboarding_answers.monthly_target_mt,
           showTargetVsActual: validatedData.onboarding_answers.show_target_vs_actual,
-          payrollModes: validatedData.onboarding_answers.payroll_modes,
-          payrollComponents: validatedData.onboarding_answers.payroll_components,
-          inputDevices: validatedData.onboarding_answers.input_devices,
+          payrollModes: JSON.stringify(validatedData.onboarding_answers.payroll_modes),
+          payrollComponents: JSON.stringify(validatedData.onboarding_answers.payroll_components),
+          inputDevices: JSON.stringify(validatedData.onboarding_answers.input_devices),
           reminderChannel: validatedData.onboarding_answers.reminder_channel,
           sampleReportFileId: validatedData.onboarding_answers.sample_report_file_id,
           allowCustomNotes: validatedData.onboarding_answers.allow_custom_notes,
         },
         update: {
           language: validatedData.onboarding_answers.language,
-          reportFormats: validatedData.onboarding_answers.report_formats,
-          commonExpenses: validatedData.onboarding_answers.common_expenses,
+          reportFormats: JSON.stringify(validatedData.onboarding_answers.report_formats),
+          commonExpenses: JSON.stringify(validatedData.onboarding_answers.common_expenses),
           budgetAlerts: validatedData.onboarding_answers.budget_alerts,
           monthlyTargetMt: validatedData.onboarding_answers.monthly_target_mt,
           showTargetVsActual: validatedData.onboarding_answers.show_target_vs_actual,
-          payrollModes: validatedData.onboarding_answers.payroll_modes,
-          payrollComponents: validatedData.onboarding_answers.payroll_components,
-          inputDevices: validatedData.onboarding_answers.input_devices,
+          payrollModes: JSON.stringify(validatedData.onboarding_answers.payroll_modes),
+          payrollComponents: JSON.stringify(validatedData.onboarding_answers.payroll_components),
+          inputDevices: JSON.stringify(validatedData.onboarding_answers.input_devices),
           reminderChannel: validatedData.onboarding_answers.reminder_channel,
           sampleReportFileId: validatedData.onboarding_answers.sample_report_file_id,
           allowCustomNotes: validatedData.onboarding_answers.allow_custom_notes,

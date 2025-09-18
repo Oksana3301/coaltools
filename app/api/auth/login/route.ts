@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 // Rate limiting store (in production, use Redis or database)
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>()
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Error during login:', error)
+    logger.apiError('/api/auth/login', error)
     return NextResponse.json(
       { success: false, error: 'Terjadi kesalahan saat login' },
       { status: 500 }

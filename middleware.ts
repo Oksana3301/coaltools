@@ -6,7 +6,7 @@ const protectedRoutes = [
   '/coal-tools-kaskecil',
   '/coal-tools-kasbesar', 
   '/coal-tools-karyawan',
-  '/coal-tools-kalkulatorgaji',
+  '/payroll-integrated',
   '/coal-tools-laporanproduksi',
   '/onboarding-demo',
   '/admin-status-test',

@@ -7,21 +7,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
     const { id } = await params
 
     const productionReport = await prisma.productionReport.findUnique({
-      where: { id },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        },
-        buyer: {
-          select: { id: true, nama: true, hargaPerTonDefault: true }
-        }
-      }
+      where: { id }
     })
 
     if (!productionReport) {
@@ -56,6 +50,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
     const { id } = await params
     const body = await request.json()
     const { status, approvedBy, ...updateData } = body
@@ -67,17 +66,6 @@ export async function PUT(
         ...(status && { status }),
         ...(approvedBy && { approvedBy }),
         nettoTon: updateData.grossTon - updateData.tareTon // Recalculate netto
-      },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        },
-        buyer: {
-          select: { id: true, nama: true, hargaPerTonDefault: true }
-        }
       }
     })
 
@@ -104,6 +92,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
@@ -143,6 +136,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
     const { id } = await params
     const body = await request.json()
     const { status, approvedBy, notes } = body
@@ -188,17 +186,6 @@ export async function PATCH(
       data: {
         ...(status && { status }),
         ...(approvedBy && { approvedBy })
-      },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true }
-        },
-        approver: {
-          select: { id: true, name: true, email: true }
-        },
-        buyer: {
-          select: { id: true, nama: true, hargaPerTonDefault: true }
-        }
       }
     })
 

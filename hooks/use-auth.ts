@@ -40,7 +40,10 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
         
         setIsLoading(false)
       } catch (error) {
-        console.error('Auth check error:', error)
+        // Log error for debugging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Auth check error:', error)
+        }
         setUser(null)
         setIsLoading(false)
       }

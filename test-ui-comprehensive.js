@@ -93,7 +93,7 @@ function testPageLoads() {
     { name: 'Kas Kecil', path: '/coal-tools-kaskecil' },
     { name: 'Kas Besar', path: '/coal-tools-kasbesar' },
     { name: 'Karyawan', path: '/coal-tools-karyawan' },
-    { name: 'Payroll Calculator', path: '/coal-tools-kalkulatorgaji' },
+    { name: 'Payroll Calculator', path: '/payroll-integrated' },
     { name: 'Production Reports', path: '/coal-tools-laporanproduksi' },
     { name: 'Kwitansi', path: '/kwitansi' },
     { name: 'Invoice', path: '/invoice' },

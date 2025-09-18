@@ -51,14 +51,14 @@ export async function POST(request: NextRequest) {
 
         // Create logout activity record
         if (user) {
-          await prisma.loginActivity.create({
+          await prisma.login_activity.create({
             data: {
-              userId: user.id,
+              user_id: user.id,
               email: user.email,
-              ipAddress: ip,
-              userAgent: userAgent,
+              ip_address: ip,
+              user_agent: userAgent,
               status: 'LOGOUT', // We'll need to add this to the enum
-              createdAt: new Date()
+              created_at: new Date()
             }
           })
         }

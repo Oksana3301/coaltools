@@ -16,7 +16,8 @@ async function seedPayrollData() {
         data: {
           name: 'Demo User',
           email: 'demo@example.com',
-          role: 'admin'
+          password: 'demo123',
+          role: 'ADMIN'
         }
       })
       console.log('✅ Created demo user')

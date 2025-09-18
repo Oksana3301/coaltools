@@ -92,7 +92,7 @@ export async function PATCH(
       'REJECTED': ['DRAFT']
     }
 
-    const allowedNext = validTransitions[currentPayroll.status] || []
+    const allowedNext = validTransitions[currentPayroll.status || 'DRAFT'] || []
     if (status && !allowedNext.includes(status)) {
       return NextResponse.json(
         {
@@ -217,11 +217,11 @@ async function generateKwitansiForPayroll(payrollRun: any) {
           createdBy: payrollRun.createdBy
         }
       })
-      console.log(`Kwitansi created for employee: ${employee.nama || payrollLine.employeeName}`)
+      // Kwitansi created for employee
     } catch (error) {
       console.error(`Error creating kwitansi for employee ${employee.nama || payrollLine.employeeName}:`, error)
     }
   }
   
-  console.log(`Generated ${completePayrollRun.payrollLines.length} kwitansi for payroll run ${payrollRun.id}`)
+  // Generated kwitansi for payroll run
 }

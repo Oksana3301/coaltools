@@ -3,19 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id               String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id               String           @id @default(cuid())
   name             String
   email            String           @unique
   password         String
-  role             user_role?       @default(STAFF)
+  role             String?          @default("STAFF")
   aktif            Boolean?         @default(true)
-  created_at       DateTime?        @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime?        @default(now()) @db.Timestamptz(6)
+  created_at       DateTime?        @default(now())
+  updated_at       DateTime?        @default(now())
   login_activity   login_activity[]
   pay_components   PayComponent[]
   // kwitansi         Kwitansi[]
@@ -48,7 +48,7 @@ model KasBesarExpense {
   subJenis      String    @map("sub_jenis")
   buktiUrl      String?   @map("bukti_url")
   kontrakUrl    String?   @map("kontrak_url")
-  status        Status    @default(DRAFT)
+  status        String    @default("DRAFT")
   notes         String?
   approvalNotes String?   @map("approval_notes")
   createdBy     String
@@ -77,7 +77,7 @@ model KasKecilExpense {
   jenis         String    @default("kas_kecil")
   subJenis      String    @map("sub_jenis")
   buktiUrl      String?   @map("bukti_url")
-  status        Status    @default(DRAFT)
+  status        String    @default("DRAFT")
   notes         String?
   approvalNotes String?   @map("approval_notes")
   createdBy     String
@@ -89,7 +89,7 @@ model KasKecilExpense {
 }
 
 model Employee {
-  id                  String                       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id                  String                       @id @default(cuid())
   nama                String
   nik                 String?
   jabatan             String?
@@ -97,18 +97,18 @@ model Employee {
   tempatLahir         String?                      @map("tempat_lahir")
   tanggalLahir        String?                      @map("tanggal_lahir")
   alamat              String?
-  kontrakUpahHarian   Decimal                      @map("kontrak_upah_harian") @db.Decimal(15, 2)
-  defaultUangMakan    Decimal                      @default(0) @map("default_uang_makan") @db.Decimal(15, 2)
-  defaultUangBbm      Decimal                      @default(0) @map("default_uang_bbm") @db.Decimal(15, 2)
+  kontrakUpahHarian   Float                      @map("kontrak_upah_harian") 
+  defaultUangMakan    Float                      @default(0) @map("default_uang_makan") 
+  defaultUangBbm      Float                      @default(0) @map("default_uang_bbm") 
   bankName            String?                      @map("bank_name")
   bankAccount         String?                      @map("bank_account")
   npwp                String?
   startDate           String?                      @map("start_date")
   aktif               Boolean?                     @default(true)
-  created_at          DateTime?                    @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime?                    @default(now()) @db.Timestamptz(6)
-  createdAt           DateTime?                    @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime?                    @default(now()) @db.Timestamptz(6)
+  created_at          DateTime?                    @default(now()) 
+  updated_at          DateTime?                    @default(now()) 
+  createdAt           DateTime?                    @default(now()) 
+  updatedAt           DateTime?                    @default(now()) 
   componentSelections EmployeeComponentSelection[]
   payrollLines        PayrollLine[]
 
@@ -119,23 +119,23 @@ model Employee {
 }
 
 model PayComponent {
-  id                    String                       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id                    String                       @id @default(cuid())
   nama                  String
   taxable               Boolean?                     @default(false)
-  rate                  Decimal?                     @db.Decimal(8, 4)
-  nominal               Decimal?                     @db.Decimal(15, 2)
-  capMin                Decimal?                     @map("cap_min") @db.Decimal(15, 2)
-  capMax                Decimal?                     @map("cap_max") @db.Decimal(15, 2)
+  rate                  Float?                     
+  nominal               Float?                     
+  capMin                Float?                     @map("cap_min") 
+  capMax                Float?                     @map("cap_max") 
   order                 Int?                         @default(0)
   aktif                 Boolean?                     @default(true)
   created_by            String?
-  created_at            DateTime?                    @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime?                    @default(now()) @db.Timestamptz(6)
-  createdAt             DateTime?                    @default(now()) @db.Timestamptz(6)
-  updatedAt             DateTime?                    @default(now()) @db.Timestamptz(6)
-  tipe                  pay_component_type
-  metode                pay_component_method
-  basis                 pay_component_basis
+  created_at            DateTime?                    @default(now()) 
+  updated_at            DateTime?                    @default(now()) 
+  createdAt             DateTime?                    @default(now()) 
+  updatedAt             DateTime?                    @default(now()) 
+  tipe                  String
+  metode                String
+  basis                 String
   componentSelections   EmployeeComponentSelection[]
   users                 User?                        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payrollLineComponents PayrollLineComponent[]
@@ -155,7 +155,7 @@ model AttendanceRecord {
   breakStart    String?          @map("break_start")
   breakEnd      String?          @map("break_end")
   totalHours    Float            @map("total_hours")
-  status        AttendanceStatus
+  status        String
   overtimeHours Float            @default(0) @map("overtime_hours")
   notes         String?
   approvedBy    String?          @map("approved_by")
@@ -166,17 +166,17 @@ model AttendanceRecord {
 }
 
 model PayrollRun {
-  id                  String                       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id                  String                       @id @default(cuid())
   periodeAwal         String                       @map("periode_awal")
   periodeAkhir        String                       @map("periode_akhir")
-  status              payroll_status?              @default(DRAFT)
+  status              String?              @default("DRAFT")
   createdBy           String                       @map("created_by")
   approvedBy          String?                      @map("approved_by")
   notes               String?
-  customFileName      String?                      @map("custom_file_name") @db.VarChar(1000)
-  created_at          DateTime?                    @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime?                    @default(now()) @db.Timestamptz(6)
-  deletedAt           DateTime?                    @map("deleted_at") @db.Timestamptz(6)
+  customFileName      String?                      @map("custom_file_name") 
+  created_at          DateTime?                    @default(now()) 
+  updated_at          DateTime?                    @default(now()) 
+  deletedAt           DateTime?                    @map("deleted_at") 
   componentSelections EmployeeComponentSelection[]
   payrollLines        PayrollLine[]
   // Temporarily disabled foreign key constraints for testing
@@ -191,33 +191,33 @@ model PayrollRun {
 }
 
 model PayrollLine {
-  id              String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id              String                 @id @default(cuid())
   payrollRunId    String                 @map("payroll_run_id")
   employeeId      String                 @map("employee_id")
   employeeName    String                 @map("employee_name")
   hariKerja       Int                    @default(0) @map("hari_kerja")
-  upahHarian      Decimal                @default(0) @map("upah_harian") @db.Decimal(15, 2)
-  uangMakanHarian Decimal                @default(0) @map("uang_makan_harian") @db.Decimal(15, 2)
-  uangBbmHarian   Decimal                @default(0) @map("uang_bbm_harian") @db.Decimal(15, 2)
-  overtimeHours   Decimal?               @default(0) @map("overtime_hours") @db.Decimal(8, 2)
-  overtimeRate    Decimal?               @default(1.5) @map("overtime_rate") @db.Decimal(8, 4)
-  overtimeAmount  Decimal?               @default(0) @map("overtime_amount") @db.Decimal(15, 2)
-  normalHours     Decimal?               @default(0) @map("normal_hours") @db.Decimal(8, 2)
-  holidayHours    Decimal?               @default(0) @map("holiday_hours") @db.Decimal(8, 2)
-  nightFirstHour  Decimal?               @default(0) @map("night_first_hour") @db.Decimal(8, 2)
-  nightAdditionalHours Decimal?          @default(0) @map("night_additional_hours") @db.Decimal(8, 2)
-  customHourlyRate Decimal?              @default(0) @map("custom_hourly_rate") @db.Decimal(15, 2)
-  cashbon         Decimal?               @default(0) @db.Decimal(15, 2)
-  bruto           Decimal                @default(0) @db.Decimal(15, 2)
-  pajakRate       Decimal?               @map("pajak_rate") @db.Decimal(8, 4)
-  pajakNominal    Decimal?               @map("pajak_nominal") @db.Decimal(15, 2)
-  potonganLain    Decimal?               @default(0) @map("potongan_lain") @db.Decimal(15, 2)
-  neto            Decimal                @default(0) @db.Decimal(15, 2)
-  status          payroll_status?        @default(DRAFT)
+  upahHarian      Float                @default(0) @map("upah_harian") 
+  uangMakanHarian Float                @default(0) @map("uang_makan_harian") 
+  uangBbmHarian   Float                @default(0) @map("uang_bbm_harian") 
+  overtimeHours   Float?               @default(0) @map("overtime_hours") 
+  overtimeRate    Float?               @default(1.5) @map("overtime_rate") 
+  overtimeAmount  Float?               @default(0) @map("overtime_amount") 
+  normalHours     Float?               @default(0) @map("normal_hours") 
+  holidayHours    Float?               @default(0) @map("holiday_hours") 
+  nightFirstHour  Float?               @default(0) @map("night_first_hour") 
+  nightAdditionalHours Float?          @default(0) @map("night_additional_hours") 
+  customHourlyRate Float?              @default(0) @map("custom_hourly_rate") 
+  cashbon         Float?               @default(0) 
+  bruto           Float                @default(0) 
+  pajakRate       Float?               @map("pajak_rate") 
+  pajakNominal    Float?               @map("pajak_nominal") 
+  potonganLain    Float?               @default(0) @map("potongan_lain") 
+  neto            Float                @default(0) 
+  status          String?        @default("DRAFT")
   notes           String?
-  created_at      DateTime?              @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime?              @default(now()) @db.Timestamptz(6)
-  deletedAt       DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  created_at      DateTime?              @default(now()) 
+  updated_at      DateTime?              @default(now()) 
+  deletedAt       DateTime?              @map("deleted_at") 
   components      PayrollLineComponent[]
   employee        Employee               @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payrollRun      PayrollRun             @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -229,16 +229,16 @@ model PayrollLine {
 }
 
 model PayrollLineComponent {
-  id            String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id            String       @id @default(cuid())
   payrollLineId String       @map("payroll_line_id")
   componentId   String       @map("component_id")
   componentName String       @map("component_name")
-  qty           Decimal?     @db.Decimal(8, 2)
-  rate          Decimal?     @db.Decimal(8, 4)
-  nominal       Decimal?     @db.Decimal(15, 2)
-  amount        Decimal      @db.Decimal(15, 2)
+  qty           Float?     
+  rate          Float?     
+  nominal       Float?     
+  amount        Float      
   taxable       Boolean?     @default(false)
-  created_at    DateTime?    @default(now()) @db.Timestamptz(6)
+  created_at    DateTime?    @default(now()) 
   payComponent  PayComponent @relation(fields: [componentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payrollLine   PayrollLine  @relation(fields: [payrollLineId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -249,15 +249,15 @@ model PayrollLineComponent {
 }
 
 model EmployeeComponentSelection {
-  id            String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id            String       @id @default(cuid())
   payrollRunId  String       @map("payroll_run_id")
   employeeId    String       @map("employee_id")
   componentId   String       @map("component_id")
   componentType String       @map("component_type")
   isSelected    Boolean?     @default(true) @map("is_selected")
-  customAmount  Decimal?     @map("custom_amount") @db.Decimal(15, 2)
-  created_at    DateTime?    @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime?    @default(now()) @db.Timestamptz(6)
+  customAmount  Float?     @map("custom_amount") 
+  created_at    DateTime?    @default(now()) 
+  updated_at    DateTime?    @default(now()) 
   component     PayComponent @relation(fields: [componentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payrollRun    PayrollRun   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -319,7 +319,7 @@ model Invoice {
   signatureName     String?   @map("signature_name")
   signaturePosition String?   @map("signature_position")
   signatureLocation String?   @map("signature_location")
-  items             Json      // Store invoice items as JSON
+  items             String      // Store invoice items as JSON text
   subtotal          Float     @default(0)
   discount          Float     @default(0)
   tax               Float     @default(0)
@@ -347,7 +347,7 @@ model ProductionReport {
   nettoTon    Float            @map("netto_ton")
   sourceFile  String?          @map("source_file")
   notes       String?
-  status      ProductionStatus @default(DRAFT)
+  status      String @default("DRAFT")
   createdBy   String           @map("created_by")
   approvedBy  String?          @map("approved_by")
   createdAt   DateTime         @default(now())
@@ -379,8 +379,8 @@ model AuditLog {
   action    String
   tableName String   @map("table_name")
   recordId  String   @map("record_id")
-  oldValues Json?    @map("old_values")
-  newValues Json?    @map("new_values")
+  oldValues String?    @map("old_values")
+  newValues String?    @map("new_values")
   userId    String   @map("user_id")
   createdAt DateTime @default(now())
 
@@ -393,7 +393,7 @@ model login_activities {
   email      String
   ip_address String?
   user_agent String?
-  status     LoginStatus @default(SUCCESS)
+  status     String @default("SUCCESS")
   createdAt  DateTime    @default(now())
 }
 
@@ -404,7 +404,7 @@ model RunsProfile {
   fullName               String             @map("full_name")
   jobTitle               String             @map("job_title")
   preferredLang          String             @map("preferred_lang")
-  preferredFormats       String[]           @map("preferred_formats")
+  preferredFormats       String           @map("preferred_formats")
   reminderChannel        String             @map("reminder_channel")
   signatureName          String             @map("signature_name")
   hasCompletedOnboarding Boolean            @default(false) @map("has_completed_onboarding")
@@ -421,14 +421,14 @@ model OnboardingAnswers {
   orgId              String?     @map("org_id")
   userId             String      @unique @map("user_id")
   language           String
-  reportFormats      Json        @map("report_formats")
-  commonExpenses     Json        @map("common_expenses")
+  reportFormats      String        @map("report_formats")
+  commonExpenses     String        @map("common_expenses")
   budgetAlerts       Boolean     @map("budget_alerts")
   monthlyTargetMt    Float?      @map("monthly_target_mt")
   showTargetVsActual Boolean     @map("show_target_vs_actual")
-  payrollModes       Json        @map("payroll_modes")
-  payrollComponents  Json        @map("payroll_components")
-  inputDevices       Json        @map("input_devices")
+  payrollModes       String        @map("payroll_modes")
+  payrollComponents  String        @map("payroll_components")
+  inputDevices       String        @map("input_devices")
   reminderChannel    String      @map("reminder_channel")
   sampleReportFileId String?     @map("sample_report_file_id")
   allowCustomNotes   Boolean     @map("allow_custom_notes")
@@ -468,111 +468,16 @@ model Files {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model login_activity {
-  id         String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  id         String       @id @default(cuid())
   user_id    String?
   email      String
   ip_address String?
   user_agent String?
-  status     login_status
-  created_at DateTime?    @default(now()) @db.Timestamptz(6)
+  status     String
+  created_at DateTime?    @default(now()) 
   users      User?        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([created_at(sort: Desc)], map: "idx_login_activity_created_at")
   @@index([status], map: "idx_login_activity_status")
   @@index([user_id], map: "idx_login_activity_user_id")
-}
-
-enum Status {
-  DRAFT
-  SUBMITTED
-  REVIEWED
-  APPROVED
-  ARCHIVED
-  REJECTED
-}
-
-enum PayComponentType {
-  EARNING
-  DEDUCTION
-}
-
-enum PayComponentMethod {
-  FLAT
-  PER_HARI
-  PERSENTASE
-}
-
-enum PayComponentBasis {
-  UPAH_HARIAN
-  BRUTO
-  HARI_KERJA
-}
-
-enum AttendanceStatus {
-  PRESENT
-  LATE
-  ABSENT
-  SICK
-  LEAVE
-}
-
-enum PayrollStatus {
-  DRAFT
-  REVIEWED
-  APPROVED
-  PAID
-  ARCHIVED
-}
-
-enum ProductionStatus {
-  DRAFT
-  SUBMITTED
-  REVIEWED
-  APPROVED
-  ARCHIVED
-}
-
-enum LoginStatus {
-  SUCCESS
-  FAILED
-  LOCKED
-  LOGOUT
-}
-
-enum login_status {
-  LOGIN
-  LOGOUT
-  FAILED
-}
-
-enum pay_component_basis {
-  UPAH_HARIAN
-  BRUTO
-  HARI_KERJA
-}
-
-enum pay_component_method {
-  FLAT
-  PER_HARI
-  PERSENTASE
-}
-
-enum pay_component_type {
-  EARNING
-  DEDUCTION
-}
-
-enum payroll_status {
-  DRAFT
-  SUBMITTED
-  APPROVED
-  PAID
-  REJECTED
-}
-
-enum user_role {
-  ADMIN
-  MANAGER
-  STAFF
-  DEMO
 }

@@ -150,18 +150,19 @@ export function ExpenseManagement() {
   const [formData, setFormData] = useState({
     hari: "",
     tanggal: "",
-    tipe_aktivitas: "",
+    bulan: "",
+    tipeAktivitas: "",
     barang: "",
     banyak: 0,
     satuan: "",
-    harga_satuan: 0,
-    vendor_nama: "",
-    vendor_telp: "",
-    vendor_email: "",
+    hargaSatuan: 0,
+    vendorNama: "",
+    vendorTelp: "",
+    vendorEmail: "",
     jenis: "",
-    sub_jenis: "",
+    subJenis: "",
     notes: "",
-    bukti_url: ""
+    buktiUrl: ""
   })
 
   // Load data from database on mount
@@ -177,8 +178,8 @@ export function ExpenseManagement() {
     })
   }, [filterStatus, showDeleted])
 
-  // Auto calculate total when banyak or harga_satuan changes
-  const calculatedTotal = formData.banyak * formData.harga_satuan
+  // Auto calculate total when banyak or hargaSatuan changes
+  const calculatedTotal = formData.banyak * formData.hargaSatuan
 
   // Auto derive month from date
   useEffect(() => {
@@ -231,7 +232,7 @@ export function ExpenseManagement() {
     setIsUploading(true)
     try {
       const fileUrl = await uploadFile(file)
-      setFormData(prev => ({ ...prev, bukti_url: fileUrl }))
+      setFormData(prev => ({ ...prev, buktiUrl: fileUrl }))
       
       toast({
         title: "File berhasil diupload",
@@ -261,29 +262,29 @@ export function ExpenseManagement() {
       }
 
       // Skip header row and convert to expenses
-      const importedExpenses: Expense[] = data.slice(1).map((row: unknown[], index: number) => {
+      const importedExpenses: Expense[] = (data.slice(1) as unknown[][]).map((row: unknown[], index: number) => {
         const rowData = row as string[]
         return {
           id: `imported_${Date.now()}_${index}`,
           tanggal: rowData[0] || '',
           hari: rowData[1] || '',
           bulan: rowData[2] || '',
-          tipe_aktivitas: rowData[3] || '',
+          tipeAktivitas: rowData[3] || '',
           barang: rowData[4] || '',
           banyak: parseFloat(rowData[5]) || 0,
           satuan: rowData[6] || '',
-          harga_satuan: parseFloat(rowData[7]) || 0,
+          hargaSatuan: parseFloat(rowData[7]) || 0,
           total: parseFloat(rowData[8]) || 0,
-          vendor_nama: rowData[9] || '',
-          vendor_telp: rowData[10] || '',
-          vendor_email: rowData[11] || '',
+          vendorNama: rowData[9] || '',
+          vendorTelp: rowData[10] || '',
+          vendorEmail: rowData[11] || '',
           jenis: rowData[12] || '',
-          sub_jenis: rowData[13] || '',
+          subJenis: rowData[13] || '',
           notes: rowData[14] || '',
-          bukti_url: '',
-          status: 'draft' as const,
-          created_by: 'imported',
-          created_at: new Date().toISOString()
+          buktiUrl: '',
+          status: 'DRAFT' as const,
+          createdBy: 'imported',
+          createdAt: new Date().toISOString()
         }
       })
 
@@ -306,8 +307,8 @@ export function ExpenseManagement() {
   }
 
   const validateForm = () => {
-    const requiredFields = ['tanggal', 'tipe_aktivitas', 'barang', 'satuan', 'jenis', 'sub_jenis']
-    const missingFields = requiredFields.filter(field => !formData[field])
+    const requiredFields = ['tanggal', 'tipeAktivitas', 'barang', 'satuan', 'jenis', 'subJenis']
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData])
     
     if (missingFields.length > 0) {
       toast({
@@ -318,7 +319,7 @@ export function ExpenseManagement() {
       return false
     }
 
-    if (formData.banyak <= 0 || formData.harga_satuan <= 0) {
+    if (formData.banyak <= 0 || formData.hargaSatuan <= 0) {
       toast({
         title: "Nilai tidak valid",
         description: "Banyak dan harga satuan harus lebih dari 0",
@@ -328,7 +329,7 @@ export function ExpenseManagement() {
     }
 
     // Validate BBM Solar must use Galon or Liter
-    if (formData.sub_jenis === 'bbm_solar' && !['galon', 'liter'].includes(formData.satuan)) {
+    if (formData.subJenis === 'bbm_solar' && !['galon', 'liter'].includes(formData.satuan)) {
       toast({
         title: "Satuan BBM Solar tidak valid",
         description: "BBM Solar harus menggunakan satuan Galon atau Liter",
@@ -338,7 +339,7 @@ export function ExpenseManagement() {
     }
 
     // Validate email format if provided
-    if (formData.vendor_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.vendor_email)) {
+    if (formData.vendorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.vendorEmail)) {
       toast({
         title: "Email tidak valid",
         description: "Format email vendor tidak benar",
@@ -382,8 +383,8 @@ export function ExpenseManagement() {
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = searchTerm === '' || 
       expense.barang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.vendor_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.tipe_aktivitas.toLowerCase().includes(searchTerm.toLowerCase())
+      expense.vendorNama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.tipeAktivitas.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesStatus = filterStatus === 'all' || expense.status === filterStatus
     const matchesJenis = filterJenis === 'all' || expense.jenis === filterJenis
@@ -396,7 +397,7 @@ export function ExpenseManagement() {
     if (selectedExpenses.size === filteredExpenses.length && filteredExpenses.length > 0) {
       setSelectedExpenses(new Set())
     } else {
-      setSelectedExpenses(new Set(filteredExpenses.map(exp => exp.id)))
+      setSelectedExpenses(new Set(filteredExpenses.map(exp => exp.id).filter((id): id is string => Boolean(id))))
     }
     // Force show bulk actions if items are selected
     if (filteredExpenses.length > 0) {
@@ -475,18 +476,19 @@ export function ExpenseManagement() {
     setFormData({
       hari: "",
       tanggal: "",
-      tipe_aktivitas: "",
+      bulan: "",
+      tipeAktivitas: "",
       barang: "",
       banyak: 0,
       satuan: "",
-      harga_satuan: 0,
-      vendor_nama: "",
-      vendor_telp: "",
-      vendor_email: "",
+      hargaSatuan: 0,
+      vendorNama: "",
+      vendorTelp: "",
+      vendorEmail: "",
       jenis: "",
-      sub_jenis: "",
+      subJenis: "",
       notes: "",
-      bukti_url: ""
+      buktiUrl: ""
     })
     setEditingExpense(null)
     setIsFormOpen(false)
@@ -499,18 +501,19 @@ export function ExpenseManagement() {
     setFormData({
       hari: expense.hari,
       tanggal: expense.tanggal,
-      tipe_aktivitas: expense.tipe_aktivitas,
+      bulan: expense.bulan,
+      tipeAktivitas: expense.tipeAktivitas,
       barang: expense.barang,
       banyak: expense.banyak,
       satuan: expense.satuan,
-      harga_satuan: expense.harga_satuan,
-      vendor_nama: expense.vendor_nama,
-      vendor_telp: expense.vendor_telp,
-      vendor_email: expense.vendor_email,
+      hargaSatuan: expense.hargaSatuan,
+      vendorNama: expense.vendorNama || "",
+      vendorTelp: expense.vendorTelp || "",
+      vendorEmail: expense.vendorEmail || "",
       jenis: expense.jenis,
-      sub_jenis: expense.sub_jenis,
+      subJenis: expense.subJenis,
       notes: expense.notes || "",
-      bukti_url: expense.bukti_url || ""
+      buktiUrl: expense.buktiUrl || ""
     })
     setEditingExpense(expense)
     setIsFormOpen(true)
@@ -519,12 +522,14 @@ export function ExpenseManagement() {
 
   // Enhanced edit functions
   const saveExpenseVersion = (expense: Expense) => {
+    if (!expense.id) return
     const versions = expenseVersions.get(expense.id) || []
-    versions.push({...expense, created_at: new Date().toISOString()})
+    versions.push({...expense, createdAt: new Date().toISOString()})
     setExpenseVersions(new Map(expenseVersions.set(expense.id, versions)))
   }
 
   const handleInlineEdit = (expense: Expense, field: string) => {
+    if (!expense.id) return
     setInlineEditId(expense.id)
     setEditingField({id: expense.id, field})
     setInlineEditValues({
@@ -547,7 +552,8 @@ export function ExpenseManagement() {
         ...expense, 
         [editingField.field]: inlineEditValues[expenseId][editingField.field] 
       }
-      const result = await updateExpense(updatedExpense)
+      if (!updatedExpense.id) return
+      const result = await updateExpense(updatedExpense as KasKecilExpense & { id: string })
       
       if (result) {
         toast({
@@ -568,28 +574,31 @@ export function ExpenseManagement() {
 
   const handleQuickEdit = (expense: Expense) => {
     // Check if this is an approved transaction and needs authorization
-    if (expense.status === 'approved' && !allowApprovedEdit) {
-      setShowApprovalOverride(expense.id)
+    if (expense.status === 'APPROVED' && !allowApprovedEdit) {
+      if (expense.id) setShowApprovalOverride(expense.id)
       return
     }
     
+    if (!expense.id) return
     setQuickEditMode(true)
     setInlineEditId(expense.id)
     setInlineEditValues({
       ...inlineEditValues,
       [expense.id]: {
         barang: expense.barang,
-        harga_satuan: expense.harga_satuan,
+        hargaSatuan: expense.hargaSatuan,
         banyak: expense.banyak,
-        vendor_nama: expense.vendor_nama
+        vendorNama: expense.vendorNama
       }
     })
   }
 
   // Handle approved transaction editing with authorization for kas kecil
   const handleApprovedExpenseEdit = (expense: Expense) => {
-    if (expense.status === 'approved' && !allowApprovedEdit) {
-      setShowApprovalOverride(expense.id)
+    if (expense.status === 'APPROVED' && !allowApprovedEdit) {
+      if (expense.id) {
+        setShowApprovalOverride(expense.id)
+      }
       return
     }
     
@@ -599,18 +608,19 @@ export function ExpenseManagement() {
     setFormData({
       hari: expense.hari,
       tanggal: expense.tanggal,
-      tipe_aktivitas: expense.tipe_aktivitas,
+      bulan: expense.bulan || "",
+      tipeAktivitas: expense.tipeAktivitas,
       barang: expense.barang,
       banyak: expense.banyak,
       satuan: expense.satuan,
-      harga_satuan: expense.harga_satuan,
-      vendor_nama: expense.vendor_nama,
-      vendor_telp: expense.vendor_telp,
-      vendor_email: expense.vendor_email,
-      jenis: expense.jenis,
-      sub_jenis: expense.sub_jenis,
+      hargaSatuan: expense.hargaSatuan,
+      vendorNama: expense.vendorNama || "",
+      vendorTelp: expense.vendorTelp || "",
+      vendorEmail: expense.vendorEmail || "",
+      jenis: expense.jenis || "",
+      subJenis: expense.subJenis || "",
       notes: expense.notes || "",
-      bukti_url: expense.bukti_url || ""
+      buktiUrl: expense.buktiUrl || ""
     })
     setEditingExpense(expense)
     setIsFormOpen(true)
@@ -642,12 +652,7 @@ export function ExpenseManagement() {
     setAllowApprovedEdit(true)
     
     // Log the override attempt
-    console.log('Kas Kecil Approval Override:', {
-      expenseId: showApprovalOverride,
-      reason: approvalReason,
-      timestamp: new Date().toISOString(),
-      user: 'current_user'
-    })
+    // Override logged for audit purposes
 
     toast({
       title: "Authorization Granted",
@@ -676,7 +681,7 @@ export function ExpenseManagement() {
     const duplicatedExpense = {
       ...expense,
       status: 'DRAFT' as const,
-      bukti_url: '', // Clear file attachment for new entry
+      buktiUrl: '', // Clear file attachment for new entry
       notes: expense.notes ? `Copy of: ${expense.notes}` : 'Duplicated entry'
     }
     
@@ -705,7 +710,8 @@ export function ExpenseManagement() {
       if (expense) {
         saveExpenseVersion(expense)
         const updatedExpense = { ...expense, [field]: value }
-        const result = await updateExpense(updatedExpense)
+        if (!updatedExpense.id) continue
+        const result = await updateExpense(updatedExpense as KasKecilExpense & { id: string })
         if (result) {
           successCount++
         }
@@ -755,9 +761,17 @@ export function ExpenseManagement() {
       REJECTED: { label: 'Ditolak', color: 'bg-red-100 text-red-800' }
     }
     
+    // Handle undefined status first
+    if (!status) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          Unknown
+        </span>
+      )
+    }
+    
     const badge = badges[status]
     
-    // Handle undefined status
     if (!badge) {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -778,17 +792,17 @@ export function ExpenseManagement() {
       Tanggal: exp.tanggal,
       Hari: exp.hari,
       Bulan: exp.bulan,
-      'Tipe Aktivitas': exp.tipe_aktivitas,
+      'Tipe Aktivitas': exp.tipeAktivitas,
       Barang: exp.barang,
       Banyak: exp.banyak,
       Satuan: exp.satuan,
-      'Harga Satuan': exp.harga_satuan,
+      'Harga Satuan': exp.hargaSatuan,
       Total: exp.total,
-      'Vendor Nama': exp.vendor_nama,
-      'Vendor Telp': exp.vendor_telp,
-      'Vendor Email': exp.vendor_email,
+      'Vendor Nama': exp.vendorNama,
+      'Vendor Telp': exp.vendorTelp,
+      'Vendor Email': exp.vendorEmail,
       Jenis: exp.jenis,
-      'Sub Jenis': exp.sub_jenis,
+      'Sub Jenis': exp.subJenis,
       Status: exp.status,
       Catatan: exp.notes || ''
     }))
@@ -806,17 +820,17 @@ export function ExpenseManagement() {
       Tanggal: exp.tanggal,
       Hari: exp.hari,
       Bulan: exp.bulan,
-      'Tipe_Aktivitas': exp.tipe_aktivitas,
+      'Tipe_Aktivitas': exp.tipeAktivitas,
       Barang: exp.barang,
       Banyak: exp.banyak,
       Satuan: exp.satuan,
-      'Harga_Satuan': exp.harga_satuan,
+      'Harga_Satuan': exp.hargaSatuan,
       Total: exp.total,
-      'Vendor_Nama': exp.vendor_nama,
-      'Vendor_Telp': exp.vendor_telp,
-      'Vendor_Email': exp.vendor_email,
+      'Vendor_Nama': exp.vendorNama,
+      'Vendor_Telp': exp.vendorTelp,
+      'Vendor_Email': exp.vendorEmail,
       Jenis: exp.jenis,
-      'Sub_Jenis': exp.sub_jenis,
+      'Sub_Jenis': exp.subJenis,
       Status: exp.status,
       Catatan: exp.notes || ''
     }))
@@ -834,7 +848,7 @@ export function ExpenseManagement() {
       <tr>
         <td>${exp.tanggal}</td>
         <td>${exp.barang}</td>
-        <td>${exp.vendor_nama}</td>
+        <td>${exp.vendorNama}</td>
         <td style="text-align: right;">Rp ${exp.total.toLocaleString('id-ID')}</td>
         <td>${exp.status}</td>
       </tr>
@@ -1064,15 +1078,15 @@ export function ExpenseManagement() {
                   {selectedExpenses.size} item terpilih
                 </span>
                 <div className="flex gap-2">
-                  <Select onValueChange={handleBulkStatusUpdate}>
+                  <Select onValueChange={(value) => handleBulkStatusUpdate(value as Expense['status'])}>
                     <SelectTrigger className="w-40">
                       <SelectValue placeholder="Update Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="submitted">Submit</SelectItem>
-                      <SelectItem value="reviewed">Review</SelectItem>
-                      <SelectItem value="approved">Approve</SelectItem>
-                      <SelectItem value="archived">Archive</SelectItem>
+                      <SelectItem value="SUBMITTED">Submit</SelectItem>
+                      <SelectItem value="REVIEWED">Review</SelectItem>
+                      <SelectItem value="APPROVED">Approve</SelectItem>
+                      <SelectItem value="ARCHIVED">Archive</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button 
@@ -1147,10 +1161,10 @@ export function ExpenseManagement() {
 
                   {/* Transaction Details */}
                   <div className="space-y-2">
-                    <Label htmlFor="tipe_aktivitas">Tipe Aktivitas *</Label>
+                    <Label htmlFor="tipeAktivitas">Tipe Aktivitas *</Label>
                     <Select 
-                      value={formData.tipe_aktivitas} 
-                      onValueChange={(value) => handleInputChange('tipe_aktivitas', value)}
+                      value={formData.tipeAktivitas} 
+                      onValueChange={(value) => handleInputChange('tipeAktivitas', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih tipe aktivitas" />
@@ -1209,13 +1223,13 @@ export function ExpenseManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="harga_satuan">Harga Satuan (Rp) *</Label>
+                    <Label htmlFor="hargaSatuan">Harga Satuan (Rp) *</Label>
                     <Input
-                      id="harga_satuan"
+                      id="hargaSatuan"
                       type="number"
                       min="0"
-                      value={formData.harga_satuan}
-                      onChange={(e) => handleInputChange('harga_satuan', parseFloat(e.target.value) || 0)}
+                      value={formData.hargaSatuan}
+                      onChange={(e) => handleInputChange('hargaSatuan', parseFloat(e.target.value) || 0)}
                       required
                     />
                   </div>
@@ -1232,32 +1246,32 @@ export function ExpenseManagement() {
 
                   {/* Vendor Information */}
                   <div className="space-y-2">
-                    <Label htmlFor="vendor_nama">Nama Vendor</Label>
+                    <Label htmlFor="vendorNama">Nama Vendor</Label>
                     <Input
-                      id="vendor_nama"
-                      value={formData.vendor_nama}
-                      onChange={(e) => handleInputChange('vendor_nama', e.target.value)}
+                      id="vendorNama"
+                      value={formData.vendorNama}
+                      onChange={(e) => handleInputChange('vendorNama', e.target.value)}
                       placeholder="Nama vendor/supplier"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vendor_telp">Telepon Vendor</Label>
+                    <Label htmlFor="vendorTelp">Telepon Vendor</Label>
                     <Input
-                      id="vendor_telp"
-                      value={formData.vendor_telp}
-                      onChange={(e) => handleInputChange('vendor_telp', e.target.value)}
+                      id="vendorTelp"
+                      value={formData.vendorTelp}
+                      onChange={(e) => handleInputChange('vendorTelp', e.target.value)}
                       placeholder="Nomor telepon vendor"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vendor_email">Email Vendor</Label>
+                    <Label htmlFor="vendorEmail">Email Vendor</Label>
                     <Input
-                      id="vendor_email"
+                      id="vendorEmail"
                       type="email"
-                      value={formData.vendor_email}
-                      onChange={(e) => handleInputChange('vendor_email', e.target.value)}
+                      value={formData.vendorEmail}
+                      onChange={(e) => handleInputChange('vendorEmail', e.target.value)}
                       placeholder="email@vendor.com"
                     />
                   </div>
@@ -1283,10 +1297,10 @@ export function ExpenseManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="sub_jenis">Sub Jenis *</Label>
+                    <Label htmlFor="subJenis">Sub Jenis *</Label>
                     <Select 
-                      value={formData.sub_jenis} 
-                      onValueChange={(value) => handleInputChange('sub_jenis', value)}
+                      value={formData.subJenis}
+                      onValueChange={(value) => handleInputChange('subJenis', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih sub jenis" />
@@ -1318,14 +1332,14 @@ export function ExpenseManagement() {
                 <div className="space-y-2">
                   <Label>Bukti Transaksi</Label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    {formData.bukti_url ? (
+                    {formData.buktiUrl ? (
                       <div className="space-y-2">
                         <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
                         <p className="text-sm text-green-600 mb-2">Bukti sudah diupload</p>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(formData.bukti_url, '_blank')}
+                          onClick={() => window.open(formData.buktiUrl, '_blank')}
                         >
                           Lihat File
                         </Button>
@@ -1441,8 +1455,8 @@ export function ExpenseManagement() {
                           <div className="flex items-center gap-3">
                             <input
                               type="checkbox"
-                              checked={selectedExpenses.has(expense.id)}
-                              onChange={() => handleSelectExpense(expense.id)}
+                              checked={expense.id ? selectedExpenses.has(expense.id) : false}
+                              onChange={() => expense.id && handleSelectExpense(expense.id)}
                               className="rounded"
                             />
                             <div className="flex-1">
@@ -1450,8 +1464,8 @@ export function ExpenseManagement() {
                               {inlineEditId === expense.id && editingField?.field === 'barang' ? (
                                 <div className="flex gap-2 items-center">
                                   <Input
-                                    value={inlineEditValues[expense.id]?.barang || expense.barang}
-                                    onChange={(e) => setInlineEditValues({
+                                    value={expense.id ? (inlineEditValues[expense.id]?.barang || expense.barang) : expense.barang}
+                                    onChange={(e) => expense.id && setInlineEditValues({
                                       ...inlineEditValues,
                                       [expense.id]: {
                                         ...inlineEditValues[expense.id],
@@ -1461,7 +1475,7 @@ export function ExpenseManagement() {
                                     className="h-8 text-base font-semibold"
                                     autoFocus
                                   />
-                                  <Button size="sm" onClick={() => saveInlineEdit(expense.id)}>
+                                  <Button size="sm" onClick={() => expense.id && saveInlineEdit(expense.id)}>
                                     <CheckCircle className="h-4 w-4" />
                                   </Button>
                                   <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
@@ -1471,14 +1485,14 @@ export function ExpenseManagement() {
                               ) : (
                                 <h3 
                                   className="font-semibold cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-                                  onClick={() => handleInlineEdit(expense, 'barang')}
+                                  onClick={() => expense.id && handleInlineEdit(expense, 'barang')}
                                   title="Click to edit"
                                 >
                                   {expense.barang}
                                 </h3>
                               )}
                               <p className="text-sm text-muted-foreground">
-                                {expense.hari}, {expense.tanggal} • {expense.tipe_aktivitas}
+                                {expense.hari}, {expense.tanggal} • {expense.tipeAktivitas}
                               </p>
                             </div>
                           </div>
@@ -1494,23 +1508,23 @@ export function ExpenseManagement() {
                                 {formatCurrency(expense.total)}
                               </p>
                               {/* Inline Editable Price */}
-                              {inlineEditId === expense.id && editingField?.field === 'harga_satuan' ? (
+                              {inlineEditId === expense.id && editingField?.field === 'hargaSatuan' ? (
                                 <div className="flex gap-1 items-center justify-end">
                                   <span className="text-sm text-muted-foreground">{expense.banyak} {expense.satuan} ×</span>
                                   <Input
                                     type="number"
-                                    value={inlineEditValues[expense.id]?.harga_satuan || expense.harga_satuan}
-                                    onChange={(e) => setInlineEditValues({
+                                    value={expense.id ? (inlineEditValues[expense.id]?.hargaSatuan || expense.hargaSatuan) : expense.hargaSatuan}
+                                    onChange={(e) => expense.id && setInlineEditValues({
                                       ...inlineEditValues,
                                       [expense.id]: {
                                         ...inlineEditValues[expense.id],
-                                        harga_satuan: parseFloat(e.target.value) || 0
+                                        hargaSatuan: parseFloat(e.target.value) || 0
                                       }
                                     })}
                                     className="h-6 w-24 text-xs text-right"
                                     autoFocus
                                   />
-                                  <Button size="sm" onClick={() => saveInlineEdit(expense.id)}>
+                                  <Button size="sm" onClick={() => expense.id && saveInlineEdit(expense.id)}>
                                     <CheckCircle className="h-3 w-3" />
                                   </Button>
                                   <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
@@ -1520,10 +1534,10 @@ export function ExpenseManagement() {
                               ) : (
                                 <p 
                                   className="text-sm text-muted-foreground cursor-pointer hover:bg-gray-100 px-1 rounded"
-                                  onClick={() => handleInlineEdit(expense, 'harga_satuan')}
+                                  onClick={() => handleInlineEdit(expense, 'hargaSatuan')}
                                   title="Click to edit price"
                                 >
-                                  {expense.banyak} {expense.satuan} × {formatCurrency(expense.harga_satuan)}
+                                  {expense.banyak} {expense.satuan} × {formatCurrency(expense.hargaSatuan)}
                                 </p>
                               )}
                             </div>
@@ -1537,26 +1551,26 @@ export function ExpenseManagement() {
                           </div>
                           <div>
                             <span className="font-medium">Sub Jenis:</span>
-                            <p className="text-muted-foreground">{expense.sub_jenis}</p>
+                            <p className="text-muted-foreground">{expense.subJenis}</p>
                           </div>
                           <div>
                             <span className="font-medium">Vendor:</span>
                             {/* Inline Editable Vendor */}
-                            {inlineEditId === expense.id && editingField?.field === 'vendor_nama' ? (
+                            {inlineEditId === expense.id && editingField?.field === 'vendorNama' ? (
                               <div className="flex gap-1 items-center mt-1">
                                 <Input
-                                  value={inlineEditValues[expense.id]?.vendor_nama || expense.vendor_nama}
-                                  onChange={(e) => setInlineEditValues({
+                                  value={expense.id ? (inlineEditValues[expense.id]?.vendorNama || expense.vendorNama) : expense.vendorNama}
+                                  onChange={(e) => expense.id && setInlineEditValues({
                                     ...inlineEditValues,
                                     [expense.id]: {
                                       ...inlineEditValues[expense.id],
-                                      vendor_nama: e.target.value
+                                      vendorNama: e.target.value
                                     }
                                   })}
                                   className="h-6 text-xs"
                                   autoFocus
                                 />
-                                <Button size="sm" onClick={() => saveInlineEdit(expense.id)}>
+                                <Button size="sm" onClick={() => expense.id && saveInlineEdit(expense.id)}>
                                   <CheckCircle className="h-3 w-3" />
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
@@ -1566,16 +1580,16 @@ export function ExpenseManagement() {
                             ) : (
                               <p 
                                 className="text-muted-foreground cursor-pointer hover:bg-gray-100 px-1 rounded"
-                                onClick={() => handleInlineEdit(expense, 'vendor_nama')}
+                                onClick={() => handleInlineEdit(expense, 'vendorNama')}
                                 title="Click to edit vendor"
                               >
-                                {expense.vendor_nama || '-'}
+                                {expense.vendorNama || '-'}
                               </p>
                             )}
                           </div>
                           <div>
                             <span className="font-medium">Contact:</span>
-                            <p className="text-muted-foreground">{expense.vendor_telp || expense.vendor_email || '-'}</p>
+                            <p className="text-muted-foreground">{expense.vendorTelp || expense.vendorEmail || '-'}</p>
                           </div>
                         </div>
 
@@ -1671,11 +1685,11 @@ export function ExpenseManagement() {
                                 <Copy className="h-4 w-4" />
                               </Button>
                               
-                              {expenseVersions.get(expense.id)?.length && (
+                              {expense.id && expenseVersions.get(expense.id)?.length && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setShowVersionHistory(expense.id)}
+                                  onClick={() => expense.id && setShowVersionHistory(expense.id)}
                                   className="hover:bg-yellow-50"
                                   title="View edit history"
                                 >
@@ -1686,15 +1700,15 @@ export function ExpenseManagement() {
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger 
-                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:not([class*='size-']):size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 disabled:opacity-50"
-                                disabled={expense.status === 'archived'}
+                                className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all [&_svg]:pointer-events-none [&_svg]:not([class*='size-']):size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 ${expense.status === 'ARCHIVED' ? 'opacity-50 pointer-events-none' : ''}`}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent>
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    if (expense.status === 'approved' && !allowApprovedEdit) {
+                                    if (!expense.id) return
+                                    if (expense.status === 'APPROVED' && !allowApprovedEdit) {
                                       setShowApprovalOverride(expense.id)
                                       return
                                     }
@@ -1707,11 +1721,12 @@ export function ExpenseManagement() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={async () => {
-                                    if (expense.status === 'approved' && !allowApprovedEdit) {
+                                    if (!expense.id) return
+                                    if (expense.status === 'APPROVED' && !allowApprovedEdit) {
                                       setShowApprovalOverride(expense.id)
                                       return
                                     }
-                                    const success = await hardDeleteExpense(expense.id!)
+                                    const success = await hardDeleteExpense(expense.id)
                                     if (success) {
                                       // The hook will handle the state update and toast
                                     }
@@ -1740,30 +1755,30 @@ export function ExpenseManagement() {
                           </div>
 
                           <div className="flex gap-2">
-                            {expense.status === 'draft' && (
+                            {expense.status === 'DRAFT' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleStatusUpdate(expense.id, 'submitted')}
+                                onClick={() => expense.id && handleStatusUpdate(expense.id, 'SUBMITTED')}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
                                 Submit
                               </Button>
                             )}
-                            {expense.status === 'submitted' && (
+                            {expense.status === 'SUBMITTED' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleStatusUpdate(expense.id, 'reviewed')}
+                                onClick={() => expense.id && handleStatusUpdate(expense.id, 'REVIEWED')}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 Review
                               </Button>
                             )}
-                            {expense.status === 'reviewed' && (
+                            {expense.status === 'REVIEWED' && (
                               <Button
                                 size="sm"
                                 className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleStatusUpdate(expense.id, 'approved')}
+                                onClick={() => expense.id && handleStatusUpdate(expense.id, 'APPROVED')}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
                                 Approve
@@ -1800,15 +1815,15 @@ export function ExpenseManagement() {
                   </div>
                   <div className="flex justify-between">
                     <span>Draft:</span>
-                    <span>{expenses.filter(exp => exp.status === 'draft').length}</span>
+                    <span>{expenses.filter(exp => exp.status === 'DRAFT').length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Pending Approval:</span>
-                    <span>{expenses.filter(exp => ['submitted', 'reviewed'].includes(exp.status)).length}</span>
+                    <span>{expenses.filter(exp => ['SUBMITTED', 'REVIEWED'].includes(exp.status || '')).length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Approved:</span>
-                    <span>{expenses.filter(exp => exp.status === 'approved').length}</span>
+                    <span>{expenses.filter(exp => exp.status === 'APPROVED').length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Soft Deleted:</span>
@@ -1849,7 +1864,7 @@ export function ExpenseManagement() {
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium">{selectedExpenses.size} items selected</span>
             
-            <Select onValueChange={(value) => applyBulkEdit('vendor_nama', value)}>
+            <Select onValueChange={(value) => applyBulkEdit('vendorNama', value)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Set vendor" />
               </SelectTrigger>
@@ -1908,13 +1923,13 @@ export function ExpenseManagement() {
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium">Version {index + 1}</span>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(version.created_at).toLocaleString()}
+                        {version.createdAt ? new Date(version.createdAt).toLocaleString() : 'Unknown'}
                       </span>
                     </div>
                     <div className="text-sm space-y-1">
                       <p><strong>Item:</strong> {version.barang}</p>
-                      <p><strong>Price:</strong> {formatCurrency(version.harga_satuan)}</p>
-                      <p><strong>Vendor:</strong> {version.vendor_nama}</p>
+                      <p><strong>Price:</strong> {formatCurrency(version.hargaSatuan)}</p>
+                <p><strong>Vendor:</strong> {version.vendorNama}</p>
                       <p><strong>Status:</strong> {version.status}</p>
                     </div>
                   </div>

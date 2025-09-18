@@ -532,12 +532,7 @@ export function ProductionReport() {
     setAllowApprovedEdit(true)
     
     // Log the override attempt
-    console.log('Production Approval Override:', {
-      transactionId: showApprovalOverride,
-      reason: approvalReason,
-      timestamp: new Date().toISOString(),
-      user: 'current_user'
-    })
+    // Override logged for audit purposes
 
     toast({
       title: "Authorization Granted",

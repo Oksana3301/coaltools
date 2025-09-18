@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
+import { logger } from '@/lib/logger'
 
 // GET - Fetch all kas kecil expenses (excluding soft deleted)
 export async function GET(request: NextRequest) {
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Error fetching kas kecil expenses:', error)
+    logger.apiError('/api/kas-kecil GET', error)
     
     // Check if it's a database connection error
     if (error instanceof Error && error.message.includes("Can't reach database server")) {
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
       message: 'Kas kecil berhasil dibuat'
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating kas kecil expense:', error)
+    logger.apiError('/api/kas-kecil POST', error)
     return NextResponse.json(
       { 
         success: false,

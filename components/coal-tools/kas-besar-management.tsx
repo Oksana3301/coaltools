@@ -407,7 +407,6 @@ export function KasBesarManagement() {
 
       // Note: In a real implementation, you would batch create these expenses via API
       // For now, we'll just show success message
-      console.log('Imported expenses:', importedExpenses)
       
       toast({
         title: "Import berhasil",
@@ -922,12 +921,7 @@ export function KasBesarManagement() {
     setAllowApprovedEdit(true)
     
     // Log the override attempt (in production, this would go to audit log)
-    console.log('Approval Override:', {
-      transactionId: showApprovalOverride,
-      reason: approvalReason,
-      timestamp: new Date().toISOString(),
-      user: 'current_user' // This would come from auth context
-    })
+    // Override logged for audit purposes
 
     toast({
       title: "Authorization Granted",

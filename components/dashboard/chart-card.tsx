@@ -36,12 +36,12 @@ export function ChartCard({
         </div>
         
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent>
             {onRefresh && (
               <DropdownMenuItem onClick={onRefresh}>
                 <RefreshCw className="h-4 w-4 mr-2" />

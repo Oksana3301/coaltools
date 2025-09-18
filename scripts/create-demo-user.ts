@@ -19,7 +19,8 @@ async function createDemoUser() {
       data: {
         name: 'Demo User',
         email: 'demo@example.com',
-        role: 'admin'
+        password: 'demo123',
+        role: 'ADMIN'
       }
     })
 

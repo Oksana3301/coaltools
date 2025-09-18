@@ -13,19 +13,19 @@ async function createDemoUsers() {
         name: 'Admin User',
         email: 'admin@example.com',
         password: 'Admin123!',
-        role: 'admin'
+        role: 'ADMIN'
       },
       {
         name: 'Manager User',
         email: 'manager@example.com',
         password: 'Manager123!',
-        role: 'approver'
+        role: 'MANAGER'
       },
       {
         name: 'Staff User',
         email: 'staff@example.com',
         password: 'Staff123!',
-        role: 'user'
+        role: 'STAFF'
       },
       {
         name: 'Demo User',
@@ -55,7 +55,7 @@ async function createDemoUsers() {
           name: userData.name,
           email: userData.email,
           password: hashedPassword,
-          role: userData.role
+          role: userData.role as 'ADMIN' | 'MANAGER' | 'STAFF' | 'DEMO'
         }
       })
 

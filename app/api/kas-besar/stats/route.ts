@@ -87,11 +87,6 @@ export async function GET(request: NextRequest) {
       // Recent transactions
       prisma.kasBesarExpense.findMany({
         where,
-        include: {
-          creator: {
-            select: { name: true }
-          }
-        },
         orderBy: { createdAt: 'desc' },
         take: 5
       })
@@ -131,7 +126,7 @@ export async function GET(request: NextRequest) {
         total: tx.total,
         status: tx.status,
         createdAt: tx.createdAt,
-        creatorName: tx.creator.name
+        creatorName: 'Unknown'
       }))
     }
 

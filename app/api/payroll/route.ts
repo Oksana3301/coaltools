@@ -47,14 +47,18 @@ export async function GET(request: NextRequest) {
     
     const skip = (page - 1) * limit
 
-    const where = {
-      ...(status && { status: status as 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID' | 'ARCHIVED' }),
+    const where: any = {
       ...(userId && { createdBy: userId })
+    }
+    
+    // Add status filter only if provided and valid
+    if (status && ['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'REJECTED'].includes(status)) {
+      where.status = status
     }
 
     const [payrollRuns, total] = await Promise.all([
       prisma.payrollRun.findMany({
-        where,
+        where: where,
         skip,
         take: limit,
         include: {
@@ -111,19 +115,9 @@ export async function GET(request: NextRequest) {
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔗 POST /api/payroll endpoint hit')
-    console.log('🌍 Environment variables check:')
-    console.log('- DATABASE_URL exists:', !!process.env.DATABASE_URL)
-    console.log('- NODE_ENV:', process.env.NODE_ENV)
-    console.log('🔍 Request headers:', Object.fromEntries(request.headers.entries()))
-    console.log('🔍 Request method:', request.method)
-    console.log('🔍 Request URL:', request.url)
-    
     const prisma = getPrismaClient();
-    console.log('🔧 Prisma client status:', prisma ? 'Available' : 'Not available')
     
     if (!prisma) {
-      console.error('❌ Database connection not available - DATABASE_URL missing or invalid')
       return NextResponse.json(
         { 
           success: false, 
@@ -137,9 +131,7 @@ export async function POST(request: NextRequest) {
     // Test database connection before proceeding
     try {
       await prisma.$connect()
-      console.log('✅ Database connection test successful')
     } catch (dbError) {
-      console.error('❌ Database connection test failed:', dbError)
       return NextResponse.json(
         { 
           success: false, 
@@ -151,13 +143,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Main logic starts here
-    console.log('📥 Parsing request body...')
     const body = await request.json()
-    console.log('📨 POST /api/payroll received body:', JSON.stringify(body, null, 2))
     
-    console.log('🔍 Starting data validation...')
     const validatedData = payrollRunSchema.parse(body)
-    console.log('✅ Data validation successful:', validatedData)
 
     // Get active employees
     let employees = []
@@ -165,7 +153,7 @@ export async function POST(request: NextRequest) {
       employees = await prisma.employee.findMany({
         where: { aktif: true }
       })
-      console.log('✅ Found', employees.length, 'active employees')
+      // Found active employees
     } catch (empError) {
       console.error('❌ Error fetching employees:', empError)
       return NextResponse.json({
@@ -183,20 +171,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Get active pay components - with error handling
-    let payComponents = []
+    let payComponents: any[] = []
     try {
       payComponents = await prisma.payComponent.findMany({
         where: { aktif: true },
         orderBy: { order: 'asc' }
       })
     } catch (compError) {
-      console.error('Error fetching pay components:', compError)
       // Continue without pay components if there's an error
     }
 
     // Calculate payroll for each employee
-    console.log('🧮 Starting payroll calculations for', employees.length, 'employees')
-    console.log('📋 Employee overrides provided:', validatedData.employeeOverrides?.length || 0)
     
     const payrollCalculations = employees.map(employee => {
       // Check if there's an override for working days and other details
@@ -383,45 +368,31 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('🧮 Payroll calculations completed:', payrollCalculations.length, 'employees')
-    console.log('📊 Calculation details:', payrollCalculations.map(calc => ({
-      employeeId: calc.employeeId,
-      employeeName: calc.employeeName,
-      hariKerja: calc.hariKerja,
-      bruto: calc.bruto,
-      neto: calc.neto,
-      componentsCount: calc.components.length
-    })))
-
     // Create payroll run with transaction
     let payrollRun
     try {
       payrollRun = await prisma.$transaction(async (tx) => {
       // Skip user creation since User table relations are disabled
       const userId = validatedData.createdBy || 'system'
-      console.log('💾 Creating payroll with userId:', userId)
-      console.log('📊 Payroll calculations:', payrollCalculations.length)
 
       // Create payroll run
       const payrollRunData = {
         periodeAwal: validatedData.periodeAwal,
         periodeAkhir: validatedData.periodeAkhir,
         createdBy: userId,
-        status: 'DRAFT',
+        status: 'DRAFT' as any,
         customFileName: validatedData.customFileName,
         notes: validatedData.notes
       }
-      console.log('📝 Creating payroll run with data:', payrollRunData)
       
       const newPayrollRun = await tx.payrollRun.create({
         data: payrollRunData
       })
-      console.log('✅ Payroll run created:', newPayrollRun.id)
 
       // Create payroll lines
-      console.log('📋 Creating payroll lines for', payrollCalculations.length, 'employees')
+      // Creating payroll lines for employees
       for (const calc of payrollCalculations) {
-        console.log('👤 Creating payroll line for:', calc.employeeName)
+        // Creating payroll line for employee
         const payrollLine = await tx.payrollLine.create({
           data: {
             payrollRunId: newPayrollRun.id,
@@ -465,7 +436,6 @@ export async function POST(request: NextRequest) {
       return newPayrollRun
     })
     } catch (transactionError) {
-      console.error('❌ Transaction failed:', transactionError)
       return NextResponse.json({
         success: false,
         error: 'Gagal membuat payroll',
@@ -480,7 +450,6 @@ export async function POST(request: NextRequest) {
         where: { id: payrollRun.id }
       })
     } catch (fetchError) {
-      console.error('❌ Error fetching complete payroll run:', fetchError)
       // Still return success since payroll was created
       completePayrollRun = payrollRun
     }
@@ -491,14 +460,7 @@ export async function POST(request: NextRequest) {
       message: 'Payroll berhasil dibuat'
     }, { status: 201 })
   } catch (error) {
-    console.error('🔥 ERROR creating payroll run:', error)
-    console.error('🔥 Error type:', error instanceof Error ? error.constructor.name : typeof error)
-    console.error('🔥 Error message:', error instanceof Error ? error.message : String(error))
-    console.error('🔥 Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-    console.error('🔥 Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
-    
     if (error instanceof z.ZodError) {
-      console.error('🔥 Zod validation error details:', error.errors)
       return NextResponse.json(
         {
           success: false,
@@ -522,15 +484,12 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.error('🔥 Sending error response:', JSON.stringify(errorResponse, null, 2))
-    
     return NextResponse.json(errorResponse, { status: 500 })
   }
 }
 
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
-    console.log('🔄 PUT /api/payroll endpoint hit')
     const prisma = getPrismaClient();
     if (!prisma) {
       console.error('❌ Database not available in PUT endpoint')
@@ -541,13 +500,12 @@ export async function PUT(request: NextRequest) {
     }
 
   try {
-    console.log('📥 Parsing PUT request body...')
+    // Parsing PUT request body
     const body = await request.json()
-    console.log('📨 PUT /api/payroll received body:', JSON.stringify(body, null, 2))
+    // Processing payroll update request
     
     const { id, status, approvedBy, payrollLines, employeeOverrides, ...updateData } = body
-    console.log('📋 Extracted data - id:', id, 'updateData keys:', Object.keys(updateData))
-    console.log('📋 employeeOverrides length:', employeeOverrides?.length || 0)
+    // Extracted data for processing
 
     if (!id) {
       return NextResponse.json(
@@ -719,7 +677,6 @@ export async function DELETE(request: NextRequest) {
       })
     }
   } catch (error) {
-    console.error('Error deleting payroll run:', error)
     return NextResponse.json(
       {
         success: false,

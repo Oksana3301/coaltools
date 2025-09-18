@@ -27,7 +27,7 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [sessionInfo, setSessionInfo] = useState({ loginTime: null, timeRemaining: 0 })
+  const [sessionInfo, setSessionInfo] = useState<{ loginTime: Date | null; timeRemaining: number }>({ loginTime: null, timeRemaining: 0 })
   const { toast } = useToast()
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
                   <span className="hidden sm:inline">{user.name}</span>
                   {getRoleBadge(user.role)}
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{user.name}</p>
@@ -155,7 +155,6 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
                   <DropdownMenuItem 
                     onClick={handleLogout} 
                     className="text-red-600"
-                    disabled={isLoggingOut}
                   >
                     <LogOut className={`h-4 w-4 mr-2 ${isLoggingOut ? 'animate-spin' : ''}`} />
                     {isLoggingOut ? 'Logging out...' : 'Logout'}

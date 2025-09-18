@@ -158,8 +158,10 @@ export async function POST(request: NextRequest) {
     }
 
     const invoice = await prisma.invoice.create({
-      data: validatedData,
-
+      data: {
+        ...validatedData,
+        items: JSON.stringify(validatedData.items)
+      }
     })
 
     return NextResponse.json({
@@ -217,10 +219,14 @@ export async function PUT(request: NextRequest) {
 
     const validatedData = invoiceSchema.partial().parse(updateData)
 
+    const updatePayload: any = { ...validatedData }
+    if (updatePayload.items) {
+      updatePayload.items = JSON.stringify(updatePayload.items)
+    }
+
     const invoice = await prisma.invoice.update({
       where: { id },
-      data: validatedData,
-
+      data: updatePayload,
     })
 
     return NextResponse.json({

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 const UserSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
   email: z.string().email("Format email tidak valid"),
-  role: z.enum(['admin', 'user', 'approver']).default('user')
+  password: z.string().min(6, "Password minimal 6 karakter"),
+  role: z.enum(['ADMIN', 'MANAGER', 'STAFF', 'DEMO']).default('STAFF')
 })
 
 // GET - Ambil semua users
@@ -26,13 +28,9 @@ export async function GET() {
         name: true,
         email: true,
         role: true,
-        createdAt: true,
-        _count: {
-          kasBesarExpenses: true,
-          kasKecilExpenses: true
-        }
+        created_at: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { created_at: 'desc' }
     })
 
     return NextResponse.json({
@@ -48,7 +46,7 @@ export async function GET() {
       )
     }
 
-    console.error('Error fetching users:', error)
+    logger.apiError('/api/users GET', error)
     return NextResponse.json(
       { success: false, error: 'Gagal mengambil data users' },
       { status: 500 }
@@ -83,20 +81,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const user = await prisma.user.create({
-      data: validatedData,
+    const newUser = await prisma.user.create({
+      data: {
+        ...validatedData,
+        role: validatedData.role as any
+      },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        createdAt: true
+        created_at: true
       }
     })
 
     return NextResponse.json({
       success: true,
-      data: user,
+      data: newUser,
       message: 'User berhasil dibuat'
     }, { status: 201 })
   } catch (error) {
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Error creating user:', error)
+    logger.apiError('/api/users POST', error)
     return NextResponse.json(
       { success: false, error: 'Gagal membuat user' },
       { status: 500 }

@@ -275,9 +275,7 @@ export function EmployeeManagement() {
   const deleteEmployee = async (id: string) => {
     setDeletingEmployee(id)
     try {
-      console.log('Deleting employee with ID:', id)
       const response = await apiService.deleteEmployee(id)
-      console.log('Delete response:', response)
       
       if (response.success) {
         toast({

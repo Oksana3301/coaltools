@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
-  console.log('🧪 Testing database connection...')
-  
   try {
     const prisma = getPrismaClient()
     
     if (!prisma) {
-      console.error('❌ Prisma client is null - DATABASE_URL missing')
       return NextResponse.json({
         success: false,
         error: 'Prisma client not available',
@@ -21,10 +18,7 @@ export async function GET(request: NextRequest) {
       }, { status: 503 })
     }
 
-    // Test basic query
-    console.log('🔍 Testing basic database query...')
     const result = await prisma.$queryRaw`SELECT 1 as test`
-    console.log('✅ Database query successful:', result)
 
     return NextResponse.json({
       success: true,
@@ -38,7 +32,6 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('🔥 Database connection test failed:', error)
     return NextResponse.json({
       success: false,
       error: 'Database connection failed',

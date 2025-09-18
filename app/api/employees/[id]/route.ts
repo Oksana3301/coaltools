@@ -21,12 +21,8 @@ export async function GET(
           include: {
             payrollRun: true
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { created_at: 'desc' },
           take: 5
-        },
-        attendanceRecords: {
-          orderBy: { tanggal: 'desc' },
-          take: 10
         }
       }
     })

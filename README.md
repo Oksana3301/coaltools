@@ -229,7 +229,7 @@ Once the application is running, you can access different sections:
 * **Coal Tools**:  
    * **Kas Kecil**: `http://localhost:3000/coal-tools-kaskecil`  
    * **Kas Besar**: `http://localhost:3000/coal-tools-kasbesar`  
-   * **Kalkulator Gaji**: `http://localhost:3000/coal-tools-kalkulatorgaji`  
+   * **Kalkulator Gaji**: `http://localhost:3000/payroll-integrated`  
    * **Laporan Produksi**: `http://localhost:3000/coal-tools-laporanproduksi`
 * **Invoice Generator**: `http://localhost:3000/invoice`
 * **Kwitansi Generator**: `http://localhost:3000/kwitansi`

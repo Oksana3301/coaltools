@@ -66,7 +66,10 @@ export function useKasBesar(options: UseKasBesarOptions = {}) {
         errorMessage = String(err.message)
       }
       setError(errorMessage)
-      console.error('Error loading kas besar expenses:', err)
+      // Log error for debugging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error loading kas besar expenses:', err)
+      }
       
       // Show toast for database connection errors
       if (errorMessage.includes('Database connection failed')) {
