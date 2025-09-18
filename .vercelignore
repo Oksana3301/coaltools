@@ -1,0 +1,28 @@
+# Exclude Firebase functions from Vercel deployment
+functions/
+
+# Exclude other unnecessary files
+.firebase/
+firebase.json
+apphosting.yaml
+
+# Exclude development files
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Exclude documentation
+*.md
+docs/
+
+# Exclude scripts
+scripts/
+
+# Exclude SQL files
+*.sql
+
+# Exclude test files
+test_results.json
+test-*.js

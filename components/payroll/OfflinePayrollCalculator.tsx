@@ -121,13 +121,14 @@ export function OfflinePayrollCalculator({ onDataCalculated }: OfflinePayrollCal
   useEffect(() => {
     // Override global API service dan utility functions untuk testing
     if (typeof window !== 'undefined') {
-      // @ts-ignore - Override untuk testing
+      // @ts-expect-error - Override untuk testing
       window.apiService = mockApiService
-      // @ts-ignore - Override untuk testing  
+      // @ts-expect-error - Override untuk testing  
       window.getCurrentUserId = mockGetCurrentUserId
       
       // Override global objects yang mungkin digunakan komponen
        const originalFetch = window.fetch
+       // @ts-expect-error - Override fetch untuk testing
        window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
          const urlString = input.toString()
          
