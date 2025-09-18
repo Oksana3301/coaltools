@@ -55,7 +55,7 @@ async function testDatabaseConnection() {
     console.log('\n🔍 Testing specific user query...');
     const adminUser = await prisma.user.findUnique({
       where: { email: 'admin@coaltools.com' },
-      select: { id: true, email: true, role: true, isActive: true }
+      select: { id: true, email: true, role: true, aktif: true }
     });
     
     if (adminUser) {
