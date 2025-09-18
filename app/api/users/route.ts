@@ -83,7 +83,10 @@ export async function POST(request: NextRequest) {
 
     const newUser = await prisma.user.create({
       data: {
-        ...validatedData,
+        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: validatedData.name,
+        email: validatedData.email,
+        password: validatedData.password,
         role: validatedData.role as any
       },
       select: {

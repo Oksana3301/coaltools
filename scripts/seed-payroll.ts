@@ -14,6 +14,7 @@ async function seedPayrollData() {
     if (!demoUser) {
       demoUser = await prisma.user.create({
         data: {
+          id: 'seed-demo-user-' + Date.now(),
           name: 'Demo User',
           email: 'demo@example.com',
           password: 'demo123',

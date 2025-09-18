@@ -7,23 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id               String           @id @default(cuid())
-  name             String
-  email            String           @unique
-  password         String
-  role             String?          @default("STAFF")
-  aktif            Boolean?         @default(true)
-  created_at       DateTime?        @default(now())
-  updated_at       DateTime?        @default(now())
-  login_activity   login_activity[]
-  pay_components   PayComponent[]
-  // kwitansi         Kwitansi[]
-  // invoices         Invoice[]
-  // Temporarily disabled payroll relationships for testing
-  // approvedPayrolls PayrollRun[]     @relation("PayrollApprovedBy")
-  // payrollRuns      PayrollRun[]
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
 
+  @@map("user_role")
+}
+
+model User {
+  id                String             @id
+  name              String?
+  email             String             @unique
+  password          String?
+  role              UserRole?          @default(STAFF)
+  aktif             Boolean            @default(true)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime?          @updatedAt
+  
+  login_activity    login_activity[]
+  pay_components    PayComponent[]
+  
   @@index([aktif], map: "idx_users_aktif")
   @@index([email], map: "idx_users_email")
   @@index([role], map: "idx_users_role")

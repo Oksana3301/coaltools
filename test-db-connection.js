@@ -1,43 +1,104 @@
 const { PrismaClient } = require('@prisma/client');
 
-async function testConnection() {
-  const prisma = new PrismaClient();
+// Manually load environment variables from .env.local
+const fs = require('fs');
+const path = require('path');
+
+try {
+  const envPath = path.join(__dirname, '.env.local');
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  
+  envContent.split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [key, ...valueParts] = trimmed.split('=');
+      if (key && valueParts.length > 0) {
+        process.env[key] = valueParts.join('=').replace(/^["']|["']$/g, '');
+      }
+    }
+  });
+  
+  console.log('✅ Environment variables loaded from .env.local');
+} catch (error) {
+  console.log('⚠️  Could not load .env.local:', error.message);
+}
+
+async function testDatabaseConnection() {
+  console.log('🔍 Testing Database Connection...');
+  console.log('📋 Environment Variables:');
+  console.log('- DATABASE_URL exists:', !!process.env.DATABASE_URL);
+  console.log('- DATABASE_URL preview:', process.env.DATABASE_URL ? 
+    process.env.DATABASE_URL.replace(/:\/\/.*@/, '://***:***@') : 'NOT SET');
+  
+  let prisma;
   
   try {
-    console.log('🔄 Testing database connection...');
+    console.log('\n🔧 Creating Prisma Client...');
+    prisma = new PrismaClient({
+      log: ['query', 'info', 'warn', 'error'],
+    });
     
-    // Test connection
+    console.log('✅ Prisma Client created successfully');
+    
+    console.log('\n🔌 Testing database connection...');
     await prisma.$connect();
-    console.log('✅ Database connection successful');
+    console.log('✅ Database connection successful!');
     
-    // Test basic query
+    console.log('\n📊 Testing simple query...');
+    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    console.log('✅ Simple query successful:', result);
+    
+    console.log('\n👥 Testing users table...');
     const userCount = await prisma.user.count();
-    console.log(`✅ Found ${userCount} users in database`);
+    console.log('✅ Users table accessible, count:', userCount);
     
-    // Test employees table
-    const employeeCount = await prisma.employee.count();
-    console.log(`✅ Found ${employeeCount} employees in database`);
+    console.log('\n🔍 Testing specific user query...');
+    const adminUser = await prisma.user.findUnique({
+      where: { email: 'admin@coaltools.com' },
+      select: { id: true, email: true, role: true, isActive: true }
+    });
     
-    console.log('\n🎉 Database verification completed successfully!');
+    if (adminUser) {
+      console.log('✅ Admin user found:', adminUser);
+    } else {
+      console.log('⚠️  Admin user not found in database');
+    }
     
   } catch (error) {
     console.error('❌ Database connection failed:');
-    console.error('Error:', error.message);
+    console.error('Error type:', error.constructor.name);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
     
-    if (error.code) {
-      console.error('Error Code:', error.code);
+    if (error.meta) {
+      console.error('Error meta:', error.meta);
     }
     
-    // Common solutions
-    console.log('\n🔧 Possible solutions:');
-    console.log('1. Check DATABASE_URL in .env.local');
-    console.log('2. Verify Supabase project is active');
-    console.log('3. Check network connectivity');
-    console.log('4. Verify database password is correct');
+    // Specific error handling
+    if (error.code === 'P1001') {
+      console.log('\n💡 Troubleshooting P1001 (Can\'t reach database server):');
+      console.log('1. Check internet connection');
+      console.log('2. Verify Supabase project is active');
+      console.log('3. Check database URL and credentials');
+      console.log('4. Verify firewall/network settings');
+    }
     
   } finally {
-    await prisma.$disconnect();
+    if (prisma) {
+      console.log('\n🔌 Disconnecting from database...');
+      await prisma.$disconnect();
+      console.log('✅ Disconnected successfully');
+    }
   }
 }
 
-testConnection();
+// Run the test
+testDatabaseConnection()
+  .then(() => {
+    console.log('\n🎉 Database connection test completed');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('\n💥 Unexpected error during test:', error);
+    process.exit(1);
+  });

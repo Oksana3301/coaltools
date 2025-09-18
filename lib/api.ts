@@ -534,9 +534,13 @@ class ApiService {
     })
   }
 
-  // Delete employee (soft delete)
+  // Delete employee (soft delete by default, hard delete for testing)
   async deleteEmployee(id: string, hardDelete: boolean = false): Promise<ApiResponse<null>> {
-    return this.fetchApi<null>(`/employees/${id}?hardDelete=${hardDelete}`, {
+    const url = hardDelete 
+      ? `/employees?id=${id}&hardDelete=true&testingMode=true`
+      : `/employees?id=${id}`
+    
+    return this.fetchApi<null>(url, {
       method: 'DELETE'
     })
   }

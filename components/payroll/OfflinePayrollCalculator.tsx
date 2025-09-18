@@ -121,61 +121,92 @@ export function OfflinePayrollCalculator({ onDataCalculated }: OfflinePayrollCal
   useEffect(() => {
     // Override global API service dan utility functions untuk testing
     if (typeof window !== 'undefined') {
-      // @ts-expect-error - Override untuk testing
-      window.apiService = mockApiService
-      // @ts-expect-error - Override untuk testing  
-      window.getCurrentUserId = mockGetCurrentUserId
-      
-      // Override global objects yang mungkin digunakan komponen
-       const originalFetch = window.fetch
-       // @ts-expect-error - Override fetch untuk testing
-       window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-         const urlString = input.toString()
-         
-         // Intercept API calls dan return mock data
-         if (urlString.includes('/api/employees')) {
-           return new Response(JSON.stringify({
-             success: true,
-             data: MOCK_EMPLOYEES
-           }), {
-             status: 200,
-             headers: { 'Content-Type': 'application/json' }
-           })
-         }
-         
-         if (urlString.includes('/api/pay-components')) {
-           return new Response(JSON.stringify({
-             success: true,
-             data: MOCK_PAY_COMPONENTS
-           }), {
-             status: 200,
-             headers: { 'Content-Type': 'application/json' }
-           })
-         }
-         
-         if (urlString.includes('/api/payroll')) {
-           return new Response(JSON.stringify({
-             success: true,
-             data: []
-           }), {
-             status: 200,
-             headers: { 'Content-Type': 'application/json' }
-           })
-         }
-         
-         // Fallback ke fetch asli untuk request lainnya
-         return originalFetch(input, init)
-       }
+      try {
+        // @ts-expect-error - Override untuk testing
+        window.apiService = mockApiService
+        // @ts-expect-error - Override untuk testing  
+        window.getCurrentUserId = mockGetCurrentUserId
+        
+        // Simpan reference ke original fetch
+        const originalFetch = window.fetch
+        
+        // Override fetch untuk testing dengan error handling
+        // @ts-expect-error - Override fetch untuk testing
+        window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+          try {
+            const urlString = input.toString()
+            
+            // Intercept API calls dan return mock data
+            if (urlString.includes('/api/employees')) {
+              return new Response(JSON.stringify({
+                success: true,
+                data: MOCK_EMPLOYEES
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+              })
+            }
+            
+            if (urlString.includes('/api/pay-components')) {
+              return new Response(JSON.stringify({
+                success: true,
+                data: MOCK_PAY_COMPONENTS
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+              })
+            }
+            
+            if (urlString.includes('/api/payroll')) {
+              return new Response(JSON.stringify({
+                success: true,
+                data: []
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+              })
+            }
+            
+            // Skip health check untuk menghindari error
+            if (urlString.includes('/api/health')) {
+              return new Response(JSON.stringify({
+                success: true,
+                timestamp: new Date().toISOString(),
+                environment: 'development',
+                database: {
+                  available: false,
+                  status: 'offline_mode',
+                  error: null,
+                  url_configured: false
+                },
+                message: 'Offline mode - Health check bypassed'
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+              })
+            }
+            
+            // Fallback ke fetch asli untuk request lainnya
+            return originalFetch(input, init)
+          } catch (error) {
+            console.warn('Mock fetch error:', error)
+            // Fallback ke original fetch jika ada error
+            return originalFetch(input, init)
+          }
+        }
+        
+        setIsReady(true)
+      } catch (error) {
+        console.error('Error setting up offline mode:', error)
+        setIsReady(true) // Tetap set ready meskipun ada error
+      }
+    } else {
+      setIsReady(true)
     }
     
-    setIsReady(true)
-    
-    // Cleanup function
+    // Cleanup function - tidak perlu restore fetch karena ini untuk testing
     return () => {
-      if (typeof window !== 'undefined') {
-        // Restore original fetch jika diperlukan
-        // window.fetch = originalFetch
-      }
+      // Cleanup jika diperlukan
     }
   }, [])
   

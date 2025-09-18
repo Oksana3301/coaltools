@@ -110,6 +110,7 @@ export function EmployeeManagement() {
   const [employeeForm, setEmployeeForm] = useState<EmployeeForm>(defaultEmployeeForm)
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ id: string; name: string } | null>(null)
   const [deletingEmployee, setDeletingEmployee] = useState<string | null>(null)
+  const [hardDeleteMode, setHardDeleteMode] = useState(false)
   const [customJabatan, setCustomJabatan] = useState('')
   const [customBank, setCustomBank] = useState('')
 
@@ -272,15 +273,15 @@ export function EmployeeManagement() {
     }
   }
 
-  const deleteEmployee = async (id: string) => {
+  const deleteEmployee = async (id: string, hardDelete: boolean = false) => {
     setDeletingEmployee(id)
     try {
-      const response = await apiService.deleteEmployee(id)
+      const response = await apiService.deleteEmployee(id, hardDelete)
       
       if (response.success) {
         toast({
           title: "✅ Karyawan Berhasil Dihapus",
-          description: "Data karyawan telah dinonaktifkan dari sistem",
+          description: hardDelete ? "Data karyawan telah dihapus permanen dari sistem" : "Data karyawan telah dinonaktifkan dari sistem",
           variant: "default"
         })
         // Reload employee list to reflect changes
@@ -298,6 +299,7 @@ export function EmployeeManagement() {
     } finally {
       setDeletingEmployee(null)
       setShowDeleteDialog(null)
+      setHardDeleteMode(false)
     }
   }
 
@@ -852,22 +854,50 @@ export function EmployeeManagement() {
               <Trash2 className="h-5 w-5 text-red-600" />
               Konfirmasi Hapus Karyawan
             </DialogTitle>
-            <DialogDescription className="space-y-2">
+            <DialogDescription className="space-y-3">
               <p>
                 Apakah Anda yakin ingin menghapus karyawan <strong>{showDeleteDialog?.name}</strong>?
               </p>
               <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
                 <p className="text-yellow-800">
-                  ℹ️ <strong>Catatan:</strong> Karyawan akan dinonaktifkan (soft delete) sehingga data masih tersimpan namun tidak akan muncul dalam daftar aktif.
+                  ℹ️ <strong>Soft Delete (Default):</strong> Karyawan akan dinonaktifkan sehingga data masih tersimpan namun tidak akan muncul dalam daftar aktif.
                 </p>
               </div>
+              
+              {/* Hard Delete Option untuk Testing */}
+              {showDeleteDialog?.name?.toLowerCase().includes('test') && (
+                <div className="bg-red-50 border border-red-200 rounded p-3 text-sm">
+                  <p className="text-red-800 font-medium mb-2">
+                    🚨 <strong>Hard Delete untuk Data Testing:</strong>
+                  </p>
+                  <p className="text-red-700 text-xs mb-2">
+                    Data karyawan ini terdeteksi sebagai data testing. Anda dapat melakukan hard delete (hapus permanen).
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="hardDeleteConfirm"
+                      checked={hardDeleteMode}
+                      onChange={(e) => setHardDeleteMode(e.target.checked)}
+                      className="h-4 w-4 text-red-600"
+                    />
+                    <Label htmlFor="hardDeleteConfirm" className="text-red-700 text-xs">
+                      Ya, saya ingin menghapus permanen (HARD DELETE)
+                    </Label>
+                  </div>
+                </div>
+              )}
+              
               <p className="text-red-600 font-medium">
                 ⚠️ Pastikan keputusan Anda sebelum melanjutkan.
               </p>
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(null)}>
+            <Button variant="outline" onClick={() => {
+              setShowDeleteDialog(null)
+              setHardDeleteMode(false)
+            }}>
               <X className="h-4 w-4 mr-1" />
               Batal
             </Button>
@@ -875,7 +905,7 @@ export function EmployeeManagement() {
               variant="destructive" 
               onClick={() => {
                 if (showDeleteDialog) {
-                  deleteEmployee(showDeleteDialog.id)
+                  deleteEmployee(showDeleteDialog.id, hardDeleteMode)
                 }
               }}
               disabled={!!deletingEmployee}
@@ -888,7 +918,7 @@ export function EmployeeManagement() {
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-1" />
-                  Ya, Hapus Karyawan
+                  {hardDeleteMode ? 'Ya, Hapus Permanen' : 'Ya, Nonaktifkan'}
                 </>
               )}
             </Button>
