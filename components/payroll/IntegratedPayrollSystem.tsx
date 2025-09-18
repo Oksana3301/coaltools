@@ -31,6 +31,7 @@ import {
 
 // Import komponen yang sudah ada
 import { OfflinePayrollCalculator } from '@/components/payroll/OfflinePayrollCalculator'
+import { PayrollCalculator } from '@/components/coal-tools/payroll-calculator'
 import { PayrollGenerator } from '@/components/payroll/PayrollGenerator'
 import { PayrollUploadLogo } from '@/components/payroll/PayrollUploadLogo'
 
@@ -140,6 +141,69 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
   const [companyLogo, setCompanyLogo] = useState<string | null>(null)
   const [isTransferring, setIsTransferring] = useState(false)
   const [sampleDataLoaded, setSampleDataLoaded] = useState(false)
+  const [databaseAvailable, setDatabaseAvailable] = useState<boolean | null>(null)
+  const [isCheckingDatabase, setIsCheckingDatabase] = useState(true)
+
+  /**
+   * Check database availability
+   */
+  const checkDatabaseAvailability = useCallback(async () => {
+    setIsCheckingDatabase(true)
+    try {
+      console.log('🔍 Checking database availability...')
+      
+      const response = await fetch('/api/health', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-cache'
+      })
+      
+      console.log('📡 Health check response status:', response.status)
+      
+      if (!response.ok) {
+        console.error('❌ Health check response not ok:', response.status, response.statusText)
+        setDatabaseAvailable(false)
+        return
+      }
+      
+      const data = await response.json()
+      console.log('📊 Health check data:', data)
+      
+      // Check if database is available and connected
+      const isDatabaseConnected = data.success && 
+                                 data.database && 
+                                 data.database.available === true && 
+                                 data.database.status === 'connected'
+      
+      console.log('🔌 Database connected:', isDatabaseConnected)
+      
+      if (isDatabaseConnected) {
+        setDatabaseAvailable(true)
+        console.log('✅ Database is available and connected')
+      } else {
+        setDatabaseAvailable(false)
+        console.log('❌ Database is not available:', {
+          success: data.success,
+          database: data.database
+        })
+      }
+    } catch (error) {
+      console.error('💥 Database check failed with error:', error)
+      setDatabaseAvailable(false)
+    } finally {
+      setIsCheckingDatabase(false)
+      console.log('🏁 Database check completed')
+    }
+  }, [])
+
+  /**
+   * Check database availability on component mount
+   */
+  useEffect(() => {
+    checkDatabaseAvailability()
+  }, [])
 
   /**
    * Handle data dari PayrollCalculator
@@ -445,7 +509,16 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <OfflinePayrollCalculator />
+              {isCheckingDatabase ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  <span className="ml-2 text-gray-600">Memeriksa koneksi database...</span>
+                </div>
+              ) : databaseAvailable ? (
+                <PayrollCalculator />
+              ) : (
+                <OfflinePayrollCalculator />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
