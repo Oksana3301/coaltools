@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Add status filter only if provided and valid
-    if (status && ['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'REJECTED'].includes(status)) {
+    if (status && Object.values(['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'REJECTED']).includes(status)) {
       where.status = status
     }
 
@@ -61,7 +61,17 @@ export async function GET(request: NextRequest) {
         where: where,
         skip,
         take: limit,
-        include: {
+        select: {
+          id: true,
+          periodeAwal: true,
+          periodeAkhir: true,
+          status: true,
+          customFileName: true,
+          notes: true,
+          created_at: true,
+          updated_at: true,
+          createdBy: true,
+          approvedBy: true,
           payrollLines: {
             include: {
               employee: {
