@@ -56,42 +56,52 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
-    const [payrollRuns, total] = await Promise.all([
-      prisma.payrollRun.findMany({
-        where: where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          periodeAwal: true,
-          periodeAkhir: true,
-          status: true,
-          customFileName: true,
-          notes: true,
-          created_at: true,
-          updated_at: true,
-          createdBy: true,
-          approvedBy: true,
-          payrollLines: {
-            include: {
-              employee: {
-                select: { id: true, nama: true, jabatan: true, site: true }
-              },
-              components: true
-            }
+    // Use raw query to avoid type conversion issues
+    const payrollRunsRaw = await prisma.$queryRaw`
+      SELECT 
+        pr.id,
+        pr.periode_awal as "periodeAwal",
+        pr.periode_akhir as "periodeAkhir", 
+        pr.status,
+        pr.custom_file_name as "customFileName",
+        pr.notes,
+        pr.created_at,
+        pr.updated_at,
+        pr.created_by as "createdBy",
+        pr.approved_by as "approvedBy"
+      FROM payroll_runs pr
+      ${status ? `WHERE pr.status = ${status}` : ''}
+      ORDER BY pr.created_at DESC
+      LIMIT ${limit} OFFSET ${skip}
+    ` as any[]
+
+    const totalRaw = await prisma.$queryRaw`
+      SELECT COUNT(*) as count 
+      FROM payroll_runs pr
+      ${status ? `WHERE pr.status = ${status}` : ''}
+    ` as any[]
+
+    const total = Number(totalRaw[0]?.count || 0)
+
+    // Get payroll lines for each run
+    const payrollRuns = await Promise.all(
+      payrollRunsRaw.map(async (run) => {
+        const payrollLines = await prisma.payrollLine.findMany({
+          where: { payrollRunId: run.id },
+          include: {
+            employee: {
+              select: { id: true, nama: true, jabatan: true, site: true }
+            },
+            components: true
           }
-          // Temporarily disable user relations to avoid foreign key errors
-          // creator: {
-          //   select: { id: true, name: true, email: true }
-          // },
-          // approver: {
-          //   select: { id: true, name: true, email: true }
-          // }
-        },
-        orderBy: { created_at: 'desc' }
-      }),
-      prisma.payrollRun.count({ where })
-    ])
+        })
+        
+        return {
+          ...run,
+          payrollLines
+        }
+      })
+    )
 
     return NextResponse.json({
       success: true,
