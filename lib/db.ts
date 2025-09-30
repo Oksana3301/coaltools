@@ -13,11 +13,14 @@ const createPrismaClient = () => {
   }
 
   try {
+    // Try non-pooling URL first if available
+    const databaseUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL
+    
     return new PrismaClient({
       log: process.env.NODE_ENV === 'development' ? ['query'] : [],
       datasources: {
         db: {
-          url: process.env.DATABASE_URL,
+          url: databaseUrl,
         },
       },
     })
@@ -37,7 +40,7 @@ if (process.env.NODE_ENV !== 'production' && prisma) {
 if (prisma) {
   prisma.$connect()
     .then(() => {
-      // Database connected successfully
+      console.log('Database connected successfully')
     })
     .catch((error) => {
       console.error('Database connection failed:', error)
