@@ -101,19 +101,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert menggunakan raw query dengan default ID
-    const result = await prisma.$queryRaw`
+    // Insert menggunakan queryRawUnsafe
+    const insertQuery = `
       INSERT INTO pay_components (
         nama, tipe, taxable, metode, basis, rate, nominal, 
         cap_min, cap_max, "order", aktif, created_at, updated_at
       ) VALUES (
-        ${validatedData.nama}, ${validatedData.tipe}, ${validatedData.taxable},
-        ${validatedData.metode}, ${validatedData.basis}, ${validatedData.rate || null}, 
-        ${validatedData.nominal || null}, ${validatedData.capMin || null}, 
-        ${validatedData.capMax || null}, ${validatedData.order}, ${validatedData.aktif},
+        '${validatedData.nama}', '${validatedData.tipe}', ${validatedData.taxable},
+        '${validatedData.metode}', '${validatedData.basis}', ${validatedData.rate || 'NULL'}, 
+        ${validatedData.nominal || 'NULL'}, ${validatedData.capMin || 'NULL'}, 
+        ${validatedData.capMax || 'NULL'}, ${validatedData.order}, ${validatedData.aktif},
         NOW(), NOW()
       ) RETURNING *
-    ` as any[]
+    `
+
+    const result = await prisma.$queryRawUnsafe(insertQuery) as any[]
 
     return NextResponse.json({
       success: true,
