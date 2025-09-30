@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getPrismaClient } from '@/lib/db'
 
 export async function GET() {
@@ -32,6 +32,43 @@ export async function GET() {
     return NextResponse.json({ 
       success: false, 
       error: 'Database connection failed',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const prisma = getPrismaClient()
+    if (!prisma) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Prisma client not available'
+      }, { status: 500 })
+    }
+    
+    const { query } = await request.json()
+    
+    if (!query) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Query parameter required'
+      }, { status: 400 })
+    }
+    
+    const result = await prisma.$queryRawUnsafe(query)
+    
+    return NextResponse.json({ 
+      success: true, 
+      data: result,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error: any) {
+    console.error('Database query error:', error)
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Database query failed',
       details: error.message,
       timestamp: new Date().toISOString()
     }, { status: 500 })
