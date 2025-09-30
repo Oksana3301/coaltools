@@ -68,47 +68,64 @@ export async function GET(request: NextRequest) {
 
 // POST - Tambah komponen gaji baru
 export async function POST(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
+  const prisma = getPrismaClient();
+  if (!prisma) {
+    return NextResponse.json(
+      { success: false, error: 'Database connection not available' },
+      { status: 503 }
+    )
+  }
 
-    
   try {
     const body = await request.json()
     const validatedData = payComponentSchema.parse(body)
 
     // Validasi rate/nominal berdasarkan metode
-    if (validatedData.metode === 'FLAT' && !validatedData.nominal) {
+    if (validatedData.metode === 'PERSENTASE' && !validatedData.rate) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Nominal wajib diisi untuk metode FLAT'
+          error: 'Rate wajib diisi untuk metode PERSENTASE'
         },
         { status: 400 }
       )
     }
 
-    if (['PER_HARI', 'PERSENTASE'].includes(validatedData.metode) && !validatedData.rate) {
+    if ((validatedData.metode === 'FLAT' || validatedData.metode === 'PER_HARI') && !validatedData.nominal) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Rate wajib diisi untuk metode PER_HARI atau PERSENTASE'
+          error: 'Nominal wajib diisi untuk metode FLAT atau PER_HARI'
         },
         { status: 400 }
       )
     }
 
-    const payComponent = await prisma.payComponent.create({
-      data: validatedData
-    })
+    // Generate ID
+    const id = crypto.randomUUID()
+
+    // Insert menggunakan raw query
+    const result = await prisma.$queryRaw`
+      INSERT INTO pay_components (
+        id, nama, tipe, taxable, metode, basis, rate, nominal, 
+        cap_min, cap_max, "order", aktif, created_at, updated_at
+      ) VALUES (
+        ${id}, ${validatedData.nama}, ${validatedData.tipe}, ${validatedData.taxable},
+        ${validatedData.metode}, ${validatedData.basis}, ${validatedData.rate || null}, 
+        ${validatedData.nominal || null}, ${validatedData.capMin || null}, 
+        ${validatedData.capMax || null}, ${validatedData.order}, ${validatedData.aktif},
+        NOW(), NOW()
+      )
+    `
+
+    // Ambil data yang baru dibuat
+    const newComponent = await prisma.$queryRaw`
+      SELECT * FROM pay_components WHERE id = ${id}
+    ` as any[]
 
     return NextResponse.json({
       success: true,
-      data: payComponent,
+      data: newComponent[0],
       message: 'Komponen gaji berhasil ditambahkan'
     }, { status: 201 })
   } catch (error) {
