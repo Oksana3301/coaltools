@@ -101,31 +101,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate ID
-    const id = crypto.randomUUID()
-
-    // Insert menggunakan raw query
+    // Insert menggunakan raw query dengan default ID
     const result = await prisma.$queryRaw`
       INSERT INTO pay_components (
-        id, nama, tipe, taxable, metode, basis, rate, nominal, 
+        nama, tipe, taxable, metode, basis, rate, nominal, 
         cap_min, cap_max, "order", aktif, created_at, updated_at
       ) VALUES (
-        ${id}, ${validatedData.nama}, ${validatedData.tipe}, ${validatedData.taxable},
+        ${validatedData.nama}, ${validatedData.tipe}, ${validatedData.taxable},
         ${validatedData.metode}, ${validatedData.basis}, ${validatedData.rate || null}, 
         ${validatedData.nominal || null}, ${validatedData.capMin || null}, 
         ${validatedData.capMax || null}, ${validatedData.order}, ${validatedData.aktif},
         NOW(), NOW()
-      )
-    `
-
-    // Ambil data yang baru dibuat
-    const newComponent = await prisma.$queryRaw`
-      SELECT * FROM pay_components WHERE id = ${id}
+      ) RETURNING *
     ` as any[]
 
     return NextResponse.json({
       success: true,
-      data: newComponent[0],
+      data: result[0],
       message: 'Komponen gaji berhasil ditambahkan'
     }, { status: 201 })
   } catch (error) {
