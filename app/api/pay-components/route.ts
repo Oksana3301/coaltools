@@ -40,34 +40,13 @@ export async function GET(request: NextRequest) {
     const aktif = searchParams.get('aktif')
     const includeInactive = searchParams.get('includeInactive') === 'true'
     
-    // Build WHERE clause for raw query
-    let whereClause = 'WHERE 1=1'
-    const params: any[] = []
-    let paramIndex = 1
-    
-    if (tipe) {
-      whereClause += ` AND tipe = $${paramIndex}`
-      params.push(tipe)
-      paramIndex++
-    }
-    
-    if (aktif !== null) {
-      whereClause += ` AND aktif = $${paramIndex}`
-      params.push(aktif === 'true')
-      paramIndex++
-    } else if (!includeInactive) {
-      whereClause += ` AND aktif = $${paramIndex}`
-      params.push(true)
-      paramIndex++
-    }
-
     const payComponents = await prisma.$queryRaw`
       SELECT 
         id, nama, tipe, taxable, metode, basis, rate, nominal, 
         cap_min as "capMin", cap_max as "capMax", "order", aktif,
         created_by, created_at, updated_at
       FROM pay_components 
-      ${whereClause}
+      WHERE aktif = true
       ORDER BY "order" ASC, nama ASC
     ` as any[]
 
