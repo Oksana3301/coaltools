@@ -15,6 +15,14 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum PayrollStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
 model User {
   id                String             @id
   name              String?
@@ -173,7 +181,7 @@ model PayrollRun {
   id                  String                       @id @default(cuid())
   periodeAwal         String                       @map("periode_awal")
   periodeAkhir        String                       @map("periode_akhir")
-  status              String?              @default("DRAFT")
+  status              String?                      @default("DRAFT")
   createdBy           String                       @map("created_by")
   approvedBy          String?                      @map("approved_by")
   notes               String?
@@ -217,7 +225,7 @@ model PayrollLine {
   pajakNominal    Float?               @map("pajak_nominal") 
   potonganLain    Float?               @default(0) @map("potongan_lain") 
   neto            Float                @default(0) 
-  status          String?        @default("DRAFT")
+  status          String?                @default("DRAFT")
   notes           String?
   created_at      DateTime?              @default(now()) 
   updated_at      DateTime?              @default(now()) 
