@@ -1,0 +1,71 @@
+<svg width="800" height="120" viewBox="0 0 800 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- White background -->
+  <rect width="800" height="120" fill="white"/>
+  
+  <!-- Logo Container -->
+  <g transform="translate(20, 15)">
+    <!-- Yellow background -->
+    <rect x="0" y="0" width="90" height="90" fill="#fbbf24" rx="8"/>
+    <!-- Red equilateral triangle with base at bottom -->
+    <polygon points="45,10 85,85 5,85" fill="#dc2626"/>
+    
+    <!-- Green plant motif with white outlines -->
+    <!-- Central stem -->
+    <path d="M45 80 L45 30" stroke="white" stroke-width="2" fill="none"/>
+    
+    <!-- Left side fronds -->
+    <path d="M45 75 L20 55" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 70 L18 50" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 65 L15 45" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 60 L12 40" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 55 L10 35" stroke="white" stroke-width="1.5" fill="none"/>
+    
+    <!-- Right side fronds -->
+    <path d="M45 75 L70 55" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 70 L72 50" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 65 L75 45" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 60 L78 40" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M45 55 L80 35" stroke="white" stroke-width="1.5" fill="none"/>
+    
+    <!-- Green leaf segments with white outlines -->
+    <!-- Left side leaves -->
+    <path d="M20 55 L10 60 L15 65 L25 63 L20 55" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M18 50 L8 55 L13 60 L23 58 L18 50" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M15 45 L5 50 L10 55 L20 53 L15 45" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M12 40 L2 45 L7 50 L17 48 L12 40" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M10 35 L0 40 L5 45 L15 43 L10 35" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    
+    <!-- Right side leaves -->
+    <path d="M70 55 L80 60 L75 65 L65 63 L70 55" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M72 50 L82 55 L77 60 L67 58 L72 50" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M75 45 L85 50 L80 55 L70 53 L75 45" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M78 40 L88 45 L83 50 L73 48 L78 40" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+    <path d="M80 35 L90 40 L85 45 L75 43 L80 35" fill="#22c55e" stroke="white" stroke-width="0.5"/>
+  </g>
+  
+  <!-- Company Information -->
+  <g transform="translate(130, 15)">
+    <!-- Company Name -->
+    <text x="0" y="35" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#C8473D">
+      PT. GLOBAL LESTARI ALAM
+    </text>
+    
+    <!-- Company Description -->
+    <text x="0" y="55" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#52A860">
+      (GENERAL SUPPLIERS &amp; CONTRACTORS)
+    </text>
+    
+    <!-- Address -->
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="14" fill="black">
+      Jl. Bandeng No. 20 RT / RW. 004 / 005, Kelurahan Tangerang Tengah, Kec. Marpoyan Damai, K
+    </text>
+    
+    <!-- Contact Information -->
+    <text x="0" y="100" font-family="Arial, sans-serif" font-size="14" fill="black">
+      Telp. +62761 40288, Fax. +62761 35923, Email: gla.padang15@gmail.com
+    </text>
+  </g>
+  
+  <!-- Bottom horizontal line -->
+  <line x1="20" y1="115" x2="780" y2="115" stroke="black" stroke-width="1"/>
+</svg>
