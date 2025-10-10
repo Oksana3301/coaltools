@@ -1,0 +1,339 @@
+---
+alwaysApply: false
+---
+Coal Mining Report Generator – Multi‑Step Onboarding (Markdown Spec)
+
+This file defines the exact steps, options, validations, and data mapping for your onboarding wizard. Optimized for quick clicking by Admin/Accounting and easy implementation.
+
+Step 1 — Profil & Peran
+
+Purpose: personalize signatures and default report headers.
+
+Fields (choices):
+
+Nama Lengkap: text
+
+Jabatan: select
+
+Direktur
+
+Direktur Operasional
+
+Accounting
+
+Admin Lapangan
+
+Operator
+
+Lainnya
+
+Nama Tanda Tangan (opsional): text (default → Nama Lengkap)
+
+Validation: Nama Lengkap required (min 2 chars).
+
+Persist to: runs_profile.full_name, runs_profile.job_title, runs_profile.signature_name.
+
+Step 2 — Preferensi Bahasa & Format
+
+Purpose: control language and output channels.
+
+Fields (choices):
+
+Bahasa Utama Laporan: segmented
+
+id (Indonesia) default
+
+en (English)
+
+both (Keduanya)
+
+Format Laporan: multi‑select chips
+
+whatsapp (ringkasan)
+
+pdf (resmi)
+
+excel (detail)
+
+Validation: at least 1 format selected.
+
+Persist to: runs_profile.preferred_lang, runs_profile.preferred_formats, onboarding_answers.language, onboarding_answers.report_formats.
+
+Step 3 — Cashout & Biaya Operasional
+
+Purpose: teach AI most‑used categories + guardrails.
+
+Fields (choices):
+
+Komponen biaya yang sering dicatat: multi‑select chips
+
+BBM
+
+Sewa Alat
+
+Fee Koordinasi
+
+Gaji Harian
+
+Materai & Adm
+
+Kasbon
+
+Lainnya… (opens input)
+
+Aktifkan peringatan (tanpa bukti/melebihi budget): toggle (default on)
+
+Validation: at least 1 component.
+
+Persist to: onboarding_answers.common_expenses, onboarding_answers.budget_alerts.
+
+Step 4 — Produksi Batubara
+
+Purpose: enable target vs actual visuals.
+
+Fields (choices):
+
+Target produksi bulanan (MT): number (optional)
+
+Tampilkan Target vs Realisasi otomatis: toggle (default on)
+
+Validation: none (optional, but numeric if filled).
+
+Persist to: onboarding_answers.monthly_target_mt, onboarding_answers.show_target_vs_actual.
+
+Step 5 — Struktur Gaji & Payroll
+
+Purpose: define payroll modes and components for calculator.
+
+Fields (choices):
+
+Pola Gaji: multi‑select chips
+
+harian
+
+bulanan
+
+borongan
+
+Komponen Payroll: multi‑select chips
+
+makan
+
+bbm
+
+insentif
+
+pph
+
+bpjs
+
+custom… (opens input)
+
+Validation: at least 1 mode and 1 component.
+
+Persist to: onboarding_answers.payroll_modes, onboarding_answers.payroll_components.
+
+Step 6 — Kebiasaan Input Data
+
+Purpose: match UX to device and reminders.
+
+Fields (choices):
+
+Media Input: multi‑select chips
+
+mobile
+
+laptop
+
+Reminder bila laporan harian belum masuk: segmented
+
+email default
+
+whatsapp
+
+none
+
+Validation: at least 1 device; reminder value required.
+
+Persist to: onboarding_answers.input_devices, runs_profile.reminder_channel, onboarding_answers.reminder_channel.
+
+Step 7 — Personal Best & Custom Notes
+
+Purpose: seed formatting & preserve field notes.
+
+Fields (choices):
+
+Izinkan catatan bebas per laporan: toggle (default on)
+
+Upload contoh laporan terbaik (PDF/Excel): file (optional)
+
+Validation: none; file extensions .pdf,.xlsx,.xls.
+
+Persist to:
+
+onboarding_answers.allow_custom_notes
+
+If file uploaded → Storage reports/… + row in files and a personal_best insert with sample_file_id.
+
+Step 8 — Review & Submit
+
+Purpose: confirm and persist.
+
+Actions:
+
+Show compact summary of all inputs.
+
+Submit:
+
+upsert runs_profile with has_completed_onboarding=true
+
+insert onboarding_answers (raw answers)
+
+Optional insert personal_best if sample file uploaded
+
+Success state: close wizard → dashboard.
+
+Navigation & UX Rules
+
+Display a stepper (dots or bar) with active/done states.
+
+Next disabled until validations pass; Back available except on step 1.
+
+Autosave draft (optional) per step.
+
+Keyboard: Enter → next if valid.
+
+Mobile‑first chips/buttons; large touch targets.
+
+Validation Summary
+
+Step 1: Nama Lengkap required (>= 2 char)
+
+Step 2: Format Laporan length >= 1; Bahasa ∈ {id,en,both}
+
+Step 3: Komponen biaya length >= 1
+
+Step 4: Target numeric if present
+
+Step 5: Pola gaji length >= 1; Komponen length >= 1
+
+Step 6: Media input length >= 1; Reminder ∈ {email,whatsapp,none}
+
+Data Mapping (Supabase)
+
+runs_profile
+
+user_id (uuid, auth)
+
+org_id (uuid)
+
+full_name (text)
+
+job_title (text)
+
+preferred_lang (text: id|en|both)
+
+preferred_formats (text[])
+
+reminder_channel (text: email|whatsapp|none)
+
+signature_name (text)
+
+has_completed_onboarding (boolean)
+
+onboarding_answers
+
+org_id (uuid)
+
+user_id (uuid)
+
+language (text)
+
+report_formats (jsonb array)
+
+common_expenses (jsonb array)
+
+budget_alerts (boolean)
+
+monthly_target_mt (numeric)
+
+show_target_vs_actual (boolean)
+
+payroll_modes (jsonb array)
+
+payroll_components (jsonb array)
+
+input_devices (jsonb array)
+
+reminder_channel (text)
+
+sample_report_file_id (uuid | null)
+
+allow_custom_notes (boolean)
+
+personal_best
+
+id (uuid pk)
+
+org_id (uuid)
+
+user_id (uuid)
+
+title (text)
+
+notes (text)
+
+sample_file_id (uuid → files.id)
+
+Example JSON Payload (Submit)
+{
+  "runs_profile": {
+    "full_name": "Atika Dewi Suryani",
+    "job_title": "Accounting / Ops",
+    "preferred_lang": "id",
+    "preferred_formats": ["whatsapp","pdf","excel"],
+    "reminder_channel": "email",
+    "signature_name": "Atika Dewi Suryani",
+    "has_completed_onboarding": true
+  },
+  "onboarding_answers": {
+    "language": "id",
+    "report_formats": ["whatsapp","pdf","excel"],
+    "common_expenses": ["BBM","Sewa Alat","Fee Koordinasi","Gaji Harian"],
+    "budget_alerts": true,
+    "monthly_target_mt": 20000,
+    "show_target_vs_actual": true,
+    "payroll_modes": ["harian","bulanan","borongan"],
+    "payroll_components": ["makan","bbm","insentif","pph","bpjs"],
+    "input_devices": ["mobile","laptop"],
+    "reminder_channel": "email",
+    "sample_report_file_id": null,
+    "allow_custom_notes": true
+  },
+  "personal_best": null
+}
+Trigger Logic (Dashboard)
+
+On /dashboard mount:
+
+Query runs_profile for current user_id, org_id.
+
+If not found or has_completed_onboarding=false → open wizard.
+
+Else → do nothing.
+
+Post‑Submit Behaviors
+
+Persist success toast: Onboarding selesai. Laporan Anda akan dipersonalisasi sesuai preferensi.
+
+Cache preferred_lang, preferred_formats in client store for report pages.
+
+If monthly_target_mt set → show Target vs Realisasi widget on dashboard.
+
+Notes for Devs
+
+Align columns with your Supabase schema (use MCP or the provided SQL).
+
+Storage bucket: reports for onboarding sample uploads; mirror path in files.storage_path.
+
+RLS must allow current user to upsert their own runs_profile, insert onboarding_answers, and insert personal_best.

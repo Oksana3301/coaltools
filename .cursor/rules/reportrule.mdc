@@ -1,0 +1,23 @@
+---
+description: reportgenerator 
+alwaysApply: false
+---
+Use a multi-tenant schema (orgs, memberships, profiles) so one codebase can serve many sites/teams securely.
+
+Store the 3 report pillars in separate tables with shared keys:
+
+Cashout (kas besar/kas kecil) → cashouts + expense_categories
+
+Production → production_reports
+
+Salary/Payroll → employees, payroll_items
+
+Keep onboarding answers in onboarding_answers (so AI knows preferences like Bahasa Indonesia, reminder via email, etc.).
+
+Track file imports & AI outputs in files + ai_runs.
+
+Enable RLS everywhere. Allow members of the same org to read, creator or admin to write, admin/owner to delete.
+
+Seed 1 org (PT Global Lestari Alam), common expense categories, and a few example employees.
+
+Replace '<YOUR-USER-UUID>' with your UUID from Supabase Auth → Users, so you become the initial owner.

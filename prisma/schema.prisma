@@ -1,0 +1,495 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+
+  @@map("user_role")
+}
+
+enum PayrollStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
+model User {
+  id                String             @id
+  name              String?
+  email             String             @unique
+  password          String?
+  role              UserRole?          @default(STAFF)
+  aktif             Boolean            @default(true)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime?          @updatedAt
+  
+  login_activity    login_activity[]
+  pay_components    PayComponent[]
+  
+  @@index([aktif], map: "idx_users_aktif")
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+  @@map("users")
+}
+
+model KasBesarExpense {
+  id            String    @id @default(cuid())
+  hari          String
+  tanggal       String
+  bulan         String
+  tipeAktivitas String    @map("tipe_aktivitas")
+  barang        String
+  banyak        Float
+  satuan        String
+  hargaSatuan   Float     @map("harga_satuan")
+  total         Float
+  vendorNama    String    @map("vendor_nama")
+  vendorTelp    String?   @map("vendor_telp")
+  vendorEmail   String?   @map("vendor_email")
+  jenis         String    @default("kas_besar")
+  subJenis      String    @map("sub_jenis")
+  buktiUrl      String?   @map("bukti_url")
+  kontrakUrl    String?   @map("kontrak_url")
+  status        String    @default("DRAFT")
+  notes         String?
+  approvalNotes String?   @map("approval_notes")
+  createdBy     String
+  approvedBy    String?   @map("approved_by")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? @map("deleted_at")
+
+  @@map("kas_besar_expenses")
+}
+
+model KasKecilExpense {
+  id            String    @id @default(cuid())
+  hari          String
+  tanggal       String
+  bulan         String
+  tipeAktivitas String    @map("tipe_aktivitas")
+  barang        String
+  banyak        Float
+  satuan        String
+  hargaSatuan   Float     @map("harga_satuan")
+  total         Float
+  vendorNama    String    @map("vendor_nama")
+  vendorTelp    String?   @map("vendor_telp")
+  vendorEmail   String?   @map("vendor_email")
+  jenis         String    @default("kas_kecil")
+  subJenis      String    @map("sub_jenis")
+  buktiUrl      String?   @map("bukti_url")
+  status        String    @default("DRAFT")
+  notes         String?
+  approvalNotes String?   @map("approval_notes")
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? @map("deleted_at")
+
+  @@map("kas_kecil_expenses")
+}
+
+model Employee {
+  id                  String                       @id @default(cuid())
+  nama                String
+  nik                 String?
+  jabatan             String?
+  site                String
+  tempatLahir         String?                      @map("tempat_lahir")
+  tanggalLahir        String?                      @map("tanggal_lahir")
+  alamat              String?
+  kontrakUpahHarian   Float                      @map("kontrak_upah_harian") 
+  defaultUangMakan    Float                      @default(0) @map("default_uang_makan") 
+  defaultUangBbm      Float                      @default(0) @map("default_uang_bbm") 
+  bankName            String?                      @map("bank_name")
+  bankAccount         String?                      @map("bank_account")
+  npwp                String?
+  startDate           String?                      @map("start_date")
+  aktif               Boolean?                     @default(true)
+  created_at          DateTime?                    @default(now()) 
+  updated_at          DateTime?                    @default(now()) 
+  createdAt           DateTime?                    @default(now()) 
+  updatedAt           DateTime?                    @default(now()) 
+  componentSelections EmployeeComponentSelection[]
+  payrollLines        PayrollLine[]
+
+  @@index([aktif], map: "idx_employees_aktif")
+  @@index([nama], map: "idx_employees_nama")
+  @@index([site], map: "idx_employees_site")
+  @@map("employees")
+}
+
+model PayComponent {
+  id                    String                       @id @default(cuid())
+  nama                  String
+  taxable               Boolean?                     @default(false)
+  rate                  Float?                     
+  nominal               Float?                     
+  capMin                Float?                     @map("cap_min") 
+  capMax                Float?                     @map("cap_max") 
+  order                 Int?                         @default(0)
+  aktif                 Boolean?                     @default(true)
+  created_by            String?
+  created_at            DateTime?                    @default(now()) 
+  updated_at            DateTime?                    @default(now()) 
+  createdAt             DateTime?                    @default(now()) 
+  updatedAt             DateTime?                    @default(now()) 
+  tipe                  String
+  metode                String
+  basis                 String
+  componentSelections   EmployeeComponentSelection[]
+  users                 User?                        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payrollLineComponents PayrollLineComponent[]
+
+  @@index([aktif], map: "idx_pay_components_aktif")
+  @@index([created_by], map: "idx_pay_components_created_by")
+  @@index([order], map: "idx_pay_components_order")
+  @@map("pay_components")
+}
+
+model AttendanceRecord {
+  id            String           @id @default(cuid())
+  employeeId    String           @map("employee_id")
+  tanggal       String
+  clockIn       String?          @map("clock_in")
+  clockOut      String?          @map("clock_out")
+  breakStart    String?          @map("break_start")
+  breakEnd      String?          @map("break_end")
+  totalHours    Float            @map("total_hours")
+  status        String
+  overtimeHours Float            @default(0) @map("overtime_hours")
+  notes         String?
+  approvedBy    String?          @map("approved_by")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("attendance_records")
+}
+
+model PayrollRun {
+  id                  String                       @id @default(cuid())
+  periodeAwal         String                       @map("periode_awal")
+  periodeAkhir        String                       @map("periode_akhir")
+  status              String?                      @default("DRAFT")
+  createdBy           String                       @map("created_by")
+  approvedBy          String?                      @map("approved_by")
+  notes               String?
+  customFileName      String?                      @map("custom_file_name") 
+  created_at          DateTime?                    @default(now()) 
+  updated_at          DateTime?                    @default(now()) 
+  deletedAt           DateTime?                    @map("deleted_at") 
+  componentSelections EmployeeComponentSelection[]
+  payrollLines        PayrollLine[]
+  // Temporarily disabled foreign key constraints for testing
+  // approver            User?                        @relation("PayrollApprovedBy", fields: [approvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // creator             User                         @relation(fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_payroll_runs_created_at")
+  @@index([createdBy], map: "idx_payroll_runs_created_by")
+  @@index([periodeAwal, periodeAkhir], map: "idx_payroll_runs_periode")
+  @@index([status], map: "idx_payroll_runs_status")
+  @@map("payroll_runs")
+}
+
+model PayrollLine {
+  id              String                 @id @default(cuid())
+  payrollRunId    String                 @map("payroll_run_id")
+  employeeId      String                 @map("employee_id")
+  employeeName    String                 @map("employee_name")
+  hariKerja       Int                    @default(0) @map("hari_kerja")
+  upahHarian      Float                @default(0) @map("upah_harian") 
+  uangMakanHarian Float                @default(0) @map("uang_makan_harian") 
+  uangBbmHarian   Float                @default(0) @map("uang_bbm_harian") 
+  overtimeHours   Float?               @default(0) @map("overtime_hours") 
+  overtimeRate    Float?               @default(1.5) @map("overtime_rate") 
+  overtimeAmount  Float?               @default(0) @map("overtime_amount") 
+  normalHours     Float?               @default(0) @map("normal_hours") 
+  holidayHours    Float?               @default(0) @map("holiday_hours") 
+  nightFirstHour  Float?               @default(0) @map("night_first_hour") 
+  nightAdditionalHours Float?          @default(0) @map("night_additional_hours") 
+  customHourlyRate Float?              @default(0) @map("custom_hourly_rate") 
+  cashbon         Float?               @default(0) 
+  bruto           Float                @default(0) 
+  pajakRate       Float?               @map("pajak_rate") 
+  pajakNominal    Float?               @map("pajak_nominal") 
+  potonganLain    Float?               @default(0) @map("potongan_lain") 
+  neto            Float                @default(0) 
+  status          String?                @default("DRAFT")
+  notes           String?
+  created_at      DateTime?              @default(now()) 
+  updated_at      DateTime?              @default(now()) 
+  deletedAt       DateTime?              @map("deleted_at") 
+  components      PayrollLineComponent[]
+  employee        Employee               @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payrollRun      PayrollRun             @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([employeeId], map: "idx_payroll_lines_employee_id")
+  @@index([payrollRunId], map: "idx_payroll_lines_run_id")
+  @@index([status], map: "idx_payroll_lines_status")
+  @@map("payroll_lines")
+}
+
+model PayrollLineComponent {
+  id            String       @id @default(cuid())
+  payrollLineId String       @map("payroll_line_id")
+  componentId   String       @map("component_id")
+  componentName String       @map("component_name")
+  qty           Float?     
+  rate          Float?     
+  nominal       Float?     
+  amount        Float      
+  taxable       Boolean?     @default(false)
+  created_at    DateTime?    @default(now()) 
+  payComponent  PayComponent @relation(fields: [componentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payrollLine   PayrollLine  @relation(fields: [payrollLineId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([payrollLineId, componentId])
+  @@index([componentId], map: "idx_payroll_line_components_component_id")
+  @@index([payrollLineId], map: "idx_payroll_line_components_line_id")
+  @@map("payroll_line_components")
+}
+
+model EmployeeComponentSelection {
+  id            String       @id @default(cuid())
+  payrollRunId  String       @map("payroll_run_id")
+  employeeId    String       @map("employee_id")
+  componentId   String       @map("component_id")
+  componentType String       @map("component_type")
+  isSelected    Boolean?     @default(true) @map("is_selected")
+  customAmount  Float?     @map("custom_amount") 
+  created_at    DateTime?    @default(now()) 
+  updated_at    DateTime?    @default(now()) 
+  component     PayComponent @relation(fields: [componentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payrollRun    PayrollRun   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([payrollRunId, employeeId, componentId])
+  @@index([componentId], map: "idx_employee_selections_component_id")
+  @@index([employeeId], map: "idx_employee_selections_employee_id")
+  @@index([payrollRunId], map: "idx_employee_selections_run_id")
+  @@map("employee_component_selections")
+}
+
+model Kwitansi {
+  id                String    @id @default(cuid())
+  nomorKwitansi     String    @map("nomor_kwitansi")
+  tanggal           String
+  namaPenerima      String    @map("nama_penerima")
+  jumlahUang        Float     @map("jumlah_uang")
+  untukPembayaran   String    @map("untuk_pembayaran")
+  namaPembayar      String    @map("nama_pembayar")
+  nomorRekening     String?   @map("nomor_rekening")
+  namaRekening      String?   @map("nama_rekening")
+  bankName          String?   @map("bank_name")
+  transferMethod    String?   @map("transfer_method")
+  tempat            String
+  tanggalKwitansi   String    @map("tanggal_kwitansi")
+  signatureName     String    @map("signature_name")
+  signaturePosition String    @map("signature_position")
+  materai           String?
+  headerImage       String?   @map("header_image")
+  payrollRunId      String?   @map("payroll_run_id")
+  payrollLineId     String?   @map("payroll_line_id")
+  employeeId        String?   @map("employee_id")
+  createdBy         String    @map("created_by")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime? @map("deleted_at")
+
+  // Relations temporarily disabled for testing
+  // creator           User?     @relation(fields: [createdBy], references: [id])
+
+  @@map("kwitansi")
+}
+
+model Invoice {
+  id                String    @id @default(cuid())
+  invoiceNumber     String    @map("invoice_number")
+  createdDate       String    @map("created_date")
+  dueDate           String?   @map("due_date")
+  applicantName     String    @map("applicant_name")
+  recipientName     String    @map("recipient_name")
+  notes             String?
+  termsConditions   String?   @map("terms_conditions")
+  headerImage       String?   @map("header_image")
+  showBankDetails   Boolean   @default(false) @map("show_bank_details")
+  bankName          String?   @map("bank_name")
+  accountNumber     String?   @map("account_number")
+  accountHolder     String?   @map("account_holder")
+  transferMethod    String?   @map("transfer_method")
+  signatureName     String?   @map("signature_name")
+  signaturePosition String?   @map("signature_position")
+  signatureLocation String?   @map("signature_location")
+  items             String      // Store invoice items as JSON text
+  subtotal          Float     @default(0)
+  discount          Float     @default(0)
+  tax               Float     @default(0)
+  total             Float     @default(0)
+  createdBy         String    @map("created_by")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime? @map("deleted_at")
+
+  // Relations temporarily disabled for testing
+  // creator           User      @relation(fields: [createdBy], references: [id])
+
+  @@map("invoices")
+}
+
+model ProductionReport {
+  id          String           @id @default(cuid())
+  tanggal     String
+  nopol       String
+  pembeliId   String?          @map("pembeli_id")
+  pembeliNama String           @map("pembeli_nama")
+  tujuan      String
+  grossTon    Float            @map("gross_ton")
+  tareTon     Float            @map("tare_ton")
+  nettoTon    Float            @map("netto_ton")
+  sourceFile  String?          @map("source_file")
+  notes       String?
+  status      String @default("DRAFT")
+  createdBy   String           @map("created_by")
+  approvedBy  String?          @map("approved_by")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?        @map("deleted_at")
+  buyer       Buyer?           @relation(fields: [pembeliId], references: [id])
+
+  @@map("production_reports")
+}
+
+model Buyer {
+  id                 String             @id @default(cuid())
+  nama               String
+  hargaPerTonDefault Float?             @map("harga_per_ton_default")
+  alamat             String?
+  telepon            String?
+  email              String?
+  npwp               String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  aktif              Boolean            @default(true)
+  productionReports  ProductionReport[]
+
+  @@map("buyers")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  tableName String   @map("table_name")
+  recordId  String   @map("record_id")
+  oldValues String?    @map("old_values")
+  newValues String?    @map("new_values")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model login_activities {
+  id         String      @id
+  user_id    String
+  email      String
+  ip_address String?
+  user_agent String?
+  status     String @default("SUCCESS")
+  createdAt  DateTime    @default(now())
+}
+
+model RunsProfile {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique @map("user_id")
+  orgId                  String?            @map("org_id")
+  fullName               String             @map("full_name")
+  jobTitle               String             @map("job_title")
+  preferredLang          String             @map("preferred_lang")
+  preferredFormats       String           @map("preferred_formats")
+  reminderChannel        String             @map("reminder_channel")
+  signatureName          String             @map("signature_name")
+  hasCompletedOnboarding Boolean            @default(false) @map("has_completed_onboarding")
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  onboardingAnswers      OnboardingAnswers?
+  personalBest           PersonalBest[]
+
+  @@map("runs_profile")
+}
+
+model OnboardingAnswers {
+  id                 String      @id @default(cuid())
+  orgId              String?     @map("org_id")
+  userId             String      @unique @map("user_id")
+  language           String
+  reportFormats      String        @map("report_formats")
+  commonExpenses     String        @map("common_expenses")
+  budgetAlerts       Boolean     @map("budget_alerts")
+  monthlyTargetMt    Float?      @map("monthly_target_mt")
+  showTargetVsActual Boolean     @map("show_target_vs_actual")
+  payrollModes       String        @map("payroll_modes")
+  payrollComponents  String        @map("payroll_components")
+  inputDevices       String        @map("input_devices")
+  reminderChannel    String      @map("reminder_channel")
+  sampleReportFileId String?     @map("sample_report_file_id")
+  allowCustomNotes   Boolean     @map("allow_custom_notes")
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  runsProfile        RunsProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("onboarding_answers")
+}
+
+model PersonalBest {
+  id           String      @id @default(cuid())
+  orgId        String?     @map("org_id")
+  userId       String      @map("user_id")
+  title        String
+  notes        String?
+  sampleFileId String?     @map("sample_file_id")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  runsProfile  RunsProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("personal_best")
+}
+
+model Files {
+  id          String   @id @default(cuid())
+  filename    String
+  storagePath String   @map("storage_path")
+  fileSize    Int      @map("file_size")
+  mimeType    String   @map("mime_type")
+  uploadedBy  String   @map("uploaded_by")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("files")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model login_activity {
+  id         String       @id @default(cuid())
+  user_id    String?
+  email      String
+  ip_address String?
+  user_agent String?
+  status     String
+  created_at DateTime?    @default(now()) 
+  users      User?        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_login_activity_created_at")
+  @@index([status], map: "idx_login_activity_status")
+  @@index([user_id], map: "idx_login_activity_user_id")
+}

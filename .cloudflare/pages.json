@@ -1,0 +1,13 @@
+{
+  "build": {
+    "command": "npm install --legacy-peer-deps && npm run build:pages",
+    "output_directory": ".next",
+    "environment": {
+      "NODE_VERSION": "18",
+      "NPM_FLAGS": "--legacy-peer-deps"
+    }
+  },
+  "deploy": {
+    "environment": "production"
+  }
+}

@@ -1,0 +1,13 @@
+runtime: nodejs18
+entrypoint: npm start
+
+env_variables:
+  NODE_ENV: production
+  # Database variables will be set in Firebase App Hosting console
+  # DATABASE_URL: set in Firebase console
+  # NEXTAUTH_SECRET: set in Firebase console
+  # NEXTAUTH_URL: set in Firebase console
+
+build_env_variables:
+  NODE_ENV: production
+  # Don't set DATABASE_URL at build time to prevent connection attempts
