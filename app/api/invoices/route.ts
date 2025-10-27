@@ -142,7 +142,14 @@ export async function POST(request: NextRequest) {
 
     const invoice = await prisma.invoice.create({
       data: {
-        ...validatedData
+        number: validatedData.invoiceNumber,
+        buyerName: validatedData.recipientName,
+        amount: validatedData.total,
+        tax: validatedData.tax,
+        total: validatedData.total,
+        dueDate: new Date(validatedData.createdDate),
+        status: 'DRAFT',
+        description: validatedData.notes
       }
     })
 
