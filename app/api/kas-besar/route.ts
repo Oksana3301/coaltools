@@ -131,16 +131,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        action: 'CREATE',
-        tableName: 'kas_besar_expenses',
-        recordId: expense.id,
-        newValues: JSON.stringify(expense),
-        userId: validatedData.createdBy
-      }
-    })
+    // TODO: Add audit logging when auditLog table is available
 
     return NextResponse.json({
       success: true,
