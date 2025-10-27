@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         acc[month] = { count: 0, amount: 0 }
       }
       acc[month].count++
-      acc[month].amount += tx.jumlah
+      acc[month].amount += tx.jumlah || 0
       return acc
     }, {} as Record<string, { count: number, amount: number }>)
 
