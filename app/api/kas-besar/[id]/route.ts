@@ -20,7 +20,7 @@ export async function GET(
     }
     
     const { id } = await params
-    const expense = await prisma.kasBesarExpense.findUnique({
+    const expense = await prisma.kasBesarTransaction.findUnique({
       where: { id: id }
     })
 
@@ -60,7 +60,7 @@ export async function PATCH(
     const validatedData = StatusUpdateSchema.parse(body)
 
     // Get old data for audit
-    const oldExpense = await prisma.kasBesarExpense.findUnique({
+    const oldExpense = await prisma.kasBesarTransaction.findUnique({
       where: { id: id }
     })
 
@@ -72,7 +72,7 @@ export async function PATCH(
     }
 
     // Update status
-    const expense = await prisma.kasBesarExpense.update({
+    const expense = await prisma.kasBesarTransaction.update({
       where: { id: id },
       data: {
         status: validatedData.status,
