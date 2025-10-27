@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       })),
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
-        barang: tx.barang,
+        deskripsi: tx.deskripsi,
         jumlah: tx.jumlah,
         status: tx.status,
         createdAt: tx.createdAt,
