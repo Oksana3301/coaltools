@@ -44,23 +44,23 @@ export async function GET(request: NextRequest) {
       recentTransactions
     ] = await Promise.all([
       // Total transaksi
-      prisma.kasBesarExpense.count({ where }),
+      prisma.kasBesarTransaction.count({ where }),
       
       // Total amount
-      prisma.kasBesarExpense.aggregate({
+      prisma.kasBesarTransaction.aggregate({
         where,
         _sum: { total: true }
       }),
       
       // Count by status
-      prisma.kasBesarExpense.groupBy({
+      prisma.kasBesarTransaction.groupBy({
         by: ['status'],
         where,
         _count: { status: true }
       }),
       
       // Monthly data (last 6 months) - simplified approach
-      prisma.kasBesarExpense.findMany({
+      prisma.kasBesarTransaction.findMany({
         where: {
           ...where,
           createdAt: {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       }),
       
       // Top vendors
-      prisma.kasBesarExpense.groupBy({
+      prisma.kasBesarTransaction.groupBy({
         by: ['vendorNama'],
         where,
         _sum: { total: true },
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       }),
       
       // Recent transactions
-      prisma.kasBesarExpense.findMany({
+      prisma.kasBesarTransaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take: 5
