@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     where.deletedAt = null
 
     const [
-      totalTransactions,
-      totalAmount,
+      jumlahTransactions,
+      jumlahAmount,
       statusCounts,
       monthlyData,
       topVendors,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       // Total amount
       prisma.kasBesarTransaction.aggregate({
         where,
-        _sum: { total: true }
+        _sum: { jumlah: true }
       }),
       
       // Count by status
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         },
         select: {
           createdAt: true,
-          total: true
+          jumlah: true
         },
         orderBy: { createdAt: 'desc' }
       }),
@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
       prisma.kasBesarTransaction.groupBy({
         by: ['vendorNama'],
         where,
-        _sum: { total: true },
+        _sum: { jumlah: true },
         _count: { vendorNama: true },
-        orderBy: { _sum: { total: 'desc' } },
+        orderBy: { _sum: { jumlah: 'desc' } },
         take: 5
       }),
       
@@ -99,13 +99,13 @@ export async function GET(request: NextRequest) {
         acc[month] = { count: 0, amount: 0 }
       }
       acc[month].count++
-      acc[month].amount += tx.total
+      acc[month].amount += tx.jumlah
       return acc
     }, {} as Record<string, { count: number, amount: number }>)
 
     const stats = {
-      totalTransactions,
-      totalAmount: totalAmount._sum.total || 0,
+      jumlahTransactions,
+      jumlahAmount: jumlahAmount._sum.jumlah || 0,
       statusBreakdown: statusCounts.reduce((acc, item) => {
         acc[item.status] = item._count.status
         return acc
@@ -117,13 +117,13 @@ export async function GET(request: NextRequest) {
       })),
       topVendors: topVendors.map(vendor => ({
         name: vendor.vendorNama,
-        totalAmount: vendor._sum.total || 0,
+        jumlahAmount: vendor._sum.jumlah || 0,
         transactionCount: vendor._count.vendorNama
       })),
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
         barang: tx.barang,
-        total: tx.total,
+        jumlah: tx.jumlah,
         status: tx.status,
         createdAt: tx.createdAt,
         creatorName: 'Unknown'
