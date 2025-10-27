@@ -76,10 +76,10 @@ export async function GET(request: NextRequest) {
       
       // Top vendors
       prisma.kasBesarTransaction.groupBy({
-        by: ['vendorNama'],
+        by: ['kategori'],
         where,
         _sum: { jumlah: true },
-        _count: { vendorNama: true },
+        _count: { kategori: true },
         orderBy: { _sum: { jumlah: 'desc' } },
         take: 5
       }),
@@ -116,9 +116,9 @@ export async function GET(request: NextRequest) {
         amount: data.amount
       })),
       topVendors: topVendors.map(vendor => ({
-        name: vendor.vendorNama,
+        name: vendor.kategori,
         jumlahAmount: vendor._sum.jumlah || 0,
-        transactionCount: vendor._count.vendorNama
+        transactionCount: vendor._count.kategori
       })),
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
