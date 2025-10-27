@@ -8,12 +8,11 @@ export const revalidate = false
 
 // Schema untuk validasi input buyer
 const buyerSchema = z.object({
-  nama: z.string().min(1, 'Nama wajib diisi'),
-  hargaPerTonDefault: z.number().optional(),
-  alamat: z.string().optional(),
-  telepon: z.string().optional(),
+  name: z.string().min(1, 'Nama wajib diisi'),
   email: z.string().email().optional().or(z.literal('')),
-  npwp: z.string().optional()
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  company: z.string().optional()
 })
 
 // GET - Ambil semua buyers
@@ -34,8 +33,7 @@ export async function GET(request: NextRequest) {
     const where = includeInactive ? {} : { aktif: true }
 
     const buyers = await prisma.buyer.findMany({
-      where,
-      orderBy: { nama: 'asc' }
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json({

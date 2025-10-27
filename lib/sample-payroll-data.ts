@@ -358,7 +358,7 @@ export const SAMPLE_COMPANY_LOGO = `data:image/svg+xml;base64,${btoa(`
 </svg>
 `)}`
 
-export default {
+const samplePayrollData = {
   SAMPLE_EMPLOYEES,
   SAMPLE_PAY_COMPONENTS,
   SAMPLE_COMPANY_INFO,
@@ -367,3 +367,5 @@ export default {
   calculateSamplePayroll,
   generateSamplePayrollData
 }
+
+export default samplePayrollData

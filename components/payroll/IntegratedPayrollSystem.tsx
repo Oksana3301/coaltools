@@ -34,6 +34,10 @@ import { OfflinePayrollCalculator } from '@/components/payroll/OfflinePayrollCal
 import { PayrollCalculator } from '@/components/coal-tools/payroll-calculator'
 import { PayrollGenerator } from '@/components/payroll/PayrollGenerator'
 import { PayrollUploadLogo } from '@/components/payroll/PayrollUploadLogo'
+import { PayrollPDFExport, type PayrollExportData } from '@/components/payroll/PayrollPDFExport'
+import { PayrollPDFImport, type PayrollImportData } from '@/components/payroll/PayrollPDFImport'
+import { PayrollSaveToDatabase, type PayrollSaveData } from '@/components/payroll/PayrollSaveToDatabase'
+import { SupabaseCompatibilityTest } from '@/components/payroll/SupabaseCompatibilityTest'
 
 /**
  * Interface untuk data karyawan yang terintegrasi
@@ -143,6 +147,7 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
   const [sampleDataLoaded, setSampleDataLoaded] = useState(false)
   const [databaseAvailable, setDatabaseAvailable] = useState<boolean | null>(null)
   const [isCheckingDatabase, setIsCheckingDatabase] = useState(true)
+  const [showPDFTools, setShowPDFTools] = useState(false)
 
   /**
    * Check database availability
@@ -203,7 +208,7 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
    */
   useEffect(() => {
     checkDatabaseAvailability()
-  }, [])
+  }, [checkDatabaseAvailability])
 
   /**
    * Handle data dari PayrollCalculator
@@ -357,6 +362,141 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
     totalOvertime: calculatedEmployees.reduce((sum, emp) => sum + emp.overtimeAmount, 0)
   }
 
+  /**
+   * Convert data untuk export PDF
+   */
+  const convertToExportData = useCallback((): PayrollExportData => {
+    return {
+      employees: calculatedEmployees.map(emp => ({
+        id: emp.id,
+        name: emp.nama,
+        position: emp.posisi,
+        basicSalary: emp.upahHarian * emp.hariKerja,
+        allowances: emp.uangMakanHarian + emp.uangBbmHarian,
+        deductions: emp.cashbon + emp.pajakNominal,
+        netSalary: emp.neto,
+        workingDays: emp.hariKerja,
+        overtimeHours: emp.overtimeHours,
+        overtimePay: emp.overtimeAmount,
+        components: emp.components.map(comp => ({
+          name: comp.componentName,
+          amount: comp.amount,
+          type: comp.taxable ? 'earning' : 'deduction'
+        }))
+      })),
+      companyInfo: {
+        name: companyInfo.name,
+        address: companyInfo.address,
+        phone: companyInfo.phone,
+        email: companyInfo.email,
+        logo: companyLogo || undefined
+      },
+      payrollPeriod: {
+        month: payrollPeriod.month,
+        year: payrollPeriod.year,
+        startDate: payrollPeriod.periodeAwal,
+        endDate: payrollPeriod.periodeAkhir
+      },
+      summary: payrollSummary
+    }
+  }, [calculatedEmployees, companyInfo, companyLogo, payrollPeriod, payrollSummary])
+
+  /**
+   * Handle import data dari PDF
+   */
+  const handleImportData = useCallback((importedData: PayrollImportData | null, success: boolean, message: string) => {
+    if (success && importedData) {
+      // Convert imported data ke format IntegratedEmployee
+      const convertedEmployees: IntegratedEmployee[] = importedData.employees.map(emp => ({
+        id: emp.id,
+        nama: emp.name,
+        posisi: emp.position,
+        upahHarian: emp.basicSalary / emp.workingDays,
+        uangMakanHarian: emp.allowances / emp.workingDays,
+        uangBbmHarian: 0, // Default value
+        hariKerja: emp.workingDays,
+        overtimeHours: emp.overtimeHours,
+        overtimeRate: 1.5, // Default value
+        overtimeAmount: emp.overtimePay,
+        cashbon: emp.deductions - (emp.basicSalary + emp.allowances + emp.overtimePay - emp.netSalary),
+        bruto: emp.basicSalary + emp.allowances + emp.overtimePay,
+        pajakNominal: (emp.basicSalary + emp.allowances + emp.overtimePay - emp.netSalary) - emp.deductions,
+        neto: emp.netSalary,
+        components: emp.components.map(comp => ({
+          componentId: `imported-${comp.name}`,
+          componentName: comp.name,
+          amount: comp.amount,
+          taxable: comp.type === 'earning'
+        }))
+      }))
+
+      setCalculatedEmployees(convertedEmployees)
+      setWorkflowStatus(prev => ({
+        ...prev,
+        calculatorCompleted: true,
+        hasData: true
+      }))
+    }
+  }, [])
+
+  /**
+   * Handle export completion
+   */
+  const handleExportComplete = useCallback((success: boolean, message: string) => {
+    console.log('Export completed:', success, message)
+  }, [])
+
+  /**
+   * Convert data untuk save ke database
+   */
+  const convertToSaveData = useCallback((): PayrollSaveData => {
+    return {
+      employees: calculatedEmployees.map(emp => ({
+        id: emp.id,
+        name: emp.nama,
+        position: emp.posisi,
+        basicSalary: emp.upahHarian * emp.hariKerja,
+        allowances: emp.uangMakanHarian + emp.uangBbmHarian,
+        deductions: emp.cashbon + emp.pajakNominal,
+        netSalary: emp.neto,
+        workingDays: emp.hariKerja,
+        overtimeHours: emp.overtimeHours,
+        overtimePay: emp.overtimeAmount,
+        components: emp.components.map(comp => ({
+          name: comp.componentName,
+          amount: comp.amount,
+          type: comp.taxable ? 'earning' : 'deduction'
+        }))
+      })),
+      companyInfo: {
+        name: companyInfo.name,
+        address: companyInfo.address,
+        phone: companyInfo.phone,
+        email: companyInfo.email
+      },
+      payrollPeriod: {
+        month: payrollPeriod.month,
+        year: payrollPeriod.year,
+        startDate: payrollPeriod.periodeAwal,
+        endDate: payrollPeriod.periodeAkhir
+      },
+      summary: payrollSummary
+    }
+  }, [calculatedEmployees, companyInfo, payrollPeriod, payrollSummary])
+
+  /**
+   * Handle save to database completion
+   */
+  const handleSaveComplete = useCallback((success: boolean, message: string, savedData?: any) => {
+    console.log('Save completed:', success, message, savedData)
+    if (success) {
+      setWorkflowStatus(prev => ({
+        ...prev,
+        generatorCompleted: true
+      }))
+    }
+  }, [])
+
   return (
     <div className={cn('space-y-6', className)}>
       {/* Header dengan Workflow Progress */}
@@ -469,7 +609,7 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="calculator" className="flex items-center gap-2">
             <Calculator className="w-4 h-4" />
             Kalkulator
@@ -489,6 +629,10 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
           >
             <FileText className="w-4 h-4" />
             Generator
+          </TabsTrigger>
+          <TabsTrigger value="pdf-tools" className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            PDF Tools
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
@@ -672,6 +816,37 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* PDF Tools Tab */}
+        <TabsContent value="pdf-tools" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Export PDF */}
+            <PayrollPDFExport
+              data={convertToExportData()}
+              onExportComplete={handleExportComplete}
+            />
+            
+            {/* Import PDF */}
+            <PayrollPDFImport
+              onImportComplete={handleImportData}
+            />
+          </div>
+          
+          {/* Save to Database */}
+          {calculatedEmployees.length > 0 && (
+            <div className="mt-6">
+              <PayrollSaveToDatabase
+                data={convertToSaveData()}
+                onSaveComplete={handleSaveComplete}
+              />
+            </div>
+          )}
+          
+          {/* Supabase Compatibility Test */}
+          <div className="mt-6">
+            <SupabaseCompatibilityTest />
+          </div>
         </TabsContent>
 
         {/* Settings Tab */}

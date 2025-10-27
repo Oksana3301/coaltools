@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 import { logger } from '@/lib/logger'
+
+const prisma = new PrismaClient()
 
 // GET - Fetch all kas kecil expenses (excluding soft deleted)
 export async function GET(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
 
     
   try {
@@ -87,13 +82,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new kas kecil expense
 export async function POST(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
 
     
   try {

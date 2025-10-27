@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
+
+const prisma = new PrismaClient()
 
 // Schema validation untuk Kas Besar
 const KasBesarSchema = z.object({
@@ -31,13 +33,6 @@ const UpdateKasBesarSchema = KasBesarSchema.partial().extend({
 
 // GET - Ambil semua data kas besar
 export async function GET(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
 
     
   try {
@@ -76,13 +71,13 @@ export async function GET(request: NextRequest) {
     }
 
     const [expenses, total] = await Promise.all([
-      prisma.kasBesarExpense.findMany({
+      prisma.kasBesarTransaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       }),
-      prisma.kasBesarExpense.count({ where })
+      prisma.kasBesarTransaction.count({ where })
     ])
 
     return NextResponse.json({
@@ -120,13 +115,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat data kas besar baru
 export async function POST(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
 
     
   try {
@@ -136,7 +124,7 @@ export async function POST(request: NextRequest) {
     const validatedData = KasBesarSchema.parse(body)
 
     // Create expense
-    const expense = await prisma.kasBesarExpense.create({
+    const expense = await prisma.kasBesarTransaction.create({
       data: {
         ...validatedData,
         status: 'DRAFT'
@@ -181,13 +169,6 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update data kas besar
 export async function PUT(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
 
     
   try {
@@ -198,7 +179,7 @@ export async function PUT(request: NextRequest) {
     const { id, ...updateData } = validatedData
 
     // Get old data for audit
-    const oldExpense = await prisma.kasBesarExpense.findUnique({
+    const oldExpense = await prisma.kasBesarTransaction.findUnique({
       where: { id }
     })
 
@@ -210,7 +191,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update expense
-    const expense = await prisma.kasBesarExpense.update({
+    const expense = await prisma.kasBesarTransaction.update({
       where: { id },
       data: updateData
     })
@@ -245,13 +226,6 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus data kas besar
 export async function DELETE(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
 
     
   try {
@@ -267,7 +241,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get data for audit
-    const expense = await prisma.kasBesarExpense.findUnique({
+    const expense = await prisma.kasBesarTransaction.findUnique({
       where: { id }
     })
 
@@ -291,7 +265,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete expense
-    await prisma.kasBesarExpense.delete({
+    await prisma.kasBesarTransaction.delete({
       where: { id }
     })
 

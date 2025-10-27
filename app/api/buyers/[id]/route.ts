@@ -124,7 +124,7 @@ export async function DELETE(
       // Soft delete - set aktif to false
       await prisma.buyer.update({
         where: { id },
-        data: { aktif: false }
+        data: { updatedAt: new Date() }
       })
     }
 

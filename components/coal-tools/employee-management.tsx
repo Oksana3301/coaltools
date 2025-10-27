@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -114,11 +114,7 @@ export function EmployeeManagement() {
   const [customJabatan, setCustomJabatan] = useState('')
   const [customBank, setCustomBank] = useState('')
 
-  useEffect(() => {
-    loadEmployees()
-  }, [])
-
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     setLoading(true)
     try {
       const response = await apiService.getEmployees({ limit: 100 })
@@ -135,7 +131,11 @@ export function EmployeeManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    loadEmployees()
+  }, [loadEmployees])
 
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = employee.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||

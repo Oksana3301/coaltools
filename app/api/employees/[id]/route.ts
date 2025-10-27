@@ -21,7 +21,6 @@ export async function GET(
           include: {
             payrollRun: true
           },
-          orderBy: { created_at: 'desc' },
           take: 5
         }
       }

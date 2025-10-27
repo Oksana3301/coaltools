@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -172,7 +172,7 @@ export function PayrollCalculationForm({
   }
 
   // Fungsi perhitungan overtime
-  const calculateOvertimeAmount = (override: EmployeeOverride, employee: Employee) => {
+  const calculateOvertimeAmount = useCallback((override: EmployeeOverride, employee: Employee) => {
     const baseRate = override.customHourlyRate || employee.kontrakUpahHarian || 0
     const hourlyRate = baseRate / 8 // Asumsi 8 jam kerja per hari
     
@@ -203,7 +203,7 @@ export function PayrollCalculationForm({
     }
     
     return totalOvertime
-  }
+  }, [overtimeRates])
 
   // Perhitungan hasil payroll
   const calculationResults = useMemo(() => {
@@ -320,7 +320,7 @@ export function PayrollCalculationForm({
         neto
       }
     }).filter(Boolean) as PayrollCalculationResult[]
-  }, [selectedEmployeeData, overrides, earningComponents, deductionComponents, globalSettings.taxRate, overtimeRates])
+  }, [selectedEmployeeData, overrides, earningComponents, deductionComponents, globalSettings.taxRate, calculateOvertimeAmount])
 
   // Update parent component ketika hasil berubah
   useEffect(() => {

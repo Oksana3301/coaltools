@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const userId = searchParams.get('userId')
     
-    const skip = (page - 1) * limit
+    const offset = (page - 1) * limit
 
     const where: any = {
       ...(userId && { createdBy: userId })
@@ -56,36 +56,20 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
-    // Use raw query to avoid type conversion issues
-    const payrollRunsRaw = await prisma.$queryRaw`
-      SELECT 
-        pr.id,
-        pr.periode_awal as "periodeAwal",
-        pr.periode_akhir as "periodeAkhir", 
-        pr.status,
-        pr.custom_file_name as "customFileName",
-        pr.notes,
-        pr.created_at,
-        pr.updated_at,
-        pr.created_by as "createdBy",
-        pr.approved_by as "approvedBy"
-      FROM payroll_runs pr
-      ${status ? `WHERE pr.status = ${status}` : ''}
-      ORDER BY pr.created_at DESC
-      LIMIT ${limit} OFFSET ${skip}
-    ` as any[]
-
-    const totalRaw = await prisma.$queryRaw`
-      SELECT COUNT(*) as count 
-      FROM payroll_runs pr
-      ${status ? `WHERE pr.status = ${status}` : ''}
-    ` as any[]
-
-    const total = Number(totalRaw[0]?.count || 0)
+    // Use regular Prisma query
+    const [payrollRuns, total] = await Promise.all([
+      prisma.payrollRun.findMany({
+        where: where,
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit
+      }),
+      prisma.payrollRun.count({ where })
+    ])
 
     // Get payroll lines for each run
-    const payrollRuns = await Promise.all(
-      payrollRunsRaw.map(async (run) => {
+    const payrollRunsWithLines = await Promise.all(
+      payrollRuns.map(async (run) => {
         const payrollLines = await prisma.payrollLine.findMany({
           where: { payrollRunId: run.id },
           include: {
@@ -105,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: payrollRuns,
+      data: payrollRunsWithLines,
       pagination: {
         page,
         limit,

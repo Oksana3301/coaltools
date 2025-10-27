@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -4008,7 +4009,9 @@ export function PayrollCalculator() {
                                             const newSelected = e.target.checked
                                               ? [...currentSelected, comp.id]
                                               : currentSelected.filter(id => id !== comp.id)
-                                            employee.id && updateEmployeePayroll(employee.id, 'selectedStandardComponents', newSelected)
+                                            if (employee.id) {
+                                              updateEmployeePayroll(employee.id, 'selectedStandardComponents', newSelected)
+                                            }
                                           }}
                                           className="h-3 w-3 text-blue-600 rounded"
                                         />
@@ -4037,7 +4040,9 @@ export function PayrollCalculator() {
                                             const newSelected = e.target.checked
                                               ? [...currentSelected, comp.id]
                                               : currentSelected.filter(id => id !== comp.id)
-                                            employee.id && updateEmployeePayroll(employee.id, 'selectedAdditionalComponents', newSelected)
+                                            if (employee.id) {
+                                              updateEmployeePayroll(employee.id, 'selectedAdditionalComponents', newSelected)
+                                            }
                                           }}
                                           className="h-3 w-3 text-orange-600 rounded"
                                         />
@@ -4910,11 +4915,12 @@ export function PayrollCalculator() {
                 
                 {headerImage ? (
                   <div className="space-y-3">
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <img 
+                    <div className="border rounded-lg p-4 bg-gray-50 relative h-32">
+                      <Image 
                         src={headerImage} 
                         alt="Header Preview" 
-                        className="max-w-full max-h-32 object-contain mx-auto"
+                        fill
+                        className="object-contain"
                       />
                     </div>
                     <div className="flex gap-2">

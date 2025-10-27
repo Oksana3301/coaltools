@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -157,6 +157,63 @@ export function ProductionReport({
     direction: 'asc' | 'desc';
   }>({ key: 'tanggal', direction: 'desc' });
 
+  // Filter transactions based on current filters
+  const getFilteredTransactions = useCallback((): ProductionTransaction[] => {
+    let filtered = [...transactions];
+
+    // Search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(transaction => 
+        transaction.pembeli.toLowerCase().includes(searchLower) ||
+        transaction.kapal?.toLowerCase().includes(searchLower) ||
+        transaction.tujuan?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Date range filter
+    if (filters.tanggalDari) {
+      filtered = filtered.filter(transaction => transaction.tanggal >= filters.tanggalDari!);
+    }
+    if (filters.tanggalSampai) {
+      filtered = filtered.filter(transaction => transaction.tanggal <= filters.tanggalSampai!);
+    }
+
+    // Buyer filter
+    if (filters.pembeli) {
+      filtered = filtered.filter(transaction => 
+        transaction.pembeli.toLowerCase().includes(filters.pembeli!.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (filters.status) {
+      filtered = filtered.filter(transaction => transaction.status === filters.status);
+    }
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
+        
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (bValue == null) return sortConfig.direction === 'asc' ? 1 : -1;
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [transactions, filters, sortConfig]);
+
   // Calculate analytics when transactions change
   useEffect(() => {
     const calculateAnalytics = () => {
@@ -219,64 +276,7 @@ export function ProductionReport({
     };
     
     calculateAnalytics();
-  }, [transactions, filters, period]);
-
-  // Filter transactions based on current filters
-  function getFilteredTransactions(): ProductionTransaction[] {
-    let filtered = [...transactions];
-
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(transaction => 
-        transaction.pembeli.toLowerCase().includes(searchLower) ||
-        transaction.kapal?.toLowerCase().includes(searchLower) ||
-        transaction.tujuan?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Date range filter
-    if (filters.tanggalDari) {
-      filtered = filtered.filter(transaction => transaction.tanggal >= filters.tanggalDari!);
-    }
-    if (filters.tanggalSampai) {
-      filtered = filtered.filter(transaction => transaction.tanggal <= filters.tanggalSampai!);
-    }
-
-    // Buyer filter
-    if (filters.pembeli) {
-      filtered = filtered.filter(transaction => 
-        transaction.pembeli.toLowerCase().includes(filters.pembeli!.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (filters.status) {
-      filtered = filtered.filter(transaction => transaction.status === filters.status);
-    }
-
-    // Apply sorting
-    if (sortConfig.key) {
-      filtered.sort((a, b) => {
-        const aValue = a[sortConfig.key!];
-        const bValue = b[sortConfig.key!];
-        
-        if (aValue == null && bValue == null) return 0;
-        if (aValue == null) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (bValue == null) return sortConfig.direction === 'asc' ? 1 : -1;
-        
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return filtered;
-  }
+  }, [transactions, filters, period, getFilteredTransactions]);
 
   // Handle sorting
   const handleSort = (key: keyof ProductionTransaction) => {

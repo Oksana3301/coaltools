@@ -32,8 +32,7 @@ const invoiceSchema = z.object({
   subtotal: z.number().default(0),
   discount: z.number().default(0),
   tax: z.number().default(0),
-  total: z.number().default(0),
-  createdBy: z.string().min(1, 'Created by wajib diisi')
+  total: z.number().default(0)
 })
 
 // GET - Ambil semua invoices dengan search dan filter
@@ -58,26 +57,12 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const where = {
-      deletedAt: null, // Only show non-deleted records
-      ...(createdBy && { createdBy }),
-      ...(search && {
-        OR: [
-          { invoiceNumber: { contains: search } },
-          { applicantName: { contains: search } },
-          { recipientName: { contains: search } }
-        ]
-      }),
-      ...(dateFrom && dateTo && {
-        createdDate: {
-          gte: dateFrom,
-          lte: dateTo
-        }
-      })
+      deletedAt: null // Only show non-deleted records
     }
 
     // Check total count and enforce 100 record limit
     const totalCount = await prisma.invoice.count({ 
-      where: { deletedAt: null, ...(createdBy && { createdBy }) }
+      where: { deletedAt: null }
     })
 
     const [invoices, total] = await Promise.all([
@@ -134,7 +119,6 @@ export async function POST(request: NextRequest) {
     // Check if user has reached 100 record limit
     const userRecordCount = await prisma.invoice.count({
       where: { 
-        createdBy: validatedData.createdBy,
         deletedAt: null 
       }
     })
@@ -143,7 +127,6 @@ export async function POST(request: NextRequest) {
     if (userRecordCount >= 100) {
       const oldestRecord = await prisma.invoice.findFirst({
         where: { 
-          createdBy: validatedData.createdBy,
           deletedAt: null 
         },
         orderBy: { createdAt: 'asc' }

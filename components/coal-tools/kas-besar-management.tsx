@@ -2035,7 +2035,9 @@ export function KasBesarManagement() {
                                   setShowApprovalOverride(expense.id!)
                                   return
                                 }
-                                expense.id && handleDelete(expense.id)
+                                if (expense.id) {
+                                  handleDelete(expense.id)
+                                }
                               }}
                               disabled={expense.status === 'ARCHIVED' || deleting === expense.id}
                               className={expense.status === 'APPROVED' ? "hover:bg-red-100 border-red-200" : "hover:bg-red-50"}

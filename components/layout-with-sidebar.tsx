@@ -31,6 +31,32 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
   const { toast } = useToast()
 
   useEffect(() => {
+    const handleLogoutInternal = async () => {
+      setIsLoggingOut(true)
+      try {
+        toast({
+          title: "Logging out...",
+          description: "Please wait while we log you out safely."
+        })
+        
+        await logout()
+        
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out safely."
+        })
+      } catch (error) {
+        console.error('Logout error:', error)
+        toast({
+          title: "Logout Error",
+          description: "There was an error logging out. Please try again.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoggingOut(false)
+      }
+    }
+
     try {
       const currentUser = getCurrentUser()
       setUser(currentUser)
@@ -47,7 +73,7 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
             
             // Auto logout if session expired
             if (updatedSession.timeRemaining <= 0) {
-              handleLogout()
+              handleLogoutInternal()
             }
           } catch (error) {
             console.error('Session update error:', error)
@@ -61,7 +87,7 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
       setUser(null)
       setSessionInfo({ loginTime: null, timeRemaining: 0 })
     }
-  }, [])
+  }, [toast])
 
   const handleLogout = async () => {
     setIsLoggingOut(true)

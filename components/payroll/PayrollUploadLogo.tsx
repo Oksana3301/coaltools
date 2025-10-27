@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -85,7 +86,7 @@ export function PayrollUploadLogo({
   const [showPreview, setShowPreview] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const uploadConfig = { ...DEFAULT_CONFIG, ...config }
+  const uploadConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config])
 
   /**
    * Format file size ke human readable
@@ -101,7 +102,7 @@ export function PayrollUploadLogo({
   /**
    * Validasi file yang diupload
    */
-  const validateFile = (file: File): { isValid: boolean; errors: string[] } => {
+  const validateFile = useCallback((file: File): { isValid: boolean; errors: string[] } => {
     const errors: string[] = []
     
     // Validasi format file
@@ -118,12 +119,12 @@ export function PayrollUploadLogo({
       isValid: errors.length === 0,
       errors
     }
-  }
+  }, [uploadConfig.allowedFormats, uploadConfig.maxSize])
 
   /**
    * Get image dimensions
    */
-  const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+  const getImageDimensions = useCallback((file: File): Promise<{ width: number; height: number }> => {
     return new Promise((resolve, reject) => {
       if (file.type === 'image/svg+xml') {
         // SVG files don't have fixed dimensions
@@ -138,12 +139,12 @@ export function PayrollUploadLogo({
       img.onerror = reject
       img.src = URL.createObjectURL(file)
     })
-  }
+  }, [])
 
   /**
    * Compress image jika diperlukan
    */
-  const compressImage = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<File> => {
+  const compressImage = useCallback((file: File, maxWidth: number, maxHeight: number, quality: number): Promise<File> => {
     return new Promise((resolve) => {
       if (file.type === 'image/svg+xml') {
         // SVG tidak perlu kompresi
@@ -190,12 +191,12 @@ export function PayrollUploadLogo({
       
       img.src = URL.createObjectURL(file)
     })
-  }
+  }, [])
 
   /**
    * Process uploaded file
    */
-  const processFile = async (file: File) => {
+  const processFile = useCallback(async (file: File) => {
     setIsUploading(true)
     setUploadProgress(0)
     
@@ -254,17 +255,17 @@ export function PayrollUploadLogo({
       setIsUploading(false)
       setTimeout(() => setUploadProgress(0), 1000)
     }
-  }
+  }, [uploadConfig, validateFile, getImageDimensions, compressImage, onLogoChange])
 
   /**
    * Handle file selection
    */
-  const handleFileSelect = (files: FileList | null) => {
+  const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return
     
     const file = files[0]
     processFile(file)
-  }
+  }, [processFile])
 
   /**
    * Handle drag events
@@ -294,7 +295,7 @@ export function PayrollUploadLogo({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileSelect(e.dataTransfer.files)
     }
-  }, [])
+  }, [handleFileSelect])
 
   /**
    * Remove uploaded file
@@ -446,12 +447,13 @@ export function PayrollUploadLogo({
             <div className="space-y-4">
               {/* Preview Image */}
               <div className="flex items-center gap-4">
-                <div className="w-24 h-24 border rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                <div className="w-24 h-24 border rounded-lg overflow-hidden bg-muted flex items-center justify-center relative">
                   {(uploadedFile?.preview || currentLogo) ? (
-                    <img
-                      src={uploadedFile?.preview || currentLogo}
+                    <Image
+                      src={uploadedFile?.preview || currentLogo || ''}
                       alt="Company Logo"
-                      className="max-w-full max-h-full object-contain"
+                      fill
+                      className="object-contain"
                     />
                   ) : (
                     <ImageIcon className="w-8 h-8 text-muted-foreground" />
@@ -574,11 +576,12 @@ export function PayrollUploadLogo({
             </div>
             
             <div className="p-6">
-              <div className="flex justify-center">
-                <img
+              <div className="flex justify-center relative w-full h-96">
+                <Image
                   src={uploadedFile.preview}
                   alt="Company Logo Preview"
-                  className="max-w-full max-h-96 object-contain"
+                  fill
+                  className="object-contain"
                 />
               </div>
               

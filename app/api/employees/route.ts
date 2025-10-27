@@ -371,7 +371,7 @@ export async function DELETE(request: NextRequest) {
       where: { id },
       include: {
         payrollLines: true,
-        componentSelections: true
+        employeeComponentSelections: true
       }
     })
 
@@ -393,7 +393,7 @@ export async function DELETE(request: NextRequest) {
       // Safety checks untuk hard delete
       const safetyChecks = {
         hasPayrollRecords: existingEmployee.payrollLines.length > 0,
-        hasComponentSelections: existingEmployee.componentSelections.length > 0,
+        hasComponentSelections: existingEmployee.employeeComponentSelections.length > 0,
         isOldEmployee: existingEmployee.startDate && 
           new Date(existingEmployee.startDate) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 hari
         hasProductionData: existingEmployee.nama && !existingEmployee.nama.toLowerCase().includes('test')
