@@ -76,8 +76,7 @@ export async function PATCH(
       where: { id: id },
       data: {
         status: validatedData.status,
-        approvalNotes: validatedData.approvalNotes,
-        approvedBy: validatedData.approvedBy
+        notes: validatedData.approvalNotes
       }
     })
 
