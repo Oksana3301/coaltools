@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit
     
     // Build where clause
-    let whereClause: any = {}
+    const whereClause: any = {}
     
     // Filter by status if specified
     if (status !== 'all') {
