@@ -142,8 +142,7 @@ export async function POST(request: NextRequest) {
 
     const invoice = await prisma.invoice.create({
       data: {
-        ...validatedData,
-        items: JSON.stringify(validatedData.items)
+        ...validatedData
       }
     })
 
