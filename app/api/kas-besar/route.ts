@@ -260,16 +260,7 @@ export async function DELETE(request: NextRequest) {
       where: { id }
     })
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        action: 'DELETE',
-        tableName: 'kas_besar_expenses',
-        recordId: id,
-        oldValues: JSON.stringify(expense),
-        userId
-      }
-    })
+    // TODO: Add audit logging when auditLog table is available
 
     return NextResponse.json({
       success: true,
