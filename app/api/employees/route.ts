@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { Prisma } from '@prisma/client'
+
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Schema untuk validasi input employee
 const employeeSchema = z.object({
@@ -30,14 +39,7 @@ const updateEmployeeSchema = employeeSchema.partial().extend({
 
 // GET - Ambil semua karyawan
 export async function GET(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      logger.error('Database connection not available for GET /api/employees')
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
+    // prisma already initialized above
 
     
   try {

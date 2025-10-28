@@ -354,13 +354,13 @@ export function IntegratedPayrollSystem({ className }: IntegratedPayrollSystemPr
   /**
    * Calculate summary statistics
    */
-  const payrollSummary = {
+  const payrollSummary = useMemo(() => ({
     totalEmployees: calculatedEmployees.length,
     totalBruto: calculatedEmployees.reduce((sum, emp) => sum + emp.bruto, 0),
     totalPajak: calculatedEmployees.reduce((sum, emp) => sum + emp.pajakNominal, 0),
     totalNeto: calculatedEmployees.reduce((sum, emp) => sum + emp.neto, 0),
     totalOvertime: calculatedEmployees.reduce((sum, emp) => sum + emp.overtimeAmount, 0)
-  }
+  }), [calculatedEmployees])
 
   /**
    * Convert data untuk export PDF

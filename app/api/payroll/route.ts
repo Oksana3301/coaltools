@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Schema untuk validasi input payroll
 const payrollRunSchema = z.object({
@@ -29,10 +38,7 @@ const payrollRunSchema = z.object({
 
 // GET - Ambil semua payroll runs
 export async function GET(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
+    // prisma already initialized above,
         { status: 503 }
       )
     }
@@ -118,15 +124,7 @@ export async function GET(request: NextRequest) {
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
   try {
-    const prisma = getPrismaClient();
-    
-    if (!prisma) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Database connection not available',
-          details: 'DATABASE_URL environment variable is missing or invalid'
-        },
+    // prisma already initialized above,
         { status: 503 }
       )
     }
@@ -488,11 +486,7 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      console.error('❌ Database not available in PUT endpoint')
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
+    // prisma already initialized above,
         { status: 503 }
       )
     }
@@ -589,10 +583,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus payroll run (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
+    // prisma already initialized above,
         { status: 503 }
       )
     }

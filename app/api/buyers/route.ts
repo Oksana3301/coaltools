@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Configure for static export
 export const dynamic = 'force-static'
@@ -17,10 +26,7 @@ const buyerSchema = z.object({
 
 // GET - Ambil semua buyers
 export async function GET(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
+    // prisma already initialized above,
         { status: 503 }
       )
     }
@@ -54,10 +60,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat buyer baru
 export async function POST(request: NextRequest) {
-    const prisma = getPrismaClient();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
+    // prisma already initialized above,
         { status: 503 }
       )
     }
