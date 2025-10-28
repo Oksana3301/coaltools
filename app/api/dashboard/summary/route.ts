@@ -24,11 +24,6 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  // prisma already initialized above,
-      { status: 503 }
-    );
-  }
-
   try {
     const { searchParams } = new URL(request.url);
     const queryParams = {
