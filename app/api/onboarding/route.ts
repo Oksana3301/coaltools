@@ -165,10 +165,9 @@ export async function POST(request: NextRequest) {
         hasCompletedOnboarding: true,
       };
 
-      const runsProfile = await tx.runsProfile.upsert({
-        where: { userId },
-        create: createData,
-        update: updateData,
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: updateData,
       })
 
       // Upsert onboarding_answers
@@ -219,7 +218,7 @@ export async function POST(request: NextRequest) {
       }
 
       return {
-        runsProfile,
+        user,
         onboardingAnswers,
         personalBest,
       }
