@@ -695,14 +695,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
 export async function POST(request: NextRequest) {
   try {
     const { testType } = await request.json()
-    const prisma = getPrismaClient()
-    
-    if (!prisma) {
-      return NextResponse.json({
-        success: false,
-        error: 'Database connection not available'
-      }, { status: 500 })
-    }
+    // prisma already initialized above
 
     let results: TestResult[] = []
 
