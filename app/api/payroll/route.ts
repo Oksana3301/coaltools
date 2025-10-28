@@ -552,8 +552,7 @@ export async function PUT(request: NextRequest) {
       include: {
         payrollLines: {
           include: {
-            employee: true,
-            components: true
+            employee: true
           }
         }
         // Temporarily disable user relations to avoid foreign key errors
