@@ -75,8 +75,7 @@ export async function GET(request: NextRequest) {
           include: {
             employee: {
               select: { id: true, nama: true, jabatan: true, site: true }
-            },
-            components: true
+            }
           }
         })
         
