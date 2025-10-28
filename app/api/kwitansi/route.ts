@@ -153,8 +153,10 @@ export async function POST(request: NextRequest) {
     }
 
     const kwitansi = await prisma.kwitansi.create({
-      data: validatedData,
-
+      data: {
+        ...validatedData,
+        jumlah: validatedData.jumlahUang
+      }
     })
 
     return NextResponse.json({
