@@ -16,10 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrismaClient()
-    if (!prisma) {
-      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
-    }
+    // prisma already initialized above
     
     const { id } = await params
 
@@ -67,10 +64,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrismaClient()
-    if (!prisma) {
-      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
-    }
+    // prisma already initialized above
     
     const { id } = await params
     const body = await request.json()
@@ -103,10 +97,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrismaClient()
-    if (!prisma) {
-      return NextResponse.json({ success: false, error: 'Database not available' }, { status: 503 })
-    }
+    // prisma already initialized above
     
     const { id } = await params
     const { searchParams } = new URL(request.url)
