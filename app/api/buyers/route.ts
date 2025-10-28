@@ -26,12 +26,6 @@ const buyerSchema = z.object({
 
 // GET - Ambil semua buyers
 export async function GET(request: NextRequest) {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
   try {
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'

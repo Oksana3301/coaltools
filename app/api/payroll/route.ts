@@ -38,12 +38,6 @@ const payrollRunSchema = z.object({
 
 // GET - Ambil semua payroll runs
 export async function GET(request: NextRequest) {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')

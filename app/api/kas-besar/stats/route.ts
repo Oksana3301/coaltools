@@ -12,12 +12,6 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // GET - Ambil statistik kas besar
 export async function GET(request: NextRequest) {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')

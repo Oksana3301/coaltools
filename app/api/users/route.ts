@@ -22,12 +22,6 @@ const UserSchema = z.object({
 // GET - Ambil semua users
 export async function GET() {
   try {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
     const users = await prisma.user.findMany({
       select: {
         id: true,
