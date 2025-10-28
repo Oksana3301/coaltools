@@ -19,17 +19,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const prisma = getPrismaClient()
-    
-    if (!prisma) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Database connection failed'
-        },
-        { status: 500 }
-      )
-    }
+    // prisma already initialized above
 
     const buyer = await prisma.buyer.findUnique({
       where: { id }
@@ -69,17 +59,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const prisma = getPrismaClient()
-    
-    if (!prisma) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Database connection failed'
-        },
-        { status: 500 }
-      )
-    }
+    // prisma already initialized above
 
     const buyer = await prisma.buyer.update({
       where: { id },
@@ -112,17 +92,7 @@ export async function DELETE(
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
-    const prisma = getPrismaClient()
-    
-    if (!prisma) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Database connection failed'
-        },
-        { status: 500 }
-      )
-    }
+    // prisma already initialized above
 
     if (hardDelete) {
       // Hard delete - completely remove from database
