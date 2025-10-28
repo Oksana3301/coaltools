@@ -308,40 +308,6 @@ export interface PayrollLineComponent {
   createdAt?: string
 }
 
-export interface ProductionReport {
-  id?: string
-  tanggal: string
-  nopol: string
-  pembeliId?: string
-  pembeliNama: string
-  tujuan: string
-  grossTon: number
-  tareTon: number
-  nettoTon: number
-  sourceFile?: string
-  notes?: string
-  status: 'DRAFT' | 'SUBMITTED' | 'REVIEWED' | 'APPROVED' | 'ARCHIVED'
-  createdBy: string
-  approvedBy?: string
-  createdAt?: string
-  updatedAt?: string
-  deletedAt?: string
-  creator?: {
-    id: string
-    name: string
-    email: string
-  }
-  approver?: {
-    id: string
-    name: string
-    email: string
-  }
-  buyer?: {
-    id: string
-    nama: string
-    hargaPerTonDefault?: number
-  }
-}
 
 export interface Buyer {
   id?: string
