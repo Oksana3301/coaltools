@@ -423,6 +423,7 @@ export async function POST(request: NextRequest) {
               payrollLineId: payrollLine.id,
               componentId: comp.componentId,
               componentName: comp.componentName,
+              componentType: comp.componentType || 'EARNING',
               amount: comp.amount,
               taxable: comp.taxable
             }
