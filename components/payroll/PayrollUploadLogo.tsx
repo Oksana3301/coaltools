@@ -132,7 +132,7 @@ export function PayrollUploadLogo({
         return
       }
       
-      const img = new Image()
+      const img = new Image(0, 0)
       img.onload = () => {
         resolve({ width: img.width, height: img.height })
       }
