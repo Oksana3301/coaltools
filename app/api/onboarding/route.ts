@@ -170,57 +170,12 @@ export async function POST(request: NextRequest) {
         data: updateData,
       })
 
-      // Upsert onboarding_answers
-      const onboardingAnswers = await tx.onboardingAnswers.upsert({
-        where: { userId },
-        create: {
-          userId,
-          language: validatedData.onboarding_answers.language,
-          reportFormats: JSON.stringify(validatedData.onboarding_answers.report_formats),
-          commonExpenses: JSON.stringify(validatedData.onboarding_answers.common_expenses),
-          budgetAlerts: validatedData.onboarding_answers.budget_alerts,
-          monthlyTargetMt: validatedData.onboarding_answers.monthly_target_mt,
-          showTargetVsActual: validatedData.onboarding_answers.show_target_vs_actual,
-          payrollModes: JSON.stringify(validatedData.onboarding_answers.payroll_modes),
-          payrollComponents: JSON.stringify(validatedData.onboarding_answers.payroll_components),
-          inputDevices: JSON.stringify(validatedData.onboarding_answers.input_devices),
-          reminderChannel: validatedData.onboarding_answers.reminder_channel,
-          sampleReportFileId: validatedData.onboarding_answers.sample_report_file_id,
-          allowCustomNotes: validatedData.onboarding_answers.allow_custom_notes,
-        },
-        update: {
-          language: validatedData.onboarding_answers.language,
-          reportFormats: JSON.stringify(validatedData.onboarding_answers.report_formats),
-          commonExpenses: JSON.stringify(validatedData.onboarding_answers.common_expenses),
-          budgetAlerts: validatedData.onboarding_answers.budget_alerts,
-          monthlyTargetMt: validatedData.onboarding_answers.monthly_target_mt,
-          showTargetVsActual: validatedData.onboarding_answers.show_target_vs_actual,
-          payrollModes: JSON.stringify(validatedData.onboarding_answers.payroll_modes),
-          payrollComponents: JSON.stringify(validatedData.onboarding_answers.payroll_components),
-          inputDevices: JSON.stringify(validatedData.onboarding_answers.input_devices),
-          reminderChannel: validatedData.onboarding_answers.reminder_channel,
-          sampleReportFileId: validatedData.onboarding_answers.sample_report_file_id,
-          allowCustomNotes: validatedData.onboarding_answers.allow_custom_notes,
-        },
-      })
-
-      // Create personal_best if provided
-      let personalBest = null
-      if (validatedData.personal_best) {
-        personalBest = await tx.personalBest.create({
-          data: {
-            userId,
-            title: validatedData.personal_best.title,
-            notes: validatedData.personal_best.notes,
-            sampleFileId: validatedData.personal_best.sample_file_id,
-          },
-        })
-      }
+      // Skip onboarding_answers and personal_best operations as models don't exist
 
       return {
         user,
-        onboardingAnswers,
-        personalBest,
+        onboardingAnswers: null,
+        personalBest: null,
       }
     })
 
