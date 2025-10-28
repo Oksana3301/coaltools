@@ -148,10 +148,10 @@ export async function POST(request: NextRequest) {
 
     // Test write operations
     const testResults = {
-      createUser: { success: false, error: null },
-      createEmployee: { success: false, error: null },
-      createPayrollRun: { success: false, error: null },
-      cleanup: { success: false, error: null }
+      createUser: { success: false, error: null as string | null },
+      createEmployee: { success: false, error: null as string | null },
+      createPayrollRun: { success: false, error: null as string | null },
+      cleanup: { success: false, error: null as string | null }
     }
 
     let testUserId = ''
