@@ -118,11 +118,6 @@ export async function GET(request: NextRequest) {
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
   try {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
     // Test database connection before proceeding
     try {
       await prisma.$connect()
@@ -480,11 +475,6 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
   try {
     // Parsing PUT request body
     const body = await request.json()
@@ -577,12 +567,6 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus payroll run (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

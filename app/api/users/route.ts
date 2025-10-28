@@ -57,15 +57,6 @@ export async function GET() {
 // POST - Buat user baru
 export async function POST(request: NextRequest) {
   try {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
-    const body = await request.json()
-    const validatedData = UserSchema.parse(body)
-
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email }

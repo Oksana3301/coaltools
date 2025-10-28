@@ -54,12 +54,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat buyer baru
 export async function POST(request: NextRequest) {
-    // prisma already initialized above,
-        { status: 503 }
-      )
-    }
-
-    
   try {
     const body = await request.json()
     const validatedData = buyerSchema.parse(body)
