@@ -19,8 +19,7 @@ export async function GET(
       include: {
         payrollLines: {
           include: {
-            employee: true,
-            components: true
+            employee: true
           }
         }
       }
