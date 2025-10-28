@@ -81,19 +81,15 @@ export async function GET(request: NextRequest) {
       update: {},
     })
 
-    const runsProfile = await prisma.runsProfile.findUnique({
-      where: { userId },
-      include: {
-        onboardingAnswers: true,
-        personalBest: true,
-      }
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
     })
 
     return NextResponse.json({
       success: true,
       data: {
-        hasCompletedOnboarding: runsProfile?.hasCompletedOnboarding || false,
-        profile: runsProfile,
+        hasCompletedOnboarding: user?.role === 'ADMIN' || false,
+        profile: user,
       }
     })
   } catch (error) {
