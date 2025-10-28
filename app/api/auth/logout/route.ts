@@ -22,19 +22,7 @@ export async function POST(request: NextRequest) {
     const validatedData = LogoutSchema.parse(body)
 
     // Get Prisma client (returns null if not available)
-    const prisma = getPrismaClient()
-    
-    if (!prisma) {
-      // Even if database is not available, we can still clear client-side session
-      return NextResponse.json(
-        { 
-          success: true, 
-          message: 'Logout successful (offline mode)',
-          offline: true 
-        },
-        { status: 200 }
-      )
-    }
+    // prisma already initialized above
 
     // Log logout activity if user information is provided
     if (validatedData.userId || validatedData.email) {
