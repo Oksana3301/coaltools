@@ -71,19 +71,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Check total count and enforce 100 record limit
-    const totalCount = await prisma.kwitansi.count({ 
+    const totalCount = await prisma.invoice.count({ 
       where: { deletedAt: null, ...(createdBy && { createdBy }) }
     })
 
     const [kwitansi, total] = await Promise.all([
-      prisma.kwitansi.findMany({
+      prisma.invoice.findMany({
         where,
         skip,
         take: limit,
 
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.kwitansi.count({ where })
+      prisma.invoice.count({ where })
     ])
 
     return NextResponse.json({
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     const validatedData = kwitansiSchema.parse(body)
 
     // Check if user has reached 100 record limit
-    const userRecordCount = await prisma.kwitansi.count({
+    const userRecordCount = await prisma.invoice.count({
       where: { 
         createdBy: validatedData.createdBy,
         deletedAt: null 
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // If at limit, auto-delete oldest record
     if (userRecordCount >= 100) {
-      const oldestRecord = await prisma.kwitansi.findFirst({
+      const oldestRecord = await prisma.invoice.findFirst({
         where: { 
           createdBy: validatedData.createdBy,
           deletedAt: null 
@@ -145,14 +145,14 @@ export async function POST(request: NextRequest) {
       })
 
       if (oldestRecord) {
-        await prisma.kwitansi.update({
+        await prisma.invoice.update({
           where: { id: oldestRecord.id },
           data: { deletedAt: new Date() }
         })
       }
     }
 
-    const kwitansi = await prisma.kwitansi.create({
+    const kwitansi = await prisma.invoice.create({
       data: validatedData,
 
     })
@@ -212,7 +212,7 @@ export async function PUT(request: NextRequest) {
 
     const validatedData = kwitansiSchema.partial().parse(updateData)
 
-    const kwitansi = await prisma.kwitansi.update({
+    const kwitansi = await prisma.invoice.update({
       where: { id },
       data: validatedData,
 
@@ -273,7 +273,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if kwitansi exists
-    const kwitansi = await prisma.kwitansi.findUnique({
+    const kwitansi = await prisma.invoice.findUnique({
       where: { id },
       select: { deletedAt: true }
     })
@@ -301,7 +301,7 @@ export async function DELETE(request: NextRequest) {
 
     if (force) {
       // Hard delete - permanently remove from database
-      await prisma.kwitansi.delete({
+      await prisma.invoice.delete({
         where: { id }
       })
       
@@ -311,7 +311,7 @@ export async function DELETE(request: NextRequest) {
       })
     } else {
       // Soft delete - mark as deleted
-      await prisma.kwitansi.update({
+      await prisma.invoice.update({
         where: { id },
         data: { deletedAt: new Date() }
       })
