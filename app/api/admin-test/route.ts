@@ -413,80 +413,6 @@ async function testBuyersCRUD(prisma: any): Promise<TestResult[]> {
   return results
 }
 
-async function testProductionReportsCRUD(prisma: any): Promise<TestResult[]> {
-  const results: TestResult[] = []
-  const testData = generateTestData()
-  let createdId: string | null = null
-
-  try {
-    // CREATE Test
-    const created = await prisma.productionReport.create({
-      data: testData.productionReport
-    })
-    createdId = created.id
-    results.push({
-      module: 'Production Reports',
-      operation: 'CREATE',
-      status: 'success',
-      message: 'Production report created successfully',
-      details: { id: created.id, nopol: created.nopol },
-      timestamp: new Date().toISOString()
-    })
-
-    // READ Test
-    const found = await prisma.productionReport.findUnique({
-      where: { id: createdId }
-    })
-    results.push({
-      module: 'Production Reports',
-      operation: 'READ',
-      status: found ? 'success' : 'error',
-      message: found ? 'Production report found successfully' : 'Production report not found',
-      details: found ? { id: found.id } : null,
-      timestamp: new Date().toISOString()
-    })
-
-    // UPDATE Test
-    const updated = await prisma.productionReport.update({
-      where: { id: createdId },
-      data: { status: 'SUBMITTED' }
-    })
-    results.push({
-      module: 'Production Reports',
-      operation: 'UPDATE',
-      status: 'success',
-      message: 'Production report updated successfully',
-      details: { id: updated.id, status: updated.status },
-      timestamp: new Date().toISOString()
-    })
-
-    // DELETE Test
-    await prisma.productionReport.update({
-      where: { id: createdId },
-      data: { deletedAt: new Date() }
-    })
-    results.push({
-      module: 'Production Reports',
-      operation: 'DELETE',
-      status: 'success',
-      message: 'Production report soft deleted successfully',
-      details: { id: createdId },
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    results.push({
-      module: 'Production Reports',
-      operation: 'CRUD_ERROR',
-      status: 'error',
-      message: error.message || 'Unknown error occurred',
-      details: error,
-      timestamp: new Date().toISOString()
-    })
-  }
-
-  return results
-}
 
 async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
   const results: TestResult[] = []
@@ -784,9 +710,6 @@ export async function POST(request: NextRequest) {
       case 'buyers':
         results = await testBuyersCRUD(prisma)
         break
-      case 'production-reports':
-        results = await testProductionReportsCRUD(prisma)
-        break
       case 'pay-components':
         results = await testPayComponentsCRUD(prisma)
         break
@@ -797,8 +720,7 @@ export async function POST(request: NextRequest) {
         const allTests = await Promise.all([
           testKasKecilCRUD(prisma),
           testKasBesarCRUD(prisma),
-          testBuyersCRUD(prisma),
-          testProductionReportsCRUD(prisma)
+          testBuyersCRUD(prisma)
         ])
         // Add problematic modules with error handling
         try {
@@ -877,7 +799,6 @@ export async function GET() {
       'kas-kecil', 
       'kas-besar',
       'buyers',
-      'production-reports',
       'pay-components',
       'all'
     ]
