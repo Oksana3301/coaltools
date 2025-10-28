@@ -198,7 +198,7 @@ async function generateKwitansiForPayroll(payrollRun: any) {
           nomorKwitansi,
           tanggal: currentDate.toISOString().split('T')[0],
           namaPenerima: employee.nama || payrollLine.employeeName,
-          jumlahUang: Number(payrollLine.neto),
+          jumlah: Number(payrollLine.neto),
           untukPembayaran: `Gaji Karyawan ${employee.nama || payrollLine.employeeName} untuk periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`,
           namaPembayar: 'PT. GLOBAL LESTARI ALAM',
           nomorRekening: employee.bankAccount || '',
