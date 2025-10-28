@@ -201,6 +201,24 @@ model Invoice {
   @@map("invoices")
 }
 
+model Kwitansi {
+  id              String   @id @default(cuid())
+  nomorKwitansi   String   @unique
+  namaPenerima    String
+  namaPembayar    String
+  untukPembayaran String
+  jumlah          Float
+  tanggal         String?
+  payrollRunId    String?
+  employeeId      String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@map("kwitansi")
+}
+
 model KasKecilExpense {
   id          String   @id @default(cuid())
   hari        String?
