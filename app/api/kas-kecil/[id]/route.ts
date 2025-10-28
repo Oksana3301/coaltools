@@ -73,8 +73,7 @@ export async function PUT(
         subJenis: body.subJenis,
         buktiUrl: body.buktiUrl,
         status: body.status,
-        notes: body.notes,
-        approvalNotes: body.approvalNotes
+        notes: body.notes
       }
     })
     
