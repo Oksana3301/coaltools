@@ -23,13 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const prisma = getPrismaClient()
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database tidak tersedia' },
-        { status: 503 }
-      )
-    }
+    // prisma already initialized above
 
     // Generate MFA secret
     const mfaSetup = await generateMFASecret(user.email)
