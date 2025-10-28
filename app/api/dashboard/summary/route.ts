@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getPrismaClient } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
 import type { DashboardSummary, Core12KPI, FinanceSummary, AlertItem } from '@/lib/dashboard-types';
+
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const QuerySchema = z.object({
   period: z.string().min(1),
@@ -15,10 +24,7 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const prisma = getPrismaClient();
-  if (!prisma) {
-    return NextResponse.json(
-      { success: false, error: 'Database connection not available' },
+  // prisma already initialized above,
       { status: 503 }
     );
   }
