@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         role: true,
-        created_at: true
+        createdAt: true
       }
     })
 
