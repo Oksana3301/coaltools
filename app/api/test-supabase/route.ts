@@ -12,18 +12,18 @@ export async function GET(request: NextRequest) {
     const testResults = {
       database: {
         connected: false,
-        tables: [],
-        errors: []
+        tables: [] as string[],
+        errors: [] as string[]
       },
       supabase: {
         compatible: false,
-        features: [],
-        errors: []
+        features: [] as string[],
+        errors: [] as string[]
       },
       dataIntegrity: {
         valid: false,
-        checks: [],
-        errors: []
+        checks: [] as string[],
+        errors: [] as string[]
       }
     }
 
