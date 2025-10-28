@@ -106,40 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Get Prisma client with retry mechanism
     console.log('🔍 Getting database connection...');
-    const prisma = getPrismaClient()
-    
-    if (!prisma) {
-      console.log('❌ Database not available - using fallback authentication');
-      
-      // Fallback authentication for demo purposes
-      if (validatedData.email === 'admin@coaltools.com' && validatedData.password === 'admin123') {
-        console.log('✅ Fallback authentication successful');
-        return NextResponse.json({
-          success: true,
-          data: {
-            id: 'fallback-admin',
-            email: 'admin@coaltools.com',
-            name: 'Admin (Fallback)',
-            role: 'ADMIN',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          message: 'Login berhasil (mode offline)',
-          fallback: true
-        })
-      }
-      
-      // Record failed attempt even in fallback mode
-      recordFailedAttempt(rateLimitKey)
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Database tidak tersedia. Silakan coba lagi nanti atau hubungi administrator.',
-          offline: true
-        },
-        { status: 503 }
-      )
-    }
+    // prisma already initialized above
     console.log('✅ Database connection obtained');
     
     // Test database connection with retry
