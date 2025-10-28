@@ -201,17 +201,7 @@ async function generateKwitansiForPayroll(payrollRun: any) {
           jumlah: Number(payrollLine.neto),
           untukPembayaran: `Gaji Karyawan ${employee.nama || payrollLine.employeeName} untuk periode ${payrollRun.periodeAwal} - ${payrollRun.periodeAkhir}`,
           namaPembayar: 'PT. GLOBAL LESTARI ALAM',
-          nomorRekening: employee.bankAccount || '',
-          namaRekening: employee.nama || payrollLine.employeeName,
-          bankName: employee.bankName || 'BRI',
-          transferMethod: 'Transfer ke rekening',
-          tempat: 'Sawahlunto',
-          tanggalKwitansi,
-          signatureName: 'ATIKA DEWI SURYANI',
-          signaturePosition: 'Accounting',
-          materai: '',
           payrollRunId: payrollRun.id,
-          payrollLineId: payrollLine.id,
           employeeId: employee.id,
           createdBy: payrollRun.createdBy
         }
