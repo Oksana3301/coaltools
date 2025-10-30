@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
-// Use shared prisma client from lib/db
-const prisma = getPrismaClient()
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Schema untuk validasi input payroll
 const payrollRunSchema = z.object({
@@ -35,14 +39,6 @@ const payrollRunSchema = z.object({
 // GET - Ambil semua payroll runs
 export async function GET(request: NextRequest) {
   try {
-  // Check if prisma client is available
-  if (!prisma) {
-  return NextResponse.json(
-  { success: false, error: 'Database connection not available' },
-  { status: 503 }
-  )
-  }
-
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -122,20 +118,13 @@ export async function GET(request: NextRequest) {
 // POST - Buat payroll run baru
 export async function POST(request: NextRequest) {
   try {
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
-
     // Test database connection before proceeding
     try {
       await prisma.$connect()
     } catch (dbError) {
       return NextResponse.json(
-        {
-          success: false,
+        { 
+          success: false, 
           error: 'Database connection failed',
           details: dbError instanceof Error ? dbError.message : 'Unknown database error'
         },
@@ -487,17 +476,10 @@ export async function POST(request: NextRequest) {
 // PUT - Update payroll run
 export async function PUT(request: NextRequest) {
   try {
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
-
     // Parsing PUT request body
     const body = await request.json()
     // Processing payroll update request
-
+    
     const { id, status, approvedBy, payrollLines, employeeOverrides, ...updateData } = body
     // Extracted data for processing
 
@@ -586,13 +568,6 @@ export async function PUT(request: NextRequest) {
 // DELETE - Hapus payroll run (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
   try {
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     const force = searchParams.get('force') === 'true'

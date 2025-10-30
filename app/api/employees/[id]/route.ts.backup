@@ -1,39 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
-// Use shared prisma client from lib/db
-const prisma = getPrismaClient()
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-export const dynamic = "force-static"
-
-// GET - Ambil buyer berdasarkan ID
+// GET - Ambil karyawan berdasarkan ID
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-  // Check if prisma client is available
-  if (!prisma) {
-  return NextResponse.json(
-  { success: false, error: 'Database connection not available' },
-  { status: 503 }
-  )
-  }
-
-    const { id } = await params
     // prisma already initialized above
+    
+    const { id } = await params
 
-    const buyer = await prisma.buyer.findUnique({
-      where: { id }
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      include: {
+        payrollLines: {
+          include: {
+            payrollRun: true
+          },
+          take: 5
+        }
+      }
     })
 
-    if (!buyer) {
+    if (!employee) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Pembeli tidak ditemukan'
+          error: 'Karyawan tidak ditemukan'
         },
         { status: 404 }
       )
@@ -41,98 +44,88 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: buyer
+      data: employee
     })
   } catch (error) {
-    console.error('Error fetching buyer:', error)
+    console.error('Error fetching employee:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengambil data pembeli'
+        error: 'Gagal mengambil data karyawan'
       },
       { status: 500 }
     )
   }
 }
 
-// PUT - Update buyer
+// PUT - Update karyawan
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
-
+    // prisma already initialized above
+    
     const { id } = await params
     const body = await request.json()
 
-    const buyer = await prisma.buyer.update({
+    const employee = await prisma.employee.update({
       where: { id },
       data: body
     })
 
     return NextResponse.json({
       success: true,
-      data: buyer,
-      message: 'Pembeli berhasil diupdate'
+      data: employee,
+      message: 'Karyawan berhasil diupdate'
     })
   } catch (error) {
-    console.error('Error updating buyer:', error)
+    console.error('Error updating employee:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal mengupdate pembeli'
+        error: 'Gagal mengupdate karyawan'
       },
       { status: 500 }
     )
   }
 }
 
-// DELETE - Hapus buyer (soft delete)
+// DELETE - Hapus karyawan (soft delete)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection not available' },
-        { status: 503 }
-      )
-    }
-
+    // prisma already initialized above
+    
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
 
     if (hardDelete) {
       // Hard delete - completely remove from database
-      await prisma.buyer.delete({
+      await prisma.employee.delete({
         where: { id }
       })
     } else {
       // Soft delete - set aktif to false
-      await prisma.buyer.update({
+      await prisma.employee.update({
         where: { id },
-        data: { updatedAt: new Date() }
+        data: { aktif: false }
       })
     }
 
     return NextResponse.json({
       success: true,
-      message: hardDelete ? 'Pembeli berhasil dihapus permanen' : 'Pembeli berhasil dinonaktifkan'
+      message: hardDelete ? 'Karyawan berhasil dihapus permanen' : 'Karyawan berhasil dinonaktifkan'
     })
   } catch (error) {
-    console.error('Error deleting buyer:', error)
+    console.error('Error deleting employee:', error)
     return NextResponse.json(
       {
         success: false,
-        error: 'Gagal menghapus pembeli'
+        error: 'Gagal menghapus karyawan'
       },
       { status: 500 }
     )

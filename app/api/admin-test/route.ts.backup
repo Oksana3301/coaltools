@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 
+// Singleton pattern untuk Prisma client
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
-// Use shared prisma client from lib/db
-const prisma = getPrismaClient()
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 interface TestResult {
   module: string
@@ -690,14 +694,6 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
 
 export async function POST(request: NextRequest) {
   try {
-  // Check if prisma client is available
-  if (!prisma) {
-  return NextResponse.json(
-  { success: false, error: 'Database connection not available' },
-  { status: 503 }
-  )
-  }
-
     const { testType } = await request.json()
     // prisma already initialized above
 

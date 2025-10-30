@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
 
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // GET - Ambil karyawan berdasarkan ID
 export async function GET(
@@ -16,6 +12,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+  // Check if prisma client is available
+  if (!prisma) {
+  return NextResponse.json(
+  { success: false, error: 'Database connection not available' },
+  { status: 503 }
+  )
+  }
+
     // prisma already initialized above
     
     const { id } = await params
@@ -64,8 +68,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // prisma already initialized above
-    
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
 
@@ -97,8 +106,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // prisma already initialized above
-    
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const hardDelete = searchParams.get('hardDelete') === 'true'
