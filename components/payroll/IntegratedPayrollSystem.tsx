@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
