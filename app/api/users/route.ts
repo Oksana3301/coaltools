@@ -16,6 +16,13 @@ const UserSchema = z.object({
 // GET - Ambil semua users
 export async function GET() {
   try {
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -51,6 +58,13 @@ export async function GET() {
 // POST - Buat user baru
 export async function POST(request: NextRequest) {
   try {
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
     const validatedData = UserSchema.parse(body)
 
