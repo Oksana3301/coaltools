@@ -9,13 +9,13 @@ const prisma = getPrismaClient()
 // GET - Ambil statistik kas besar
 export async function GET(request: NextRequest) {
   try {
-  // Check if prisma client is available
-  if (!prisma) {
-  return NextResponse.json(
-  { success: false, error: 'Database connection not available' },
-  { status: 503 }
-  )
-  }
+    // Check if prisma client is available
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {}
-    
+
     if (userId) {
       where.createdBy = userId
     }
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     where.deletedAt = null
 
     const [
-      jumlahTransactions,
-      jumlahAmount,
+      totalTransactions,
+      totalAmount,
       statusCounts,
       monthlyData,
       topVendors,
@@ -49,20 +49,20 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       // Total transaksi
       prisma.kasBesarTransaction.count({ where }),
-      
+
       // Total amount
       prisma.kasBesarTransaction.aggregate({
         where,
-        _sum: { jumlah: true }
+        _sum: { total: true }
       }),
-      
+
       // Count by status
       prisma.kasBesarTransaction.groupBy({
         by: ['status'],
         where,
         _count: { status: true }
       }),
-      
+
       // Monthly data (last 6 months) - simplified approach
       prisma.kasBesarTransaction.findMany({
         where: {
@@ -73,21 +73,21 @@ export async function GET(request: NextRequest) {
         },
         select: {
           createdAt: true,
-          jumlah: true
+          total: true
         },
         orderBy: { createdAt: 'desc' }
       }),
-      
+
       // Top vendors
       prisma.kasBesarTransaction.groupBy({
-        by: ['kategori'],
+        by: ['vendorNama'],
         where,
-        _sum: { jumlah: true },
-        _count: { kategori: true },
-        orderBy: { _sum: { jumlah: 'desc' } },
+        _sum: { total: true },
+        _count: { vendorNama: true },
+        orderBy: { _sum: { total: 'desc' } },
         take: 5
       }),
-      
+
       // Recent transactions
       prisma.kasBesarTransaction.findMany({
         where,
@@ -103,13 +103,13 @@ export async function GET(request: NextRequest) {
         acc[month] = { count: 0, amount: 0 }
       }
       acc[month].count++
-      acc[month].amount += tx.jumlah || 0
+      acc[month].amount += tx.total || 0
       return acc
     }, {} as Record<string, { count: number, amount: number }>)
 
     const stats = {
-      jumlahTransactions,
-      jumlahAmount: jumlahAmount._sum.jumlah || 0,
+      totalTransactions,
+      totalAmount: totalAmount._sum.total || 0,
       statusBreakdown: statusCounts.reduce((acc, item) => {
         acc[item.status] = item._count.status
         return acc
@@ -120,17 +120,17 @@ export async function GET(request: NextRequest) {
         amount: data.amount
       })),
       topVendors: topVendors.map(vendor => ({
-        name: vendor.kategori,
-        jumlahAmount: vendor._sum.jumlah || 0,
-        transactionCount: vendor._count.kategori
+        name: vendor.vendorNama,
+        totalAmount: vendor._sum.total || 0,
+        transactionCount: vendor._count.vendorNama
       })),
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
-        deskripsi: tx.deskripsi,
-        jumlah: tx.jumlah,
+        barang: tx.barang,
+        vendorNama: tx.vendorNama,
+        total: tx.total,
         status: tx.status,
-        createdAt: tx.createdAt,
-        creatorName: 'Unknown'
+        createdAt: tx.createdAt
       }))
     }
 
