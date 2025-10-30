@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 // Rate limiting store (in production, use Redis or database)
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>()
@@ -106,13 +100,48 @@ export async function POST(request: NextRequest) {
 
     // Get Prisma client with retry mechanism
     console.log('🔍 Getting database connection...');
-    // prisma already initialized above
+
+    // Check if prisma is available
+    if (!prisma) {
+      console.log('❌ Prisma client not initialized (DATABASE_URL not set)');
+
+      // Use fallback authentication
+      if (validatedData.email === 'admin@coaltools.com' && validatedData.password === 'admin123') {
+        console.log('✅ Fallback authentication successful (no DB)');
+        return NextResponse.json({
+          success: true,
+          data: {
+            id: 'fallback-admin-no-db',
+            email: 'admin@coaltools.com',
+            name: 'Admin (Fallback - No DB)',
+            role: 'ADMIN',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          message: 'Login berhasil (mode offline - database tidak tersedia)',
+          fallback: true,
+          dbError: true
+        })
+      }
+
+      recordFailedAttempt(rateLimitKey)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database tidak dapat diakses. Silakan coba lagi nanti atau hubungi administrator.',
+          dbError: true,
+          details: 'DATABASE_URL not configured'
+        },
+        { status: 503 }
+      )
+    }
+
     console.log('✅ Database connection obtained');
-    
+
     // Test database connection with retry
     let connectionRetries = 3;
     let dbConnected = false;
-    
+
     while (connectionRetries > 0 && !dbConnected) {
       try {
         console.log(`🔍 Testing database connection (attempt ${4 - connectionRetries}/3)...`);
