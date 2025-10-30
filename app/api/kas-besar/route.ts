@@ -103,11 +103,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     logger.apiError('/api/kas-besar GET', error)
-    
+
     // Check if it's a database connection error
     if (error instanceof Error && error.message.includes("Can't reach database server")) {
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: 'Database connection failed',
           details: 'Unable to connect to the database. Please check your internet connection and try again.',
@@ -116,9 +116,15 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       )
     }
-    
+
+    // Return detailed error for debugging
     return NextResponse.json(
-      { success: false, error: 'Gagal mengambil data kas besar' },
+      {
+        success: false,
+        error: 'Gagal mengambil data kas besar',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
