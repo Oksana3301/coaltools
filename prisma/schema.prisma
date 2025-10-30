@@ -247,21 +247,29 @@ model KasKecilExpense {
 }
 
 model KasBesarTransaction {
-  id          String   @id @default(cuid())
-  tanggal     String?
-  bulan       String?
-  tipeTransaksi String?
-  kategori    String?
-  subKategori String?
-  deskripsi   String?
-  jumlah      Float?
-  saldo       Float?
-  status      String   @default("DRAFT")
-  notes       String?
-  createdBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id             String   @id @default(cuid())
+  hari           String?
+  tanggal        String?
+  bulan          String?
+  tipeAktivitas  String?
+  barang         String?
+  banyak         Float?
+  satuan         String?
+  hargaSatuan    Float?
+  total          Float?
+  vendorNama     String?
+  vendorTelp     String?
+  vendorEmail    String?
+  jenis          String?  @default("kas_besar")
+  subJenis       String?
+  buktiUrl       String?
+  kontrakUrl     String?
+  status         String   @default("DRAFT")
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
 
   @@map("kas_besar_transactions")
 }
