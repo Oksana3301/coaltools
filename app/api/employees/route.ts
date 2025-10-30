@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { Prisma } from '@prisma/client'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use getPrismaClient from shared db module
+const prisma = getPrismaClient()
 
 // Schema untuk validasi input employee
 const employeeSchema = z.object({
@@ -40,8 +34,15 @@ const updateEmployeeSchema = employeeSchema.partial().extend({
 // GET - Ambil semua karyawan
 export async function GET(request: NextRequest) {
     // prisma already initialized above
+    if (!prisma) {
+      logger.error('Database connection not available for GET /api/employees')
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
 
-    
+
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Tambah karyawan baru
 export async function POST(request: NextRequest) {
-    const prisma = getPrismaClient();
+    // prisma already initialized above
     if (!prisma) {
       logger.error('Database connection not available for POST /api/employees')
       return NextResponse.json(
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    
+
   try {
     const body = await request.json()
     logger.info('POST /api/employees - Request body received', { bodyKeys: Object.keys(body) })
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update karyawan
 export async function PUT(request: NextRequest) {
-    const prisma = getPrismaClient();
+    // prisma already initialized at top of file
     if (!prisma) {
       logger.error('Database connection not available for PUT /api/employees')
       return NextResponse.json(
@@ -327,7 +328,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus karyawan (soft delete atau hard delete untuk testing)
 export async function DELETE(request: NextRequest) {
-  const prisma = getPrismaClient();
+  // prisma already initialized at top of file;
   if (!prisma) {
     logger.error('Database connection not available for DELETE /api/employees')
     return NextResponse.json(

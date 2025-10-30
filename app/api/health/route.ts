@@ -1,24 +1,17 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-import { isDatabaseAvailable } from '@/lib/db'
+import { isDatabaseAvailable, getPrismaClient } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
     const dbAvailable = isDatabaseAvailable()
-    const prisma = getPrismaClient()
-    
+    // prisma already initialized at top of file
+
     let dbStatus = 'unknown'
     let dbError = null
     

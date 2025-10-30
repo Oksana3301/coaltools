@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 const UserSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
@@ -57,6 +51,9 @@ export async function GET() {
 // POST - Buat user baru
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json()
+    const validatedData = UserSchema.parse(body)
+
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email }

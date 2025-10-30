@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 // Schema untuk validasi input kwitansi
 const kwitansiSchema = z.object({
@@ -37,7 +31,7 @@ const kwitansiSchema = z.object({
 
 // GET - Ambil semua kwitansi dengan search dan filter
 export async function GET(request: NextRequest) {
-  const prisma = getPrismaClient()
+  // prisma already initialized at top of file
   if (!prisma) {
     return NextResponse.json(
       { success: false, error: 'Database connection not available' },
@@ -123,7 +117,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Buat kwitansi baru dengan limit 100 records
 export async function POST(request: NextRequest) {
-  const prisma = getPrismaClient()
+  // prisma already initialized at top of file
   if (!prisma) {
     return NextResponse.json(
       { success: false, error: 'Database connection not available' },
@@ -199,7 +193,7 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update kwitansi
 export async function PUT(request: NextRequest) {
-  const prisma = getPrismaClient()
+  // prisma already initialized at top of file
   if (!prisma) {
     return NextResponse.json(
       { success: false, error: 'Database connection not available' },
@@ -260,7 +254,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Hapus kwitansi (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
-  const prisma = getPrismaClient()
+  // prisma already initialized at top of file
   if (!prisma) {
     return NextResponse.json(
       { success: false, error: 'Database connection not available' },

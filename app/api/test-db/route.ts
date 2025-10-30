@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 export async function GET() {
   try {
-    const prisma = getPrismaClient()
+    // prisma already initialized at top of file
     if (!prisma) {
       return NextResponse.json({ 
         success: false, 
@@ -49,7 +43,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const prisma = getPrismaClient()
+    // prisma already initialized at top of file
     if (!prisma) {
       return NextResponse.json({ 
         success: false, 

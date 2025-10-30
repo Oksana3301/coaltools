@@ -1,28 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 // Force this route to be dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic'
-
-// Don't initialize Prisma at module level to avoid build-time issues
-let prismaInstance: ReturnType<typeof getPrismaClient> | null = null
-
-function getPrisma() {
-  if (!prismaInstance) {
-    prismaInstance = getPrismaClient()
-  }
-  return prismaInstance
-}
 
 // Validation schemas
 const OnboardingSchema = z.object({
@@ -58,9 +42,9 @@ const OnboardingSchema = z.object({
 // GET - Check onboarding status
 export async function GET(request: NextRequest) {
   try {
-    const prisma = getPrisma()
-    
-    // Early return if database is not available (during build time)
+    // prisma already initialized at top of file
+
+// Early return if database is not available (during build time)
     if (!prisma) {
       return NextResponse.json(
         { success: false, error: 'Database not available during build' },
@@ -113,9 +97,9 @@ export async function GET(request: NextRequest) {
 // POST - Submit onboarding data
 export async function POST(request: NextRequest) {
   try {
-    const prisma = getPrisma()
-    
-    // Early return if database is not available (during build time)
+    // prisma already initialized at top of file
+
+// Early return if database is not available (during build time)
     if (!prisma) {
       return NextResponse.json(
         { success: false, error: 'Database not available during build' },
