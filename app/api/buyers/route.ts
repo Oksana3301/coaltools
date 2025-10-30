@@ -7,36 +7,34 @@ import { z } from 'zod'
 const prisma = getPrismaClient()
 
 
-// Configure for static export
-export const dynamic = 'force-static'
-export const revalidate = false
-
 // Schema untuk validasi input buyer
 const buyerSchema = z.object({
-  name: z.string().min(1, 'Nama wajib diisi'),
+  nama: z.string().min(1, 'Nama wajib diisi'),
+  hargaPerTonDefault: z.number().positive().optional(),
+  alamat: z.string().optional(),
+  telepon: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  company: z.string().optional()
+  aktif: z.boolean().default(true)
 })
 
 // GET - Ambil semua buyers
 export async function GET(request: NextRequest) {
   try {
-  // Check if prisma client is available
-  if (!prisma) {
-  return NextResponse.json(
-  { success: false, error: 'Database connection not available' },
-  { status: 503 }
-  )
-  }
+    // Check if prisma client is available
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection not available' },
+        { status: 503 }
+      )
+    }
 
     const { searchParams } = new URL(request.url)
     const includeInactive = searchParams.get('includeInactive') === 'true'
-    
+
     const where = includeInactive ? {} : { aktif: true }
 
     const buyers = await prisma.buyer.findMany({
+      where,
       orderBy: { createdAt: 'desc' }
     })
 

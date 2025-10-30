@@ -61,14 +61,15 @@ model Employee {
 }
 
 model Buyer {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  address   String?
-  company   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  nama               String
+  hargaPerTonDefault Float?
+  alamat             String?
+  telepon            String?
+  email              String?
+  aktif              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("buyers")
 }
@@ -77,13 +78,12 @@ model PayComponent {
   id        String   @id @default(cuid())
   nama      String
   tipe      String   // 'EARNING' or 'DEDUCTION'
-  taxable   Boolean  @default(false)
-  metode    String   // 'FLAT', 'PER_HARI', 'PERSENTASE'
-  basis     String   // 'UPAH_HARIAN', 'BRUTO', 'HARI_KERJA'
-  rate      Float?
-  nominal   Float?
-  capMin    Float?
-  capMax    Float?
+  taxable   Boolean  @default(true)
+  metode    String   // 'FLAT', 'PER_HARI', 'PERSENTASE', 'FORMULA'
+  basis     String?  // 'UPAH_HARIAN', 'UPAH_BULANAN', 'UPAH_BRUTO', 'CUSTOM'
+  nominal   Float?   @default(0)
+  rate      Float?   @default(0)
+  formula   String?
   order     Int      @default(0)
   aktif     Boolean  @default(true)
   createdBy String?
