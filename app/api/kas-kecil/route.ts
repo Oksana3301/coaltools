@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { logger } from '@/lib/logger'
+import { getPrismaClient } from '@/lib/db'
 
-// Singleton pattern untuk Prisma client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Use shared prisma client from lib/db
+const prisma = getPrismaClient()
 
 // GET - Fetch all kas kecil expenses (excluding soft deleted)
 export async function GET(request: NextRequest) {
-
-    
   try {
+    // Check if prisma client is available
+    if (!prisma) {
+      logger.error('Database connection not available for GET /api/kas-kecil')
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database connection not available',
+          message: 'Database tidak dapat diakses. Silakan coba lagi nanti.'
+        },
+        { status: 503 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -89,11 +94,22 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new kas kecil expense
 export async function POST(request: NextRequest) {
-
-    
   try {
+    // Check if prisma client is available
+    if (!prisma) {
+      logger.error('Database connection not available for POST /api/kas-kecil')
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database connection not available',
+          message: 'Database tidak dapat diakses. Silakan coba lagi nanti.'
+        },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
-    
+
     const expense = await prisma.kasKecilExpense.create({
       data: {
         hari: body.hari,
