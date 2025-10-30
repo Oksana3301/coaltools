@@ -15,7 +15,9 @@
 
 ## ✅ SOLUSI - Jalankan SQL Ini:
 
-### File: `FIX_ALL_TABLES.sql`
+### ⚠️ PENTING: Gunakan File V2!
+
+### File: `FIX_ALL_TABLES_V2.sql` (UPDATED - Fixed casing issue)
 
 Script SQL ini akan:
 1. ✅ **Create** semua table yang belum ada
@@ -43,7 +45,7 @@ Script SQL ini akan:
 3. Klik: **SQL Editor**
 
 ### Step 2: Run SQL
-1. Buka file: `FIX_ALL_TABLES.sql`
+1. Buka file: `FIX_ALL_TABLES_V2.sql` ⚠️ **GUNAKAN V2!**
 2. Copy **SEMUA** isi file
 3. Paste ke Supabase SQL Editor
 4. Klik: **RUN** ▶️
