@@ -24,20 +24,31 @@ export async function GET() {
       )
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    // Use raw query to cast enum to text to avoid type mismatch
+    const users = await prisma.$queryRaw<Array<{
+      id: string
+      name: string | null
+      email: string
+      role: string
+      created_at: Date
+    }>>`
+      SELECT id, name, email, role::text as role, created_at
+      FROM users
+      ORDER BY created_at DESC
+    `
+
+    // Map to match expected format
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.created_at
+    }))
 
     return NextResponse.json({
       success: true,
-      data: users
+      data: formattedUsers
     })
   } catch (error) {
     // Handle database connection errors
