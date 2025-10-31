@@ -10,14 +10,32 @@ Semua menu selain Kas Kecil mengalami error database karena:
 
 ### STEP 1: Jalankan SQL untuk Fix User Role Enum
 
+⚠️ **PENTING: Ada 2 versi SQL, pilih salah satu:**
+
+#### OPTION A: Simple Version (RECOMMENDED) ⭐
+Gunakan ini jika Anda tidak perlu policy kompleks:
+
 1. Buka Supabase Dashboard: https://supabase.com/dashboard
 2. Pilih project Coaltools
 3. Klik menu **SQL Editor** di sidebar kiri
 4. Klik **New Query**
-5. Copy-paste isi file `fix-database-types.sql`
+5. Copy-paste isi file `fix-database-types-simple.sql`
 6. Klik **Run** atau tekan Ctrl+Enter
 
 **File yang harus dijalankan:**
+```
+fix-database-types-simple.sql
+```
+
+**Apa yang dilakukan:**
+- ✅ Disable RLS sementara
+- ✅ Drop semua policies secara otomatis
+- ✅ Ubah kolom `role` dari enum ke VARCHAR(50)
+- ✅ Hapus enum type
+- ✅ Enable RLS kembali dengan policy permissive sederhana
+
+#### OPTION B: Full Version
+Jika Anda ingin kontrol policy lebih detail:
 ```
 fix-database-types.sql
 ```

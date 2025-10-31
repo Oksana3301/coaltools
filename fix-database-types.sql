@@ -5,7 +5,22 @@
 -- 1. Fix User Role Column - Convert enum to varchar
 -- =====================================================
 
--- First, drop the default that uses the enum
+-- First, check if there are any policies on the users table
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'users';
+
+-- Drop all policies that depend on the role column
+DROP POLICY IF EXISTS users_select_policy ON users;
+DROP POLICY IF EXISTS users_insert_policy ON users;
+DROP POLICY IF EXISTS users_update_policy ON users;
+DROP POLICY IF EXISTS users_delete_policy ON users;
+DROP POLICY IF EXISTS "Enable read access for authenticated users" ON users;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON users;
+DROP POLICY IF EXISTS "Enable update for users based on role" ON users;
+DROP POLICY IF EXISTS "Enable delete for admin users" ON users;
+
+-- Drop the default that uses the enum
 ALTER TABLE users ALTER COLUMN role DROP DEFAULT;
 
 -- Change the column type from enum to varchar
@@ -13,6 +28,32 @@ ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50) USING role::text;
 
 -- Set the default value back
 ALTER TABLE users ALTER COLUMN role SET DEFAULT 'STAFF';
+
+-- Recreate basic policies (adjust based on your needs)
+-- Enable read access for all authenticated users
+CREATE POLICY users_select_policy ON users
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Enable insert for authenticated users
+CREATE POLICY users_insert_policy ON users
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Enable update for authenticated users (can update their own record)
+CREATE POLICY users_update_policy ON users
+    FOR UPDATE
+    TO authenticated
+    USING (auth.uid()::text = id OR role = 'ADMIN')
+    WITH CHECK (auth.uid()::text = id OR role = 'ADMIN');
+
+-- Enable delete for admin users only
+CREATE POLICY users_delete_policy ON users
+    FOR DELETE
+    TO authenticated
+    USING (role = 'ADMIN');
 
 -- =====================================================
 -- 2. Drop the enum type if it exists (optional cleanup)
