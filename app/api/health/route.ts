@@ -1,55 +1,66 @@
+/**
+ * Health Check API Endpoint
+ *
+ * Provides system health status including database connectivity
+ */
+
 import { NextResponse } from 'next/server'
-import { isDatabaseAvailable, getPrismaClient } from '@/lib/db'
-import { logger } from '@/lib/logger'
-
-// Use shared prisma client from lib/db
-const prisma = getPrismaClient()
-
-export const dynamic = "force-dynamic"
+import {
+  testDatabaseConnection,
+  isDatabaseAvailable,
+  getConnectionStats
+} from '@/lib/db'
 
 export async function GET() {
   try {
-    const dbAvailable = isDatabaseAvailable()
-    // prisma already initialized at top of file
+    const startTime = Date.now()
 
-    let dbStatus = 'unknown'
-    let dbError = null
-    
-    if (prisma) {
-      try {
-        // Try a simple query to test the connection
-        await prisma.$queryRaw`SELECT 1`
-        dbStatus = 'connected'
-      } catch (error) {
-        dbStatus = 'error'
-        dbError = error instanceof Error ? error.message : 'Unknown error'
-      }
-    } else {
-      dbStatus = 'not_available'
-      dbError = 'DATABASE_URL not configured'
-    }
-    
-    return NextResponse.json({
-      success: true,
+    // Check database availability
+    const dbAvailable = isDatabaseAvailable()
+    const stats = getConnectionStats()
+
+    // Test database connection
+    const dbConnected = dbAvailable ? await testDatabaseConnection(1) : false
+
+    const responseTime = Date.now() - startTime
+
+    const status = {
+      status: dbConnected ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'unknown',
-      database: {
-        available: dbAvailable,
-        status: dbStatus,
-        error: dbError,
-        url_configured: !!process.env.DATABASE_URL
+      uptime: process.uptime(),
+      checks: {
+        database: {
+          available: dbAvailable,
+          connected: dbConnected,
+          lastHealthCheck: stats.lastHealthCheck
+            ? new Date(stats.lastHealthCheck).toISOString()
+            : null,
+          timeSinceLastCheck: stats.timeSinceLastCheck
+            ? \`\${Math.round(stats.timeSinceLastCheck / 1000)}s\`
+            : null,
+          connectionAttempts: stats.connectionAttempts
+        },
+        environment: {
+          nodeEnv: process.env.NODE_ENV,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          hasPooledUrl: !!process.env.POSTGRES_PRISMA_URL
+        }
       },
-      message: 'Health check completed'
+      responseTime: \`\${responseTime}ms\`
+    }
+
+    return NextResponse.json(status, {
+      status: dbConnected ? 200 : 503
     })
-  } catch (error) {
-    logger.apiError('/api/health', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Health check failed',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    )
+  } catch (error: any) {
+    console.error('[Health Check] Error:', error)
+
+    return NextResponse.json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }, {
+      status: 500
+    })
   }
 }

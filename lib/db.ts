@@ -1,50 +1,27 @@
+/**
+ * Enhanced Database Connection Module
+ *
+ * This module now uses the robust connection manager with:
+ * - Automatic retry with exponential backoff
+ * - Connection pooling optimized for serverless
+ * - Health checks
+ * - Comprehensive error handling
+ */
+
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-// Only create PrismaClient if DATABASE_URL is available
-const createPrismaClient = () => {
-  // During build time, if DATABASE_URL is not available, return null
-  if (!process.env.DATABASE_URL) {
-    console.warn('DATABASE_URL is not set. PrismaClient will not be initialized.')
-    return null
-  }
-
-  try {
-    // Use pooled connection for serverless (Vercel), direct for development
-    const databaseUrl = process.env.NODE_ENV === 'production'
-      ? (process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL)  // Use pooled connection in production
-      : (process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING)  // Direct connection in development
-
-    return new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      datasources: {
-        db: {
-          url: databaseUrl,
-        },
-      },
-    })
-  } catch (error) {
-    console.error('Failed to create PrismaClient:', error)
-    return null
-  }
-}
-
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
-
-if (process.env.NODE_ENV !== 'production' && prisma) {
-  globalForPrisma.prisma = prisma
-}
-
-// Note: In serverless (Vercel), Prisma automatically manages connections per request
-// No need to manually call $connect() - it connects on first query
-
-// Helper function to ensure Prisma client is available - returns null instead of throwing
-export function getPrismaClient(): PrismaClient | null {
-  return prisma
-}
+// Re-export everything from the robust implementation
+export {
+  prisma,
+  getPrismaClient,
+  getPrismaClientSafe,
+  getPrismaClientForBuild,
+  testDatabaseConnection,
+  executeWithRetry,
+  isDatabaseAvailable,
+  getConnectionStats,
+  disconnectPrisma
+} from './db-robust'
 
 // Fallback Supabase REST API functions
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
