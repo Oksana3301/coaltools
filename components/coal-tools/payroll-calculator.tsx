@@ -471,7 +471,7 @@ export function PayrollCalculator() {
     setLoading(true)
     try {
       const [employeesRes, payComponentsRes, payrollRunsRes] = await Promise.all([
-        apiService.getEmployees({ aktif: true, limit: 200 }).catch(err => {
+        apiService.getEmployees({ page: 1, limit: 100, aktif: true }).catch(err => {
           return { success: false, error: err.message, data: [] }
         }),
         apiService.getPayComponents().catch(err => {
