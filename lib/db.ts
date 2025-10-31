@@ -13,11 +13,13 @@ const createPrismaClient = () => {
   }
 
   try {
-    // Try direct connection first, then pooling
-    const databaseUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL
-    
+    // Use pooled connection for serverless (Vercel), direct for development
+    const databaseUrl = process.env.NODE_ENV === 'production'
+      ? (process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL)  // Use pooled connection in production
+      : (process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING)  // Direct connection in development
+
     return new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['query'] : [],
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
       datasources: {
         db: {
           url: databaseUrl,
@@ -36,16 +38,8 @@ if (process.env.NODE_ENV !== 'production' && prisma) {
   globalForPrisma.prisma = prisma
 }
 
-// Handle connection errors gracefully - only if prisma client exists
-if (prisma) {
-  prisma.$connect()
-    .then(() => {
-      console.log('Database connected successfully')
-    })
-    .catch((error) => {
-      console.error('Database connection failed:', error)
-    })
-}
+// Note: In serverless (Vercel), Prisma automatically manages connections per request
+// No need to manually call $connect() - it connects on first query
 
 // Helper function to ensure Prisma client is available - returns null instead of throwing
 export function getPrismaClient(): PrismaClient | null {
