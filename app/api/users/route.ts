@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger'
 import { getPrismaClient } from '@/lib/db'
 
 // Use shared prisma client from lib/db
+// Updated to use UserRole enum from Prisma schema
 const prisma = getPrismaClient()
 
 const UserSchema = z.object({
