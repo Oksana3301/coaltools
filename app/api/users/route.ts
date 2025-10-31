@@ -49,8 +49,13 @@ export async function GET() {
     }
 
     logger.apiError('/api/users GET', error)
+    console.error('Users API error:', error)
     return NextResponse.json(
-      { success: false, error: 'Gagal mengambil data users' },
+      {
+        success: false,
+        error: 'Gagal mengambil data users',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }

@@ -81,7 +81,10 @@ export async function GET(request: NextRequest) {
       // Top vendors
       prisma.kasBesarTransaction.groupBy({
         by: ['vendorNama'],
-        where,
+        where: {
+          ...where,
+          vendorNama: { not: null }
+        },
         _sum: { total: true },
         _count: { vendorNama: true },
         orderBy: { _sum: { total: 'desc' } },
