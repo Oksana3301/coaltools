@@ -69,10 +69,10 @@ export async function GET(request: NextRequest) {
     const where = {
       ...(search && {
         OR: [
-          { nama: { contains: search, mode: 'insensitive' as const } },
-          { nik: { contains: search, mode: 'insensitive' as const } },
-          { jabatan: { contains: search, mode: 'insensitive' as const } },
-          { site: { contains: search, mode: 'insensitive' as const } }
+          { nama: { contains: search } },
+          { nik: { contains: search } },
+          { jabatan: { contains: search } },
+          { site: { contains: search } }
         ]
       }),
       ...(aktif !== null && { aktif: aktif === 'true' })
