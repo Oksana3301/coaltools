@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { Prisma } from '@prisma/client'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use getPrismaClient from shared db module
-const prisma = getPrismaClient()
 
 // Schema untuk validasi input employee
 const employeeSchema = z.object({
@@ -79,13 +78,13 @@ export async function GET(request: NextRequest) {
     }
 
     const [employees, total] = await Promise.all([
-      prisma.employee.findMany({
+      prisma!.employee.findMany({
         where,
         skip,
         take: limit,
         orderBy: { nama: 'asc' }
       }),
-      prisma.employee.count({ where })
+      prisma!.employee.count({ where })
     ])
 
     logger.info('GET /api/employees - Success', { 
@@ -137,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // Cek duplikasi NIK jika NIK disediakan
     if (validatedData.nik) {
-      const existingNik = await prisma.employee.findFirst({
+      const existingNik = await prisma!.employee.findFirst({
         where: { nik: validatedData.nik }
       })
 
@@ -153,7 +152,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const employee = await prisma.employee.create({
+    const employee = await prisma!.employee.create({
       data: validatedData
     })
 
@@ -228,7 +227,7 @@ export async function PUT(request: NextRequest) {
     const { id, ...updateData } = validatedData
 
     // Cek apakah employee exists
-    const existingEmployee = await prisma.employee.findUnique({
+    const existingEmployee = await prisma!.employee.findUnique({
       where: { id }
     })
 
@@ -245,7 +244,7 @@ export async function PUT(request: NextRequest) {
 
     // Cek duplikasi NIK jika NIK diupdate
     if (updateData.nik && updateData.nik !== existingEmployee.nik) {
-      const existingNik = await prisma.employee.findFirst({
+      const existingNik = await prisma!.employee.findFirst({
         where: {
           nik: updateData.nik,
           id: { not: id }
@@ -264,7 +263,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const employee = await prisma.employee.update({
+    const employee = await prisma!.employee.update({
       where: { id },
       data: updateData
     })
@@ -370,7 +369,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Cek apakah employee exists
-    const existingEmployee = await prisma.employee.findUnique({
+    const existingEmployee = await prisma!.employee.findUnique({
       where: { id },
       include: {
         payrollLines: true,
@@ -426,7 +425,7 @@ export async function DELETE(request: NextRequest) {
       }
 
       // Lakukan hard delete dengan transaction
-      await prisma.$transaction(async (tx) => {
+      await prisma!.$transaction(async (tx) => {
         // Hapus relasi terlebih dahulu jika ada
         await tx.payrollLine.deleteMany({
           where: { employeeId: id }
@@ -452,7 +451,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // SOFT DELETE - Default behavior
-    const employee = await prisma.employee.update({
+    const employee = await prisma!.employee.update({
       where: { id },
       data: { aktif: false }
     })

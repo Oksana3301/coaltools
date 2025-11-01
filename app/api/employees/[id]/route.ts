@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 // GET - Ambil karyawan berdasarkan ID
@@ -24,7 +23,7 @@ export async function GET(
     
     const { id } = await params
 
-    const employee = await prisma.employee.findUnique({
+    const employee = await prisma!.employee.findUnique({
       where: { id },
       include: {
         payrollLines: {
@@ -78,7 +77,7 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    const employee = await prisma.employee.update({
+    const employee = await prisma!.employee.update({
       where: { id },
       data: body
     })
@@ -119,12 +118,12 @@ export async function DELETE(
 
     if (hardDelete) {
       // Hard delete - completely remove from database
-      await prisma.employee.delete({
+      await prisma!.employee.delete({
         where: { id }
       })
     } else {
       // Soft delete - set aktif to false
-      await prisma.employee.update({
+      await prisma!.employee.update({
         where: { id },
         data: { aktif: false }
       })

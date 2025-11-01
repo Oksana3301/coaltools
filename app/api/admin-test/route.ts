@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 interface TestResult {
@@ -100,7 +99,7 @@ async function testEmployeesCRUD(prisma: any): Promise<TestResult[]> {
 
   try {
     // CREATE Test
-    const created = await prisma.employee.create({
+    const created = await prisma!.employee.create({
       data: {
         nama: testData.employee.nama,
         nik: testData.employee.nik,
@@ -123,7 +122,7 @@ async function testEmployeesCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // READ Test
-    const found = await prisma.employee.findUnique({
+    const found = await prisma!.employee.findUnique({
       where: { id: createdId }
     })
     results.push({
@@ -136,7 +135,7 @@ async function testEmployeesCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // UPDATE Test
-    const updated = await prisma.employee.update({
+    const updated = await prisma!.employee.update({
       where: { id: createdId },
       data: { jabatan: 'Updated Test Position' }
     })
@@ -150,7 +149,7 @@ async function testEmployeesCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // DELETE Test
-    await prisma.employee.delete({
+    await prisma!.employee.delete({
       where: { id: createdId }
     })
     results.push({
@@ -175,7 +174,7 @@ async function testEmployeesCRUD(prisma: any): Promise<TestResult[]> {
     // Cleanup if needed
     if (createdId) {
       try {
-        await prisma.employee.delete({ where: { id: createdId } })
+        await prisma!.employee.delete({ where: { id: createdId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
@@ -192,7 +191,7 @@ async function testKasKecilCRUD(prisma: any): Promise<TestResult[]> {
 
   try {
     // CREATE Test
-    const created = await prisma.kasKecilExpense.create({
+    const created = await prisma!.kasKecilExpense.create({
       data: testData.kasKecil
     })
     createdId = created.id
@@ -206,7 +205,7 @@ async function testKasKecilCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // READ Test
-    const found = await prisma.kasKecilExpense.findUnique({
+    const found = await prisma!.kasKecilExpense.findUnique({
       where: { id: createdId }
     })
     results.push({
@@ -219,7 +218,7 @@ async function testKasKecilCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // UPDATE Test
-    const updated = await prisma.kasKecilExpense.update({
+    const updated = await prisma!.kasKecilExpense.update({
       where: { id: createdId },
       data: { status: 'SUBMITTED' }
     })
@@ -233,7 +232,7 @@ async function testKasKecilCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // DELETE Test
-    await prisma.kasKecilExpense.update({
+    await prisma!.kasKecilExpense.update({
       where: { id: createdId },
       data: { deletedAt: new Date() }
     })
@@ -267,7 +266,7 @@ async function testKasBesarCRUD(prisma: any): Promise<TestResult[]> {
 
   try {
     // CREATE Test
-    const created = await prisma.kasBesarExpense.create({
+    const created = await prisma!.kasBesarExpense.create({
       data: testData.kasBesar
     })
     createdId = created.id
@@ -281,7 +280,7 @@ async function testKasBesarCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // READ Test
-    const found = await prisma.kasBesarExpense.findUnique({
+    const found = await prisma!.kasBesarExpense.findUnique({
       where: { id: createdId }
     })
     results.push({
@@ -294,7 +293,7 @@ async function testKasBesarCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // UPDATE Test
-    const updated = await prisma.kasBesarExpense.update({
+    const updated = await prisma!.kasBesarExpense.update({
       where: { id: createdId },
       data: { status: 'SUBMITTED' }
     })
@@ -308,7 +307,7 @@ async function testKasBesarCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // DELETE Test
-    await prisma.kasBesarExpense.update({
+    await prisma!.kasBesarExpense.update({
       where: { id: createdId },
       data: { deletedAt: new Date() }
     })
@@ -342,7 +341,7 @@ async function testBuyersCRUD(prisma: any): Promise<TestResult[]> {
 
   try {
     // CREATE Test
-    const created = await prisma.buyer.create({
+    const created = await prisma!.buyer.create({
       data: testData.buyer
     })
     createdId = created.id
@@ -356,7 +355,7 @@ async function testBuyersCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // READ Test
-    const found = await prisma.buyer.findUnique({
+    const found = await prisma!.buyer.findUnique({
       where: { id: createdId }
     })
     results.push({
@@ -369,7 +368,7 @@ async function testBuyersCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // UPDATE Test
-    const updated = await prisma.buyer.update({
+    const updated = await prisma!.buyer.update({
       where: { id: createdId },
       data: { hargaPerTonDefault: 900000 }
     })
@@ -383,7 +382,7 @@ async function testBuyersCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // DELETE Test
-    await prisma.buyer.delete({
+    await prisma!.buyer.delete({
       where: { id: createdId }
     })
     results.push({
@@ -408,7 +407,7 @@ async function testBuyersCRUD(prisma: any): Promise<TestResult[]> {
     // Cleanup if needed
     if (createdId) {
       try {
-        await prisma.buyer.delete({ where: { id: createdId } })
+        await prisma!.buyer.delete({ where: { id: createdId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
@@ -426,7 +425,7 @@ async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
 
   try {
     // CREATE Test
-    const created = await prisma.payComponent.create({
+    const created = await prisma!.payComponent.create({
       data: {
         nama: testData.payComponent.nama,
         tipe: testData.payComponent.tipe,
@@ -448,7 +447,7 @@ async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // READ Test
-    const found = await prisma.payComponent.findUnique({
+    const found = await prisma!.payComponent.findUnique({
       where: { id: createdId }
     })
     results.push({
@@ -461,7 +460,7 @@ async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // UPDATE Test
-    const updated = await prisma.payComponent.update({
+    const updated = await prisma!.payComponent.update({
       where: { id: createdId },
       data: { nominal: 75000 }
     })
@@ -475,7 +474,7 @@ async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // DELETE Test
-    await prisma.payComponent.delete({
+    await prisma!.payComponent.delete({
       where: { id: createdId }
     })
     results.push({
@@ -500,7 +499,7 @@ async function testPayComponentsCRUD(prisma: any): Promise<TestResult[]> {
     // Cleanup if needed
     if (createdId) {
       try {
-        await prisma.payComponent.delete({ where: { id: createdId } })
+        await prisma!.payComponent.delete({ where: { id: createdId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
@@ -518,7 +517,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
 
   try {
     // First create a test user for the foreign key constraint
-    const testUser = await prisma.user.create({
+    const testUser = await prisma!.user.create({
       data: {
         name: `Test User ${Date.now()}`,
         email: `test${Date.now()}@example.com`,
@@ -531,7 +530,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     // Create test employees (required for payroll)
     const testData = generateTestData()
     for (let i = 0; i < 2; i++) {
-      const employee = await prisma.employee.create({
+      const employee = await prisma!.employee.create({
         data: {
           nama: `${testData.employee.nama} ${i + 1}`,
           nik: `${testData.employee.nik}${i}`,
@@ -548,7 +547,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
 
     // CREATE Payroll Test
     // First check that we have active employees
-    const activeEmployees = await prisma.employee.findMany({
+    const activeEmployees = await prisma!.employee.findMany({
       where: { aktif: true }
     })
 
@@ -557,7 +556,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     }
 
     // Create payroll run directly
-    const createdPayroll = await prisma.payrollRun.create({
+    const createdPayroll = await prisma!.payrollRun.create({
       data: {
         periodeAwal: '2025-01-01',
         periodeAkhir: '2025-01-31',
@@ -577,7 +576,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // READ Payroll Test
-    const foundPayroll = await prisma.payrollRun.findUnique({
+    const foundPayroll = await prisma!.payrollRun.findUnique({
       where: { id: createdPayrollId }
     })
     results.push({
@@ -590,7 +589,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // UPDATE Payroll Test
-    const updatedPayroll = await prisma.payrollRun.update({
+    const updatedPayroll = await prisma!.payrollRun.update({
       where: { id: createdPayrollId },
       data: { status: 'SUBMITTED' }
     })
@@ -604,7 +603,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     })
 
     // DELETE Payroll Test
-    await prisma.payrollRun.delete({
+    await prisma!.payrollRun.delete({
       where: { id: createdPayrollId }
     })
     results.push({
@@ -619,7 +618,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     // Clean up test employees after successful test
     for (const employeeId of createdEmployeeIds) {
       try {
-        await prisma.employee.delete({
+        await prisma!.employee.delete({
           where: { id: employeeId }
         })
       } catch (cleanupError) {
@@ -630,7 +629,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     // Clean up test user after successful test
     if (createdUserId) {
       try {
-        await prisma.user.delete({
+        await prisma!.user.delete({
           where: { id: createdUserId }
         })
       } catch (cleanupError) {
@@ -651,7 +650,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     // Cleanup if needed
     if (createdPayrollId) {
       try {
-        await prisma.payrollRun.delete({ where: { id: createdPayrollId } })
+        await prisma!.payrollRun.delete({ where: { id: createdPayrollId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
@@ -660,7 +659,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     // Clean up test employees on error
     for (const employeeId of createdEmployeeIds) {
       try {
-        await prisma.employee.delete({ where: { id: employeeId } })
+        await prisma!.employee.delete({ where: { id: employeeId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
@@ -669,7 +668,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
     // Clean up test user on error
     if (createdUserId) {
       try {
-        await prisma.user.delete({ where: { id: createdUserId } })
+        await prisma!.user.delete({ where: { id: createdUserId } })
       } catch (cleanupError) {
         // Ignore cleanup errors
       }
@@ -679,7 +678,7 @@ async function testPayrollCRUD(prisma: any): Promise<TestResult[]> {
   // Cleanup test user
   if (createdUserId) {
     try {
-      await prisma.user.delete({ where: { id: createdUserId } })
+      await prisma!.user.delete({ where: { id: createdUserId } })
     } catch (cleanupError) {
       // Ignore cleanup errors
     }

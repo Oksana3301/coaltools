@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
-const prisma = getPrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Step 3: Test database connection
     if (prisma) {
       try {
-        await prisma.$queryRaw`SELECT 1 as test`
+        await prisma!.$queryRaw`SELECT 1 as test`
         testResults.step3_database_connection = 'OK'
       } catch (e) {
         testResults.step3_database_connection = 'ERROR: ' + (e instanceof Error ? e.message : String(e))
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
 
       // Step 4: Find user
       try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma!.user.findUnique({
           where: { email: 'admin@coaltools.com' }
         })
         testResults.step4_find_user = user ? 'OK - user found' : 'FAIL - user not found'

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // GET - Ambil payroll run berdasarkan ID
 export async function GET(
@@ -17,7 +16,7 @@ export async function GET(
     
     const { id } = await params
 
-    const payrollRun = await prisma.payrollRun.findUnique({
+    const payrollRun = await prisma!.payrollRun.findUnique({
       where: { id },
       include: {
         payrollLines: {
@@ -70,7 +69,7 @@ export async function PATCH(
     const { status, approvedBy, notes } = body
 
     // Validate status transition
-    const currentPayroll = await prisma.payrollRun.findUnique({
+    const currentPayroll = await prisma!.payrollRun.findUnique({
       where: { id },
       select: { status: true }
     })
@@ -105,7 +104,7 @@ export async function PATCH(
       )
     }
 
-    const payrollRun = await prisma.payrollRun.update({
+    const payrollRun = await prisma!.payrollRun.update({
       where: { id },
       data: {
         ...(status && { status }),
@@ -159,7 +158,7 @@ async function generateKwitansiForPayroll(payrollRun: any) {
   })
 
   // Get complete payroll data with employee relationships
-  const completePayrollRun = await prisma.payrollRun.findUnique({
+  const completePayrollRun = await prisma!.payrollRun.findUnique({
     where: { id: payrollRun.id },
     include: {
       payrollLines: {
@@ -185,7 +184,7 @@ async function generateKwitansiForPayroll(payrollRun: any) {
     }
     
     // Generate unique kwitansi number
-    const kwitansiCount = await prisma.kwitansi.count({
+    const kwitansiCount = await prisma!.kwitansi.count({
       where: {
         payrollRunId: payrollRun.id,
         employeeId: employee.id
@@ -196,7 +195,7 @@ async function generateKwitansiForPayroll(payrollRun: any) {
 
     try {
       // Create kwitansi record
-      await prisma.kwitansi.create({
+      await prisma!.kwitansi.create({
         data: {
           nomorKwitansi,
           tanggal: currentDate.toISOString().split('T')[0],

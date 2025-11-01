@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // Force this route to be dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic'
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Ensure user exists for demo purposes
-    await prisma.user.upsert({
+    await prisma!.user.upsert({
       where: { id: userId },
       create: {
         id: userId,
@@ -74,7 +73,7 @@ export async function GET(request: NextRequest) {
       update: {},
     })
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma!.user.findUnique({
       where: { id: userId }
     })
 
@@ -121,7 +120,7 @@ export async function POST(request: NextRequest) {
     const validatedData = OnboardingSchema.parse(body)
 
     // Use transaction to ensure data consistency
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma!.$transaction(async (tx) => {
       // First, ensure the user exists (create if not exists for demo purposes)
       await tx.user.upsert({
         where: { id: userId },

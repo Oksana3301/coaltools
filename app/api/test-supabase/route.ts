@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 /**
@@ -39,17 +38,17 @@ export async function GET(request: NextRequest) {
 
     // Test 1: Database Connection
     try {
-      await prisma.$connect()
+      await prisma!.$connect()
       testResults.database.connected = true
       
       // Test basic query
-      const userCount = await prisma.user.count()
+      const userCount = await prisma!.user.count()
       testResults.database.tables.push(`Users: ${userCount} records`)
       
-      const employeeCount = await prisma.employee.count()
+      const employeeCount = await prisma!.employee.count()
       testResults.database.tables.push(`Employees: ${employeeCount} records`)
       
-      const payrollRunCount = await prisma.payrollRun.count()
+      const payrollRunCount = await prisma!.payrollRun.count()
       testResults.database.tables.push(`Payroll Runs: ${payrollRunCount} records`)
       
     } catch (error) {
@@ -76,7 +75,7 @@ export async function GET(request: NextRequest) {
     // Test 3: Data Integrity Checks
     try {
       // Check if database schema is valid
-      const tables = await prisma.$queryRaw`
+      const tables = await prisma!.$queryRaw`
         SELECT name FROM sqlite_master 
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
         ORDER BY name
@@ -94,7 +93,7 @@ export async function GET(request: NextRequest) {
       }
       
       // Check for data consistency
-      const payrollRuns = await prisma.payrollRun.findMany({
+      const payrollRuns = await prisma!.payrollRun.findMany({
         include: { payrollLines: true }
       })
       
@@ -137,7 +136,7 @@ export async function GET(request: NextRequest) {
     }, { status: 500 })
   } finally {
     if (prisma) {
-      await prisma.$disconnect()
+      await prisma!.$disconnect()
     }
   }
 }
@@ -179,7 +178,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Test 1: Create test user
-      const testUser = await prisma.user.create({
+      const testUser = await prisma!.user.create({
         data: {
           email: `test-${Date.now()}@example.com`,
           name: 'Test User',
@@ -191,7 +190,7 @@ export async function POST(request: NextRequest) {
       testResults.createUser.success = true
 
       // Test 2: Create test employee
-      const testEmployee = await prisma.employee.create({
+      const testEmployee = await prisma!.employee.create({
         data: {
           nama: 'Test Employee',
           jabatan: 'Test Position',
@@ -204,7 +203,7 @@ export async function POST(request: NextRequest) {
       testResults.createEmployee.success = true
 
       // Test 3: Create test payroll run
-      const testPayrollRun = await prisma.payrollRun.create({
+      const testPayrollRun = await prisma!.payrollRun.create({
         data: {
           periodeAwal: '2024-01-01',
           periodeAkhir: '2024-01-31',
@@ -217,7 +216,7 @@ export async function POST(request: NextRequest) {
       testResults.createPayrollRun.success = true
 
       // Test 4: Create payroll line
-      await prisma.payrollLine.create({
+      await prisma!.payrollLine.create({
         data: {
           payrollRunId: testPayrollRunId,
           employeeId: testEmployeeId,
@@ -244,20 +243,20 @@ export async function POST(request: NextRequest) {
       // Cleanup test data
       try {
         if (testPayrollRunId) {
-          await prisma.payrollLine.deleteMany({
+          await prisma!.payrollLine.deleteMany({
             where: { payrollRunId: testPayrollRunId }
           })
-          await prisma.payrollRun.delete({
+          await prisma!.payrollRun.delete({
             where: { id: testPayrollRunId }
           })
         }
         if (testEmployeeId) {
-          await prisma.employee.delete({
+          await prisma!.employee.delete({
             where: { id: testEmployeeId }
           })
         }
         if (testUserId) {
-          await prisma.user.delete({
+          await prisma!.user.delete({
             where: { id: testUserId }
           })
         }
@@ -289,7 +288,7 @@ export async function POST(request: NextRequest) {
     }, { status: 500 })
   } finally {
     if (prisma) {
-      await prisma.$disconnect()
+      await prisma!.$disconnect()
     }
   }
 }

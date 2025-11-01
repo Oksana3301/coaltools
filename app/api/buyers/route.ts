@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 // Schema untuk validasi input buyer
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     const where = includeInactive ? {} : { aktif: true }
 
-    const buyers = await prisma.buyer.findMany({
+    const buyers = await prisma!.buyer.findMany({
       where,
       orderBy: { createdAt: 'desc' }
     })
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = buyerSchema.parse(body)
 
-    const buyer = await prisma.buyer.create({
+    const buyer = await prisma!.buyer.create({
       data: validatedData
     })
 

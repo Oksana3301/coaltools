@@ -286,6 +286,14 @@ export function getConnectionStats() {
   }
 }
 
+// Helper to get prisma with non-null assertion (throws if not available)
+export function getPrismaOrThrow(): PrismaClient {
+  if (!prisma) {
+    throw new Error('Database connection not available')
+  }
+  return prisma
+}
+
 // Export for backward compatibility
 export const getPrismaClientSafe = getPrismaClient
 export const getPrismaClientForBuild = getPrismaClient

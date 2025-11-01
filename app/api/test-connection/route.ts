@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +20,7 @@ export async function GET(request: NextRequest) {
       }, { status: 503 })
     }
 
-    const result = await prisma.$queryRaw`SELECT 1 as test`
+    const result = await prisma!.$queryRaw`SELECT 1 as test`
 
     return NextResponse.json({
       success: true,

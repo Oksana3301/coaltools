@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { getPrismaClient } from '@/lib/db'
-
-// Use shared prisma client from lib/db
-const prisma = getPrismaClient()
+import { prisma } from '@/lib/db'
 
 // Rate limiting store (in production, use Redis or database)
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>()
@@ -145,7 +142,7 @@ export async function POST(request: NextRequest) {
     while (connectionRetries > 0 && !dbConnected) {
       try {
         console.log(`🔍 Testing database connection (attempt ${4 - connectionRetries}/3)...`);
-        await prisma.$queryRaw`SELECT 1`;
+        await prisma!.$queryRaw`SELECT 1`;
         dbConnected = true;
         console.log('✅ Database connection test successful');
       } catch (dbError) {
@@ -193,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     // Find user by email
     console.log('🔍 Searching for user:', validatedData.email);
-    const user = await prisma.user.findUnique({
+    const user = await prisma!.user.findUnique({
       where: { email: validatedData.email },
       select: {
         id: true,

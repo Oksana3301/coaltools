@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 // GET - Ambil statistik kas besar
@@ -48,23 +47,23 @@ export async function GET(request: NextRequest) {
       recentTransactions
     ] = await Promise.all([
       // Total transaksi
-      prisma.kasBesarTransaction.count({ where }),
+      prisma!.kasBesarTransaction.count({ where }),
 
       // Total amount
-      prisma.kasBesarTransaction.aggregate({
+      prisma!.kasBesarTransaction.aggregate({
         where,
         _sum: { total: true }
       }),
 
       // Count by status
-      prisma.kasBesarTransaction.groupBy({
+      prisma!.kasBesarTransaction.groupBy({
         by: ['status'],
         where,
         _count: { status: true }
       }),
 
       // Monthly data (last 6 months) - simplified approach
-      prisma.kasBesarTransaction.findMany({
+      prisma!.kasBesarTransaction.findMany({
         where: {
           ...where,
           createdAt: {
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
       }),
 
       // Top vendors
-      prisma.kasBesarTransaction.groupBy({
+      prisma!.kasBesarTransaction.groupBy({
         by: ['vendorNama'],
         where: {
           ...where,
@@ -92,7 +91,7 @@ export async function GET(request: NextRequest) {
       }),
 
       // Recent transactions
-      prisma.kasBesarTransaction.findMany({
+      prisma!.kasBesarTransaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take: 5

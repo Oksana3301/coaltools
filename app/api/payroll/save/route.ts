@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 /**
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cek apakah payroll run sudah ada untuk periode yang sama
-    const existingPayrollRun = await prisma.payrollRun.findFirst({
+    const existingPayrollRun = await prisma!.payrollRun.findFirst({
       where: {
         periodeAwal: payrollPeriod.startDate,
         periodeAkhir: payrollPeriod.endDate,
@@ -117,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mulai transaksi database
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma!.$transaction(async (tx) => {
       // 1. Buat PayrollRun
       const payrollRun = await tx.payrollRun.create({
         data: {
@@ -257,7 +256,7 @@ export async function POST(request: NextRequest) {
     )
   } finally {
     if (prisma) {
-      await prisma.$disconnect()
+      await prisma!.$disconnect()
     }
   }
 }
@@ -281,7 +280,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const [payrollRuns, totalCount] = await Promise.all([
-      prisma.payrollRun.findMany({
+      prisma!.payrollRun.findMany({
         where: { deletedAt: null },
         include: {
           payrollLines: {
@@ -294,7 +293,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit
       }),
-      prisma.payrollRun.count({
+      prisma!.payrollRun.count({
         where: { deletedAt: null }
       })
     ])
@@ -325,7 +324,7 @@ export async function GET(request: NextRequest) {
     )
   } finally {
     if (prisma) {
-      await prisma.$disconnect()
+      await prisma!.$disconnect()
     }
   }
 }

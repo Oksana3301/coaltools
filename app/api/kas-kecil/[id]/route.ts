@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // GET - Fetch single kas kecil expense
 export async function GET(
@@ -16,7 +15,7 @@ export async function GET(
     }
     
     const { id } = await params
-    const expense = await prisma.kasKecilExpense.findFirst({
+    const expense = await prisma!.kasKecilExpense.findFirst({
       where: {
         id: id,
         deletedAt: null
@@ -54,7 +53,7 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     
-    const expense = await prisma.kasKecilExpense.update({
+    const expense = await prisma!.kasKecilExpense.update({
       where: {
         id: id,
         deletedAt: null
@@ -107,12 +106,12 @@ export async function DELETE(
     
     if (hardDelete) {
       // Hard delete - completely remove from database
-      await prisma.kasKecilExpense.delete({
+      await prisma!.kasKecilExpense.delete({
         where: { id: id }
       })
     } else {
       // Soft delete - set deletedAt timestamp
-      await prisma.kasKecilExpense.update({
+      await prisma!.kasKecilExpense.update({
         where: { id: id },
         data: { deletedAt: new Date() }
       })
@@ -146,7 +145,7 @@ export async function PATCH(
     const body = await request.json()
     
     if (body.action === 'restore') {
-      const expense = await prisma.kasKecilExpense.update({
+      const expense = await prisma!.kasKecilExpense.update({
         where: { id: id },
         data: { deletedAt: null }
       })

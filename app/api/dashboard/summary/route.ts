@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import type { DashboardSummary, Core12KPI, FinanceSummary, AlertItem } from '@/lib/dashboard-types';
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 const QuerySchema = z.object({
@@ -120,7 +119,7 @@ async function getCore12KPIs(prisma: any, period: string, site: string): Promise
   
   try {
     // Get production data
-    const productionData = await prisma.productionReport.aggregate({
+    const productionData = await prisma!.productionReport.aggregate({
       where: {
         tanggal: {
           startsWith: period
@@ -136,7 +135,7 @@ async function getCore12KPIs(prisma: any, period: string, site: string): Promise
     });
 
     // Get financial data from expenses
-    const expenseData = await prisma.kasBesarExpense.aggregate({
+    const expenseData = await prisma!.kasBesarExpense.aggregate({
       where: {
         tanggal: {
           startsWith: period
@@ -208,7 +207,7 @@ async function getCore12KPIs(prisma: any, period: string, site: string): Promise
 
 async function getFinanceSummary(prisma: any, period: string, site: string): Promise<FinanceSummary> {
   try {
-    const expenseData = await prisma.kasBesarExpense.aggregate({
+    const expenseData = await prisma!.kasBesarExpense.aggregate({
       where: {
         tanggal: { startsWith: period },
         status: 'APPROVED'

@@ -16,6 +16,7 @@ export {
   getPrismaClient,
   getPrismaClientSafe,
   getPrismaClientForBuild,
+  getPrismaOrThrow,
   testDatabaseConnection,
   executeWithRetry,
   isDatabaseAvailable,
@@ -87,23 +88,4 @@ export async function supabaseQuery(table: string, operation: 'select' | 'insert
   const result = await response.json()
   console.log('Supabase result:', result)
   return result
-}
-
-// Export a safe version that returns null instead of throwing
-export function getPrismaClientSafe(): PrismaClient | null {
-  return prisma
-}
-
-// For build-time compatibility, export a mock client when DATABASE_URL is not available
-export function getPrismaClientForBuild(): PrismaClient | null {
-  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-    // During production build without DATABASE_URL, return null to prevent build failures
-    return null
-  }
-  return prisma
-}
-
-// Check if database is available
-export function isDatabaseAvailable(): boolean {
-  return prisma !== null
 }

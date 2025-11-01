@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
 // Updated to use UserRole enum from Prisma schema
-const prisma = getPrismaClient()
 
 const UserSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
@@ -25,7 +24,7 @@ export async function GET() {
     }
 
     // Use raw query to cast enum to text to avoid type mismatch
-    const users = await prisma.$queryRaw<Array<{
+    const users = await prisma!.$queryRaw<Array<{
       id: string
       name: string | null
       email: string
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     const validatedData = UserSchema.parse(body)
 
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma!.user.findUnique({
       where: { email: validatedData.email }
     })
 
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const newUser = await prisma.user.create({
+    const newUser = await prisma!.user.create({
       data: {
         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: validatedData.name,

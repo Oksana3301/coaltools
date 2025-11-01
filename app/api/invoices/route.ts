@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // Schema untuk validasi input invoice
 const invoiceSchema = z.object({
@@ -64,19 +63,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Check total count and enforce 100 record limit
-    const totalCount = await prisma.invoice.count({ 
+    const totalCount = await prisma!.invoice.count({ 
       where: { deletedAt: null }
     })
 
     const [invoices, total] = await Promise.all([
-      prisma.invoice.findMany({
+      prisma!.invoice.findMany({
         where,
         skip,
         take: limit,
 
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.invoice.count({ where })
+      prisma!.invoice.count({ where })
     ])
 
     return NextResponse.json({
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest) {
     const validatedData = invoiceSchema.parse(body)
 
     // Check if user has reached 100 record limit
-    const userRecordCount = await prisma.invoice.count({
+    const userRecordCount = await prisma!.invoice.count({
       where: { 
         deletedAt: null 
       }
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     // If at limit, auto-delete oldest record
     if (userRecordCount >= 100) {
-      const oldestRecord = await prisma.invoice.findFirst({
+      const oldestRecord = await prisma!.invoice.findFirst({
         where: { 
           deletedAt: null 
         },
@@ -136,14 +135,14 @@ export async function POST(request: NextRequest) {
       })
 
       if (oldestRecord) {
-        await prisma.invoice.update({
+        await prisma!.invoice.update({
           where: { id: oldestRecord.id },
           data: { deletedAt: new Date() }
         })
       }
     }
 
-    const invoice = await prisma.invoice.create({
+    const invoice = await prisma!.invoice.create({
       data: {
         number: validatedData.invoiceNumber,
         buyerName: validatedData.recipientName,
@@ -216,7 +215,7 @@ export async function PUT(request: NextRequest) {
       updatePayload.items = JSON.stringify(updatePayload.items)
     }
 
-    const invoice = await prisma.invoice.update({
+    const invoice = await prisma!.invoice.update({
       where: { id },
       data: updatePayload,
     })
@@ -276,7 +275,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if invoice exists
-    const invoice = await prisma.invoice.findUnique({
+    const invoice = await prisma!.invoice.findUnique({
       where: { id },
       select: { deletedAt: true }
     })
@@ -304,7 +303,7 @@ export async function DELETE(request: NextRequest) {
 
     if (force) {
       // Hard delete - permanently remove from database
-      await prisma.invoice.delete({
+      await prisma!.invoice.delete({
         where: { id }
       })
       
@@ -314,7 +313,7 @@ export async function DELETE(request: NextRequest) {
       })
     } else {
       // Soft delete - mark as deleted
-      await prisma.invoice.update({
+      await prisma!.invoice.update({
         where: { id },
         data: { deletedAt: new Date() }
       })

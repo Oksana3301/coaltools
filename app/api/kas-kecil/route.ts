@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // GET - Fetch all kas kecil expenses (excluding soft deleted)
 export async function GET(request: NextRequest) {
@@ -43,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get expenses with pagination
-    const expenses = await prisma.kasKecilExpense.findMany({
+    const expenses = await prisma!.kasKecilExpense.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       skip: offset,
@@ -51,7 +50,7 @@ export async function GET(request: NextRequest) {
     })
     
     // Get total count
-    const totalCount = await prisma.kasKecilExpense.count({
+    const totalCount = await prisma!.kasKecilExpense.count({
       where: whereClause
     })
     
@@ -110,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    const expense = await prisma.kasKecilExpense.create({
+    const expense = await prisma!.kasKecilExpense.create({
       data: {
         hari: body.hari,
         tanggal: body.tanggal,

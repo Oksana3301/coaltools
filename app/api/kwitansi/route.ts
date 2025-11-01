@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // Schema untuk validasi input kwitansi
 const kwitansiSchema = z.object({
@@ -74,19 +73,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Check total count and enforce 100 record limit
-    const totalCount = await prisma.kwitansi.count({ 
+    const totalCount = await prisma!.kwitansi.count({ 
       where: { deletedAt: null, ...(createdBy && { createdBy }) }
     })
 
     const [kwitansi, total] = await Promise.all([
-      prisma.kwitansi.findMany({
+      prisma!.kwitansi.findMany({
         where,
         skip,
         take: limit,
 
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.kwitansi.count({ where })
+      prisma!.kwitansi.count({ where })
     ])
 
     return NextResponse.json({
@@ -130,7 +129,7 @@ export async function POST(request: NextRequest) {
     const validatedData = kwitansiSchema.parse(body)
 
     // Check if user has reached 100 record limit
-    const userRecordCount = await prisma.kwitansi.count({
+    const userRecordCount = await prisma!.kwitansi.count({
       where: { 
         createdBy: validatedData.createdBy,
         deletedAt: null 
@@ -139,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     // If at limit, auto-delete oldest record
     if (userRecordCount >= 100) {
-      const oldestRecord = await prisma.kwitansi.findFirst({
+      const oldestRecord = await prisma!.kwitansi.findFirst({
         where: { 
           createdBy: validatedData.createdBy,
           deletedAt: null 
@@ -148,14 +147,14 @@ export async function POST(request: NextRequest) {
       })
 
       if (oldestRecord) {
-        await prisma.kwitansi.update({
+        await prisma!.kwitansi.update({
           where: { id: oldestRecord.id },
           data: { deletedAt: new Date() }
         })
       }
     }
 
-    const kwitansi = await prisma.kwitansi.create({
+    const kwitansi = await prisma!.kwitansi.create({
       data: {
         ...validatedData,
         jumlah: validatedData.jumlahUang
@@ -217,7 +216,7 @@ export async function PUT(request: NextRequest) {
 
     const validatedData = kwitansiSchema.partial().parse(updateData)
 
-    const kwitansi = await prisma.kwitansi.update({
+    const kwitansi = await prisma!.kwitansi.update({
       where: { id },
       data: validatedData,
 
@@ -278,7 +277,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if kwitansi exists
-    const kwitansi = await prisma.kwitansi.findUnique({
+    const kwitansi = await prisma!.kwitansi.findUnique({
       where: { id },
       select: { deletedAt: true }
     })
@@ -306,7 +305,7 @@ export async function DELETE(request: NextRequest) {
 
     if (force) {
       // Hard delete - permanently remove from database
-      await prisma.kwitansi.delete({
+      await prisma!.kwitansi.delete({
         where: { id }
       })
       
@@ -316,7 +315,7 @@ export async function DELETE(request: NextRequest) {
       })
     } else {
       // Soft delete - mark as deleted
-      await prisma.kwitansi.update({
+      await prisma!.kwitansi.update({
         where: { id },
         data: { deletedAt: new Date() }
       })

@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { z } from 'zod'
-
-
-// Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 const LogoutSchema = z.object({
@@ -41,18 +37,18 @@ export async function POST(request: NextRequest) {
         // Find user by ID or email
         let user = null
         if (validatedData.userId) {
-          user = await prisma.user.findUnique({
+          user = await prisma!.user.findUnique({
             where: { id: validatedData.userId }
           })
         } else if (validatedData.email) {
-          user = await prisma.user.findUnique({
+          user = await prisma!.user.findUnique({
             where: { email: validatedData.email }
           })
         }
 
         // Create logout activity record
         if (user) {
-          await prisma.loginActivity.create({
+          await prisma!.loginActivity.create({
             data: {
               userId: user.id,
               email: user.email,

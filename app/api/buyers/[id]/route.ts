@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 export const dynamic = "force-static"
@@ -25,7 +24,7 @@ export async function GET(
     const { id } = await params
     // prisma already initialized above
 
-    const buyer = await prisma.buyer.findUnique({
+    const buyer = await prisma!.buyer.findUnique({
       where: { id }
     })
 
@@ -71,7 +70,7 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    const buyer = await prisma.buyer.update({
+    const buyer = await prisma!.buyer.update({
       where: { id },
       data: body
     })
@@ -112,12 +111,12 @@ export async function DELETE(
 
     if (hardDelete) {
       // Hard delete - completely remove from database
-      await prisma.buyer.delete({
+      await prisma!.buyer.delete({
         where: { id }
       })
     } else {
       // Soft delete - set aktif to false
-      await prisma.buyer.update({
+      await prisma!.buyer.update({
         where: { id },
         data: { updatedAt: new Date() }
       })

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 export async function GET() {
   try {
@@ -16,10 +15,10 @@ export async function GET() {
     }
     
     // Test database connection with a simple query
-    const result = await prisma.$queryRaw`SELECT 1 as test`
+    const result = await prisma!.$queryRaw`SELECT 1 as test`
     
     // Test if we can access users table
-    const userCount = await prisma.user.count()
+    const userCount = await prisma!.user.count()
     
     return NextResponse.json({ 
       success: true, 
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const result = await prisma.$queryRawUnsafe(query)
+    const result = await prisma!.$queryRawUnsafe(query)
     
     return NextResponse.json({ 
       success: true, 

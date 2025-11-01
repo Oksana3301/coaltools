@@ -36,7 +36,7 @@ export async function GET() {
             ? new Date(stats.lastHealthCheck).toISOString()
             : null,
           timeSinceLastCheck: stats.timeSinceLastCheck
-            ? \`\${Math.round(stats.timeSinceLastCheck / 1000)}s\`
+            ? `${Math.round(stats.timeSinceLastCheck / 1000)}s`
             : null,
           connectionAttempts: stats.connectionAttempts
         },
@@ -46,7 +46,7 @@ export async function GET() {
           hasPooledUrl: !!process.env.POSTGRES_PRISMA_URL
         }
       },
-      responseTime: \`\${responseTime}ms\`
+      responseTime: `${responseTime}ms`
     }
 
     return NextResponse.json(status, {

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 // Schema validation untuk Kas Besar
@@ -82,13 +81,13 @@ export async function GET(request: NextRequest) {
     }
 
     const [expenses, total] = await Promise.all([
-      prisma.kasBesarTransaction.findMany({
+      prisma!.kasBesarTransaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       }),
-      prisma.kasBesarTransaction.count({ where })
+      prisma!.kasBesarTransaction.count({ where })
     ])
 
     return NextResponse.json({
@@ -146,7 +145,7 @@ export async function POST(request: NextRequest) {
     const validatedData = KasBesarSchema.parse(body)
 
     // Create expense
-    const expense = await prisma.kasBesarTransaction.create({
+    const expense = await prisma!.kasBesarTransaction.create({
       data: {
         ...validatedData,
         status: 'DRAFT'
@@ -197,7 +196,7 @@ export async function PUT(request: NextRequest) {
     const { id, ...updateData } = validatedData
 
     // Get old data for audit
-    const oldExpense = await prisma.kasBesarTransaction.findUnique({
+    const oldExpense = await prisma!.kasBesarTransaction.findUnique({
       where: { id }
     })
 
@@ -209,7 +208,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update expense
-    const expense = await prisma.kasBesarTransaction.update({
+    const expense = await prisma!.kasBesarTransaction.update({
       where: { id },
       data: updateData
     })
@@ -264,7 +263,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get data for audit
-    const expense = await prisma.kasBesarTransaction.findUnique({
+    const expense = await prisma!.kasBesarTransaction.findUnique({
       where: { id }
     })
 
@@ -278,7 +277,7 @@ export async function DELETE(request: NextRequest) {
     // Check if user can delete (only creator or admin)
     if (expense.createdBy !== userId) {
       // In production, add role checking here
-      // const user = await prisma.user.findUnique({ where: { id: userId } })
+      // const user = await prisma!.user.findUnique({ where: { id: userId } })
       // if (user?.role !== 'admin') {
       //   return NextResponse.json(
       //     { success: false, error: 'Tidak memiliki akses untuk menghapus' },
@@ -288,7 +287,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete expense
-    await prisma.kasBesarTransaction.delete({
+    await prisma!.kasBesarTransaction.delete({
       where: { id }
     })
 

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 const StatusUpdateSchema = z.object({
   status: z.enum(['DRAFT', 'SUBMITTED', 'REVIEWED', 'APPROVED', 'ARCHIVED', 'REJECTED']),
@@ -23,7 +22,7 @@ export async function GET(
     }
     
     const { id } = await params
-    const expense = await prisma.kasBesarTransaction.findUnique({
+    const expense = await prisma!.kasBesarTransaction.findUnique({
       where: { id: id }
     })
 
@@ -63,7 +62,7 @@ export async function PATCH(
     const validatedData = StatusUpdateSchema.parse(body)
 
     // Get old data for audit
-    const oldExpense = await prisma.kasBesarTransaction.findUnique({
+    const oldExpense = await prisma!.kasBesarTransaction.findUnique({
       where: { id: id }
     })
 
@@ -75,7 +74,7 @@ export async function PATCH(
     }
 
     // Update status
-    const expense = await prisma.kasBesarTransaction.update({
+    const expense = await prisma!.kasBesarTransaction.update({
       where: { id: id },
       data: {
         status: validatedData.status,

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 
 // Schema untuk validasi input payroll
@@ -62,19 +61,19 @@ export async function GET(request: NextRequest) {
 
     // Use regular Prisma query
     const [payrollRuns, total] = await Promise.all([
-      prisma.payrollRun.findMany({
+      prisma!.payrollRun.findMany({
         where: where,
         orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit
       }),
-      prisma.payrollRun.count({ where })
+      prisma!.payrollRun.count({ where })
     ])
 
     // Get payroll lines for each run
     const payrollRunsWithLines = await Promise.all(
       payrollRuns.map(async (run) => {
-        const payrollLines = await prisma.payrollLine.findMany({
+        const payrollLines = await prisma!.payrollLine.findMany({
           where: { payrollRunId: run.id },
           include: {
             employee: {
@@ -131,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     // Test database connection before proceeding
     try {
-      await prisma.$connect()
+      await prisma!.$connect()
     } catch (dbError) {
       return NextResponse.json(
         {
@@ -151,7 +150,7 @@ export async function POST(request: NextRequest) {
     // Get active employees
     let employees = []
     try {
-      employees = await prisma.employee.findMany({
+      employees = await prisma!.employee.findMany({
         where: { aktif: true }
       })
       // Found active employees
@@ -174,7 +173,7 @@ export async function POST(request: NextRequest) {
     // Get active pay components - with error handling
     let payComponents: any[] = []
     try {
-      payComponents = await prisma.payComponent.findMany({
+      payComponents = await prisma!.payComponent.findMany({
         where: { aktif: true },
         orderBy: { order: 'asc' }
       })
@@ -372,7 +371,7 @@ export async function POST(request: NextRequest) {
     // Create payroll run with transaction
     let payrollRun
     try {
-      payrollRun = await prisma.$transaction(async (tx) => {
+      payrollRun = await prisma!.$transaction(async (tx) => {
       // Skip user creation since User table relations are disabled
       const userId = validatedData.createdBy || 'system'
 
@@ -442,7 +441,7 @@ export async function POST(request: NextRequest) {
     // Fetch the complete payroll run with relations
     let completePayrollRun
     try {
-      completePayrollRun = await prisma.payrollRun.findUnique({
+      completePayrollRun = await prisma!.payrollRun.findUnique({
         where: { id: payrollRun.id }
       })
     } catch (fetchError) {
@@ -511,7 +510,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const payrollRun = await prisma.$transaction(async (tx) => {
+    const payrollRun = await prisma!.$transaction(async (tx) => {
       // Update payroll run
       const updatedRun = await tx.payrollRun.update({
         where: { id },
@@ -543,7 +542,7 @@ export async function PUT(request: NextRequest) {
     })
 
     // Fetch complete data with payrollLines
-    const completePayrollRun = await prisma.payrollRun.findUnique({
+    const completePayrollRun = await prisma!.payrollRun.findUnique({
       where: { id },
       include: {
         payrollLines: {
@@ -608,7 +607,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if payroll exists and can be deleted
-    const payrollRun = await prisma.payrollRun.findUnique({
+    const payrollRun = await prisma!.payrollRun.findUnique({
       where: { id },
       select: { status: true, deletedAt: true }
     })
@@ -647,7 +646,7 @@ export async function DELETE(request: NextRequest) {
 
     if (force) {
       // Hard delete - permanently remove from database
-      await prisma.payrollRun.delete({
+      await prisma!.payrollRun.delete({
         where: { id }
       })
       
@@ -657,7 +656,7 @@ export async function DELETE(request: NextRequest) {
       })
     } else {
       // Soft delete - mark as deleted
-      await prisma.payrollRun.update({
+      await prisma!.payrollRun.update({
         where: { id },
         data: { deletedAt: new Date() }
       })

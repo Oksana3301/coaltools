@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrismaClient } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
 // Use shared prisma client from lib/db
-const prisma = getPrismaClient()
 
 // Validation schema
 const payComponentSchema = z.object({
@@ -35,7 +34,7 @@ export async function GET() {
       )
     }
 
-    const components = await prisma.payComponent.findMany({
+    const components = await prisma!.payComponent.findMany({
       where: { aktif: true },
       orderBy: { order: 'asc' }
     })
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = payComponentSchema.parse(body)
 
-    const component = await prisma.payComponent.create({
+    const component = await prisma!.payComponent.create({
       data: validatedData
     })
 
@@ -115,7 +114,7 @@ export async function PUT(request: NextRequest) {
 
     const validatedData = payComponentSchema.partial().parse(updateData)
 
-    const component = await prisma.payComponent.update({
+    const component = await prisma!.payComponent.update({
       where: { id },
       data: validatedData
     })
@@ -163,7 +162,7 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 })
     }
 
-    await prisma.payComponent.delete({
+    await prisma!.payComponent.delete({
       where: { id }
     })
 
