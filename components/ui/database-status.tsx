@@ -17,13 +17,16 @@ export function DatabaseStatus({ className }: DatabaseStatusProps) {
     try {
       const response = await fetch('/api/health')
       const data = await response.json()
-      
+
       // Check if response is successful and database is available
-      if (response.ok && data.success && data.database?.available === true) {
-        setIsOnline(true)
-      } else {
-        setIsOnline(false)
-      }
+      // Support both old format (data.success, data.database.available)
+      // and new format (data.status, data.checks.database.available/connected)
+      const isHealthy = response.ok && (
+        (data.success && data.database?.available === true) || // Old format
+        (data.status === 'healthy' && data.checks?.database?.available === true && data.checks?.database?.connected === true) // New format
+      )
+
+      setIsOnline(isHealthy)
     } catch (error) {
       console.error('Database status check error:', error)
       setIsOnline(false)
