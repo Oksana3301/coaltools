@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { DatabaseStatus } from "@/components/ui/database-status"
 import { Menu, X, User, LogOut } from "lucide-react"
 import Link from "next/link"
 import { getCurrentUser, logout, getSessionInfo, formatTimeRemaining } from "@/lib/auth"
@@ -221,7 +220,6 @@ export function LayoutWithSidebar({ children }: LayoutWithSidebarProps) {
         {/* Main Content */}
         <main className="flex-1 min-w-0">
           <div className="p-4 md:p-8">
-            <DatabaseStatus className="mb-4" />
             {children}
           </div>
         </main>
